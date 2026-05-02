@@ -1,0 +1,17 @@
+gmao/
+├── config/
+│   └── database.php
+├── includes/
+│   └── functions.php
+├── assets/
+│   ├── css/
+│   └── js/
+├── modules/
+│   ├── equipment/
+│   ├── interventions/
+│   ├── preventive/
+│   ├── stock/
+│   └── dashboard/
+├── index.php
+├── install.php
+└── .htaccess

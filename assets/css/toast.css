@@ -1,0 +1,139 @@
+/* assets/css/toast.css - Notifications Toast */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast-notification {
+    background: white;
+    border-radius: 12px;
+    padding: 15px 20px;
+    min-width: 300px;
+    max-width: 400px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    animation: slideInRight 0.3s ease-out;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-left: 4px solid;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.toast-notification:hover {
+    transform: translateX(-5px);
+}
+
+.toast-notification.critical {
+    border-left-color: #dc3545;
+    background: linear-gradient(135deg, #fff5f5 0%, white 100%);
+}
+
+.toast-notification.warning {
+    border-left-color: #ffc107;
+    background: linear-gradient(135deg, #fff9e6 0%, white 100%);
+}
+
+.toast-notification.info {
+    border-left-color: #17a2b8;
+    background: linear-gradient(135deg, #e6f7f9 0%, white 100%);
+}
+
+.toast-notification.success {
+    border-left-color: #28a745;
+    background: linear-gradient(135deg, #e6f9ed 0%, white 100%);
+}
+
+.toast-icon {
+    font-size: 24px;
+}
+
+.toast-content {
+    flex: 1;
+}
+
+.toast-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.toast-message {
+    font-size: 13px;
+    color: #666;
+}
+
+.toast-time {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+}
+
+.toast-close {
+    cursor: pointer;
+    color: #999;
+    padding: 5px;
+    font-size: 14px;
+}
+
+.toast-close:hover {
+    color: #333;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Badge de notification */
+.notification-badge {
+    position: relative;
+    display: inline-block;
+}
+
+.badge-count {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: bold;
+    min-width: 18px;
+    text-align: center;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Notification sonore */
+.alert-sound {
+    display: none;
+}
