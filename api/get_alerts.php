@@ -74,8 +74,9 @@ $stmt = $pdo->query("
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
     WHERE i.priority = 'critical' 
-    AND i.status = 'pending'
-    AND i.technician_id IS NULL
+    AND i.task_status != 'termine'
+    AND i.task_status != 'cloturee'
+    AND i.intervenant_id IS NULL
 ");
 $critical = $stmt->fetchAll();
 
@@ -97,10 +98,11 @@ foreach($critical as $intervention) {
 
 // 4. Garanties expirant bientôt
 $stmt = $pdo->query("
-    SELECT name, warranty_end 
+    SELECT name, warranty_end, code 
     FROM equipment 
     WHERE warranty_end IS NOT NULL 
     AND warranty_end <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+    AND status != 'retired'
 ");
 $warranty = $stmt->fetchAll();
 
@@ -109,7 +111,7 @@ foreach($warranty as $eq) {
     
     if($days < 0) {
         $alerts[] = [
-            'id' => 'warranty_' . $eq['name'],
+            'id' => 'warranty_' . $eq['code'],
             'type' => 'warranty_expired',
             'priority' => 'critical',
             'title' => 'Garantie expirée',
@@ -120,8 +122,8 @@ foreach($warranty as $eq) {
         $counts['critical']++;
     } elseif($days <= 30) {
         $alerts[] = [
-            'id' => 'warranty_' . $eq['name'],
-            'type' => 'warranty_expiring',
+            'id' => 'warranty_' . $eq['code'],
+            'type' => 'warranty_upcoming',
             'priority' => 'warning',
             'title' => 'Garantie bientôt expirée',
             'message' => "{$eq['name']} : plus que " . round($days) . " jours de garantie",
@@ -132,7 +134,34 @@ foreach($warranty as $eq) {
     }
 }
 
-// 5. Limiter le nombre d'alertes
+// 5. Interventions non assignées depuis plus de 3 jours
+$stmt = $pdo->query("
+    SELECT i.*, e.name as equipment_name 
+    FROM interventions i 
+    JOIN equipment e ON i.equipment_id = e.id 
+    WHERE i.intervenant_id IS NULL 
+    AND i.task_status = 'a_faire'
+    AND i.created_at <= DATE_SUB(NOW(), INTERVAL 3 DAY)
+");
+$unassigned = $stmt->fetchAll();
+
+foreach($unassigned as $inv) {
+    $days = (time() - strtotime($inv['created_at'])) / 86400;
+    
+    $alerts[] = [
+        'id' => 'unassigned_' . $inv['id'],
+        'type' => 'unassigned_intervention',
+        'priority' => 'warning',
+        'title' => 'Intervention non assignée',
+        'message' => "{$inv['title']} - En attente d'assignation depuis " . round($days) . " jours",
+        'url' => '/gmao/index.php?page=interventions&action=assign&id=' . $inv['id'],
+        'timestamp' => time()
+    ];
+    
+    $counts['warning']++;
+}
+
+// Limiter le nombre d'alertes
 $alerts = array_slice($alerts, 0, 20);
 
 echo json_encode([

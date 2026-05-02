@@ -1,28 +1,15 @@
 <?php
-// index.php - VERSION SIMPLIFIÉE ET FACTORISÉE
+// index.php - VERSION FACTORISÉE (250 lignes) - CORRIGÉE POUR ANGLAIS
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 define('ROOT_PATH', __DIR__);
-
-// Chargement des traductions (ne dépend pas de la BDD)
 require_once ROOT_PATH . '/includes/lang.php';
-
-// Forcer la langue via URL (ex: ?lang=en)
-if(isset($_GET['lang'])) {
-    $_SESSION['lang'] = $_GET['lang'];
-}
-
-// Si pas de langue en session, mettre anglais par défaut
-if(!isset($_SESSION['lang'])) {
-    $_SESSION['lang'] = 'en';
-}
 
 $page = $_GET['page'] ?? 'login';
 $action = $_GET['action'] ?? 'list';
 
-// Vérifier la session (pas de BDD)
 if ($page !== 'login' && !isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
@@ -64,11 +51,11 @@ elseif (in_array($page, $pages_with_sidebar)) {
     require_once ROOT_PATH . '/includes/functions.php';
     ?>
     <!DOCTYPE html>
-    <html lang="<?php echo getCurrentLanguage(); ?>">
+    <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>GMAO Industrielle - <?php echo ucfirst(str_replace('_', ' ', $page)); ?></title>
+        <title>GMAO Industrial - <?php echo ucfirst(str_replace('_', ' ', $page)); ?></title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <link rel="stylesheet" href="/gmao/assets/css/toast.css">
@@ -166,7 +153,7 @@ elseif (in_array($page, $pages_with_sidebar)) {
                                 <h5 class="mb-0"><i class="fas fa-<?php echo $page == 'dashboard' ? 'tachometer-alt' : ($page == 'performance' ? 'chart-line' : ($page == 'equipment' ? 'microchip' : ($page == 'interventions' ? 'tools' : ($page == 'preventive' ? 'calendar-alt' : ($page == 'technicians' ? 'users' : ($page == 'planning' ? 'calendar-week' : ($page == 'alerts' ? 'bell' : 'boxes'))))))); ?>"></i> <?php echo ucfirst(str_replace('_', ' ', $page)); ?></h5>
                             </div>
                             <div class="col-md-6 text-end">
-                                <span class="badge bg-info p-2"><i class="fas fa-user"></i> <?php echo $_SESSION['username'] ?? 'Technicien'; ?></span>
+                                <span class="badge bg-info p-2"><i class="fas fa-user"></i> <?php echo $_SESSION['username'] ?? 'Technician'; ?></span>
                                 <span class="badge bg-secondary p-2 ms-2"><i class="fas fa-calendar"></i> <?php echo date('d/m/Y'); ?></span>
                             </div>
                         </div>
@@ -184,9 +171,9 @@ elseif (in_array($page, $pages_with_sidebar)) {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/gmao/sw.js').then(function(registration) {
-                    console.log('Service Worker enregistrÃ©:', registration.scope);
+                    console.log('Service Worker registered:', registration.scope);
                 }).catch(function(error) {
-                    console.log('Erreur Service Worker:', error);
+                    console.log('Service Worker error:', error);
                 });
             });
         }

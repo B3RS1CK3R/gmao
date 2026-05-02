@@ -1,38 +1,24 @@
 <?php
 // pages/profile.php - Contenu du profil
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
 }
-
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/lang.php';
 
 $user_id = $_SESSION['user_id'];
 $user = getUser($user_id);
 $message = '';
 $error = '';
 
-// Traitement du changement de langue
-if(isset($_POST['change_language'])) {
-    setLanguage($_POST['language']);
-    $message = t('language_updated');
-    // Rediriger pour rafraîchir la page
-    echo "<meta http-equiv='refresh' content='1;url=?page=profile'>";
-}
-
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
     if(isset($_POST['update_profile'])) {
         $stmt = $pdo->prepare("UPDATE users SET fullname = ?, email = ? WHERE id = ?");
         if($stmt->execute([$_POST['fullname'], $_POST['email'], $user_id])) {
-            logUserAction($user_id, 'profile_updated', 'Profil mis à jour');
+            logUserAction($user_id, 'profile_updated', 'Profile updated');
             $message = "✅ " . t('save_success');
             $user = getUser($user_id);
+        } else {
+            $error = "❌ " . t('save_error');
         }
     }
     
@@ -41,7 +27,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             if($_POST['new_password'] == $_POST['confirm_password']) {
                 if(strlen($_POST['new_password']) >= 6) {
                     updateUserPassword($user_id, $_POST['new_password']);
-                    logUserAction($user_id, 'password_changed', 'Mot de passe modifié');
+                    logUserAction($user_id, 'password_changed', 'Password changed');
                     $message = "✅ " . t('save_success');
                 } else {
                     $error = "❌ " . t('password_too_short');
@@ -157,7 +143,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
             <div class="small mt-2">
                 <i class="fas fa-clock"></i> <?php echo t('last_connection'); ?><br>
-                <?php echo $user['last_login'] ? date('d/m/Y H:i', strtotime($user['last_login'])) : 'Jamais'; ?>
+                <?php echo $user['last_login'] ? date('d/m/Y H:i', strtotime($user['last_login'])) : t('never'); ?>
             </div>
         </div>
     </div>
@@ -226,33 +212,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                     <button type="submit" name="change_password" class="btn btn-warning"><?php echo t('change_password'); ?></button>
                 </form>
-            </div>
-        </div>
-        
-        <!-- Sélecteur de langue -->
-        <div class="info-card mt-4">
-            <div class="info-card-header">
-                <i class="fas fa-language"></i> <?php echo t('select_language'); ?>
-            </div>
-            <div class="card-body p-4">
-                <form method="POST" action="?page=profile">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <select name="language" class="form-select" id="languageSelect">
-                                <option value="en" <?php echo (getCurrentLanguage() == 'en') ? 'selected' : ''; ?>>🇬🇧 English</option>
-                                <option value="fr" <?php echo (getCurrentLanguage() == 'fr') ? 'selected' : ''; ?>>🇫🇷 Français</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <button type="submit" name="change_language" class="btn btn-primary">
-                                <i class="fas fa-save"></i> <?php echo t('save'); ?>
-                            </button>
-                        </div>
-                    </div>
-                </form>
-                <div class="mt-3 small text-muted">
-                    <i class="fas fa-info-circle"></i> <?php echo t('language_updated'); ?>
-                </div>
             </div>
         </div>
     </div>

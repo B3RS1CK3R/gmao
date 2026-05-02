@@ -1,13 +1,4 @@
 <?php
-<?php
-// pages/equipment.php
-// AJOUT POUR DIAGNOSTIC
-if(isset($_GET['debug'])) {
-    echo "<!-- Langue: " . getCurrentLanguage() . " -->";
-    echo "<!-- t('equipment'): " . t('equipment') . " -->";
-}
-?>
-
 // pages/equipment.php - Gestion complète des équipements (CRUD)
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
