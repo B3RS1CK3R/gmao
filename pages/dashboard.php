@@ -1,5 +1,5 @@
 <?php
-// pages/dashboard.php - Version complète avec traductions
+// pages/dashboard.php - Full version with translations
 if(isset($_GET['debug_lang'])) {
     echo "<div class='alert alert-info'>";
     echo "Langue actuelle: " . getCurrentLanguage() . "<br>";
@@ -109,7 +109,7 @@ $recentInterventions = getRecentInterventions(5);
                                             </span>
                                         </td>
                                         <td><?php echo t($interv['status']); ?></td>
-                                        <td><?php echo date('d/m/Y', strtotime($interv['created_at'])); ?></td>
+                                        <td><?php echo date('m/d/Y', strtotime($interv['created_at'])); ?></td>
                                     </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>

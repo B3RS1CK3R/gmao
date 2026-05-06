@@ -138,7 +138,7 @@ try {
         resolution_notes TEXT,
         status ENUM('pending', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending',
         intervenant_id INT NULL,
-        task_status ENUM('a_faire', 'en_cours', 'termine', 'cloturee') DEFAULT 'a_faire',
+        task_status ENUM('pending', 'in_progress', 'completed', 'closed') DEFAULT 'pending',
         intervention_date DATE NULL,
         scheduled_time TIME NULL,
         task_type ENUM('revision', 'depannage', 'installation', 'maintenance_preventive', 'controle', 'autre') DEFAULT 'revision',

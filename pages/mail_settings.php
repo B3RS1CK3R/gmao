@@ -34,7 +34,7 @@ define('ALERT_EMAILS', $alert_emails_php);
 ?>";
     
     if(file_put_contents($settings_file, $config_content)) {
-        logUserAction($_SESSION['user_id'], 'mail_settings_updated', 'Configuration email mise à jour');
+        logUserAction($_SESSION['user_id'], 'mail_settings_updated', 'Email configuration updated');
         $message = "✅ " . t('save_success');
         
         if(!empty($_POST['test_email'])) {
@@ -55,7 +55,7 @@ define('ALERT_EMAILS', $alert_emails_php);
                 <div class='content'>
                     <h3>✅ " . t('test_email_success') . "</h3>
                     <p>" . t('test_email_message') . "</p>
-                    <p>" . t('test_email_date') . " : " . date('d/m/Y H:i:s') . "</p>
+                    <p>" . t('test_email_date') . " : " . format_date_us(date('Y-m-d H:i:s'), true) . "</p>
                     <hr>
                     <small>GMAO Industrielle - " . t('login_subtitle') . "</small>
                 </div>

@@ -1,5 +1,5 @@
 <?php
-// pages/interventions.php - Gestion complète des interventions (CRUD)
+// pages/interventions.php - Full interventions management (CRUD)
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
@@ -9,27 +9,27 @@ $action = $_GET['action'] ?? 'list';
 $message = '';
 $error = '';
 
-// ========== TRAITEMENT DES ACTIONS ==========
+// ========== ACTION PROCESSING ==========
 
-// Changement de statut rapide
+// Quick status change
 if($action == 'change_status' && isset($_GET['id']) && isset($_GET['status'])) {
     $stmt = $pdo->prepare("UPDATE interventions SET task_status = ? WHERE id = ?");
     $stmt->execute([$_GET['status'], $_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'intervention_status_change', "Statut modifié pour ID: {$_GET['id']} vers {$_GET['status']}");
+    logUserAction($_SESSION['user_id'], 'intervention_status_change', "Status changed for ID: {$_GET['id']} to {$_GET['status']}");
     $message = "✅ " . t('status_updated');
     echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
 }
 
-// Assignation d'un technicien
+// Assign a technician
 if($action == 'assign' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $stmt = $pdo->prepare("UPDATE interventions SET intervenant_id = ? WHERE id = ?");
     $stmt->execute([$_POST['technician_id'], $_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'intervention_assigned', "Technicien assigné à ID: {$_GET['id']}");
+    logUserAction($_SESSION['user_id'], 'intervention_assigned', "Technician assigned to ID: {$_GET['id']}");
     $message = "✅ " . t('technician_assigned');
     echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
 }
 
-// Terminer une intervention avec rapport
+// Complete an intervention with report
 if($action == 'complete' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $stmt = $pdo->prepare("
         UPDATE interventions 
@@ -40,12 +40,12 @@ if($action == 'complete' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 
         WHERE id = ?
     ");
     $stmt->execute([$_POST['completion_report'], $_POST['duration_hours'], $_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'intervention_completed', "Intervention terminée ID: {$_GET['id']}");
+    logUserAction($_SESSION['user_id'], 'intervention_completed', "Intervention completed ID: {$_GET['id']}");
     $message = "✅ " . t('intervention_completed');
     echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
 }
 
-// Suppression (soft delete - annulation) avec validation mot de passe
+// Delete (soft delete - cancellation) with password validation
 if($action == 'delete' && isset($_GET['id'])) {
     if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor') {
         if(isset($_POST['confirm_password'])) {
@@ -55,7 +55,7 @@ if($action == 'delete' && isset($_GET['id'])) {
             if(password_verify($_POST['confirm_password'], $user['password'])) {
                 $stmt2 = $pdo->prepare("UPDATE interventions SET status = 'cancelled', task_status = 'cloturee' WHERE id = ?");
                 $stmt2->execute([$_GET['id']]);
-                logUserAction($_SESSION['user_id'], 'intervention_deleted', "Intervention ID: {$_GET['id']} annulée");
+                logUserAction($_SESSION['user_id'], 'intervention_deleted', "Intervention ID: {$_GET['id']} cancelled");
                 $message = "✅ " . t('save_success');
                 echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
             } else {
@@ -65,7 +65,7 @@ if($action == 'delete' && isset($_GET['id'])) {
     }
 }
 
-// Modification d'une intervention
+// Edit an intervention
 if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $sql = "UPDATE interventions SET 
             title = ?,
@@ -93,7 +93,7 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
     ]);
     
     if($result) {
-        logUserAction($_SESSION['user_id'], 'intervention_updated', "Intervention ID: {$_GET['id']} modifiée");
+        logUserAction($_SESSION['user_id'], 'intervention_updated', "Intervention ID: {$_GET['id']} updated");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
     } else {
@@ -101,10 +101,10 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
     }
 }
 
-// Récupération de la liste des techniciens
+// Fetch technicians list
 $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
 
-// Récupération des interventions avec tous les détails
+// Fetch interventions with all details
 $interventions = $pdo->query("
     SELECT i.*, e.name as equipment_name, e.code as equipment_code, e.location as equipment_location,
            t.id as technician_id, t.firstname, t.lastname, t.specialty
@@ -123,14 +123,14 @@ $interventions = $pdo->query("
         i.created_at DESC
 ")->fetchAll();
 
-// Statistiques des interventions
+// Intervention statistics
 $total = count($interventions);
 $a_faire = count(array_filter($interventions, function($i) { return $i['task_status'] == 'a_faire'; }));
 $en_cours = count(array_filter($interventions, function($i) { return $i['task_status'] == 'en_cours'; }));
 $termine = count(array_filter($interventions, function($i) { return $i['task_status'] == 'termine'; }));
 $cloturee = count(array_filter($interventions, function($i) { return $i['task_status'] == 'cloturee'; }));
 
-// Récupération de l'historique des modifications pour chaque intervention
+// Fetch modifications history for each intervention
 $history = [];
 foreach($interventions as $inv) {
     $stmt = $pdo->prepare("
@@ -145,7 +145,7 @@ foreach($interventions as $inv) {
     $history[$inv['id']] = $stmt->fetchAll();
 }
 
-// ========== MODAL D'ASSIGNATION ==========
+// ========== ASSIGNMENT MODAL ==========
 if($action == 'assign' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT * FROM interventions WHERE id = ?");
     $stmt->execute([$_GET['id']]);
@@ -200,7 +200,7 @@ if($action == 'assign' && isset($_GET['id'])):
 return;
 endif;
 
-// ========== MODAL DE TERMINAISON ==========
+// ========== COMPLETION MODAL ==========
 if($action == 'complete' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT i.*, e.name as equipment_name FROM interventions i JOIN equipment e ON i.equipment_id = e.id WHERE i.id = ?");
     $stmt->execute([$_GET['id']]);
@@ -238,7 +238,7 @@ if($action == 'complete' && isset($_GET['id'])):
 return;
 endif;
 
-// ========== MODAL DE CONFIRMATION SUPPRESSION ==========
+// ========== DELETE CONFIRMATION MODAL ==========
 if($action == 'delete' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT * FROM interventions WHERE id = ?");
     $stmt->execute([$_GET['id']]);
@@ -274,7 +274,7 @@ if($action == 'delete' && isset($_GET['id'])):
 return;
 endif;
 
-// ========== FORMULAIRE DE MODIFICATION ==========
+// ========== EDIT FORM ==========
 if($action == 'edit' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT i.*, e.name as equipment_name FROM interventions i JOIN equipment e ON i.equipment_id = e.id WHERE i.id = ?");
     $stmt->execute([$_GET['id']]);
@@ -497,7 +497,7 @@ endif;
         </div>
     <?php endif; ?>
     
-    <!-- Cartes statistiques -->
+    <!-- Statistics cards -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="stats-card" onclick="filterByStatus('all')">
@@ -525,7 +525,7 @@ endif;
         </div>
     </div>
     
-    <!-- Filtres rapides -->
+    <!-- Quick filters -->
     <div class="filter-bar">
         <div class="row align-items-center">
             <div class="col-md-8">
@@ -545,7 +545,7 @@ endif;
         </div>
     </div>
     
-    <!-- Liste des interventions -->
+    <!-- Interventions list -->
     <div class="intervention-table">
         <div class="table-responsive">
             <table class="table mb-0" id="interventionsTable">
@@ -600,7 +600,7 @@ endif;
                             <?php endif; ?>
                         </td>
                         <td>
-                            <?php echo $inv['intervention_date'] ? date('d/m/Y', strtotime($inv['intervention_date'])) : '-'; ?>
+                            <?php echo $inv['intervention_date'] ? date('m/d/Y', strtotime($inv['intervention_date'])) : '-'; ?>
                         </td>
                         <td style="max-width: 150px;">
                             <?php if(!empty($history[$inv['id']])): ?>
@@ -617,7 +617,7 @@ endif;
                                     ];
                                     echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
                                     ?>
-                                    <br><small class="text-muted"><?php echo date('d/m/Y H:i', strtotime($h['created_at'])); ?></small>
+                                    <br><small class="text-muted"><?php echo date('m/d/Y H:i', strtotime($h['created_at'])); ?></small>
                                 </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
@@ -639,7 +639,8 @@ endif;
                                     <a href="?page=interventions&action=edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <a href="?page=interventions&action=delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>">
+                                    <a href="?page=interventions&action=delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>" onclick="return confirm('<?php echo t('delete_confirm'); ?>')">
+
                                         <i class="fas fa-trash"></i>
                                     </a>
                                 <?php endif; ?>

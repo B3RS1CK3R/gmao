@@ -1,5 +1,5 @@
 <?php
-// pages/stock.php - Gestion complète des pièces détachées (CRUD)
+// pages/stock.php - Full spare parts management (CRUD)
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
@@ -9,9 +9,9 @@ $action = $_GET['action'] ?? 'list';
 $message = '';
 $error = '';
 
-// ========== TRAITEMENT DES ACTIONS ==========
+// ========== ACTION PROCESSING ==========
 
-// Ajout d'une pièce détachée
+// Add a spare part
 if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $sql = "INSERT INTO spare_parts (part_number, name, quantity, min_quantity, location, supplier, unit_price, last_restock, documentation_path) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -29,7 +29,7 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     ]);
     
     if($result) {
-        logUserAction($_SESSION['user_id'], 'stock_created', "Pièce créée: {$_POST['part_number']}");
+        logUserAction($_SESSION['user_id'], 'stock_created', "Part created: {$_POST['part_number']}");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=stock'>";
     } else {
@@ -37,7 +37,7 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Modification d'une pièce détachée
+// Edit a spare part
 if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $sql = "UPDATE spare_parts SET 
             part_number = ?, 
@@ -65,7 +65,7 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
     ]);
     
     if($result) {
-        logUserAction($_SESSION['user_id'], 'stock_updated', "Pièce ID: {$_GET['id']} modifiée");
+        logUserAction($_SESSION['user_id'], 'stock_updated', "Part ID: {$_GET['id']} modified");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=stock'>";
     } else {
@@ -73,7 +73,7 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
     }
 }
 
-// Suppression (soft delete - désactivation) avec validation mot de passe
+// Delete (soft delete - deactivation) with password validation
 if($action == 'delete' && isset($_GET['id'])) {
     if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor') {
         if(isset($_POST['confirm_password'])) {
@@ -83,7 +83,7 @@ if($action == 'delete' && isset($_GET['id'])) {
             if(password_verify($_POST['confirm_password'], $user['password'])) {
                 $stmt2 = $pdo->prepare("UPDATE spare_parts SET quantity = -1, min_quantity = -1 WHERE id = ?");
                 $stmt2->execute([$_GET['id']]);
-                logUserAction($_SESSION['user_id'], 'stock_deleted', "Pièce ID: {$_GET['id']} désactivée");
+                logUserAction($_SESSION['user_id'], 'stock_deleted', "Part ID: {$_GET['id']} deactivated");
                 $message = "✅ " . t('save_success');
                 echo "<meta http-equiv='refresh' content='1;url=?page=stock'>";
             } else {
@@ -93,36 +93,36 @@ if($action == 'delete' && isset($_GET['id'])) {
     }
 }
 
-// Réactivation d'une pièce désactivée (admin uniquement)
+// Restore a deactivated part (admin only)
 if($action == 'restore' && isset($_GET['id']) && $_SESSION['role'] == 'admin') {
     $stmt = $pdo->prepare("UPDATE spare_parts SET quantity = 0, min_quantity = 5, documentation_path = NULL WHERE id = ?");
     $stmt->execute([$_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'stock_restored', "Pièce ID: {$_GET['id']} réactivée");
+    logUserAction($_SESSION['user_id'], 'stock_restored', "Part ID: {$_GET['id']} reactivated");
     $message = "✅ " . t('save_success');
     echo "<meta http-equiv='refresh' content='1;url=?page=stock'>";
 }
 
-// Mouvement de stock (entrée/sortie)
+// Stock movement (in/out)
 if($action == 'movement' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $part_id = $_GET['id'];
     $movement_type = $_POST['movement_type'];
     $quantity = intval($_POST['quantity']);
     $reason = $_POST['reason'];
     
-    // Récupérer la quantité actuelle
+    // Fetch current quantity
     $stmt = $pdo->prepare("SELECT quantity FROM spare_parts WHERE id = ?");
     $stmt->execute([$part_id]);
     $current = $stmt->fetchColumn();
     
     if($movement_type == 'in') {
         $new_quantity = $current + $quantity;
-        $movement_text = "Entrée de stock";
+        $movement_text = "Stock in";
     } else {
         if($current < $quantity) {
-            $error = "❌ " . t('stock_insufficient') . " (disponible: $current)";
+            $error = "❌ " . t('stock_insufficient') . " (available: $current)";
         } else {
             $new_quantity = $current - $quantity;
-            $movement_text = "Sortie de stock";
+            $movement_text = "Stock out";
         }
     }
     
@@ -130,24 +130,24 @@ if($action == 'movement' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 
         $stmt = $pdo->prepare("UPDATE spare_parts SET quantity = ?, last_restock = ? WHERE id = ?");
         $stmt->execute([$new_quantity, ($movement_type == 'in' ? date('Y-m-d') : null), $part_id]);
         
-        // Enregistrer le mouvement
+        // Record movement
         $stmt = $pdo->prepare("INSERT INTO stock_movements (part_id, movement_type, quantity, reason) VALUES (?, ?, ?, ?)");
         $stmt->execute([$part_id, $movement_type, $quantity, $reason]);
         
-        logUserAction($_SESSION['user_id'], 'stock_movement', "$movement_text: $quantity x pièce ID: $part_id");
+        logUserAction($_SESSION['user_id'], 'stock_movement', "$movement_text: $quantity x part ID: $part_id");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=stock_detail&id=$part_id'>";
     }
 }
 
-// Récupération des pièces (excluant les désactivées pour non-admin)
+// Fetch parts (excluding deactivated for non-admin)
 if($_SESSION['role'] == 'admin') {
     $parts = $pdo->query("SELECT * FROM spare_parts ORDER BY name")->fetchAll();
 } else {
     $parts = $pdo->query("SELECT * FROM spare_parts WHERE quantity >= 0 ORDER BY name")->fetchAll();
 }
 
-// Récupération de l'historique des modifications pour chaque pièce
+// Fetch modifications history for each part
 $history = [];
 foreach($parts as $part) {
     $stmt = $pdo->prepare("
@@ -161,7 +161,7 @@ foreach($parts as $part) {
     $history[$part['id']] = $stmt->fetchAll();
 }
 
-// Statistiques du stock
+// Stock statistics
 $critical_stock = count(array_filter($parts, function($p) { 
     return $p['quantity'] <= $p['min_quantity'] && $p['quantity'] >= 0; 
 }));
@@ -175,7 +175,7 @@ $inactive_stock = count(array_filter($parts, function($p) {
     return $p['quantity'] < 0; 
 }));
 
-// ========== FORMULAIRE D'AJOUT ==========
+// ========== ADD FORM ==========
 if($action == 'add'):
 ?>
 <style>
@@ -264,7 +264,7 @@ if($action == 'add'):
                     <input type="date" name="last_restock" class="form-control">
                 </div>
                 
-                <!-- Champ documentation (admin et superviseur uniquement) -->
+                <!-- Documentation field (admin and supervisor only) -->
                 <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
                 <div class="col-md-12 mb-3">
                     <label class="form-label">
@@ -289,7 +289,7 @@ if($action == 'add'):
 return;
 endif;
 
-// ========== FORMULAIRE DE MODIFICATION ==========
+// ========== EDIT FORM ==========
 if($action == 'edit' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT * FROM spare_parts WHERE id = ?");
     $stmt->execute([$_GET['id']]);
@@ -385,7 +385,7 @@ if($action == 'edit' && isset($_GET['id'])):
                     <input type="date" name="last_restock" class="form-control" value="<?php echo $part['last_restock']; ?>">
                 </div>
                 
-                <!-- Champ documentation -->
+                <!-- Documentation field -->
                 <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
                 <div class="col-md-12 mb-3">
                     <label class="form-label">
@@ -437,7 +437,7 @@ function openDocumentation(path) {
 return;
 endif;
 
-// ========== MODAL DE CONFIRMATION SUPPRESSION ==========
+// ========== DELETE CONFIRMATION MODAL ==========
 if($action == 'delete' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT * FROM spare_parts WHERE id = ?");
     $stmt->execute([$_GET['id']]);
@@ -600,7 +600,7 @@ endif;
         </div>
     <?php endif; ?>
     
-    <!-- Cartes statistiques -->
+    <!-- Statistics cards -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="stats-card" onclick="window.location.href='?page=stock&status=critical'">
@@ -628,7 +628,7 @@ endif;
         </div>
     </div>
     
-    <!-- Liste des pièces -->
+    <!-- Stock list -->
     <div class="stock-card">
         <div class="stock-card-header">
             <i class="fas fa-list"></i> <?php echo t('stock_list'); ?>
@@ -709,7 +709,7 @@ endif;
                                         ];
                                         echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
                                         ?>
-                                        <br><small class="text-muted"><?php echo date('d/m/Y H:i', strtotime($h['created_at'])); ?></small>
+                                        <br><small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
                                     </div>
                                     <?php endforeach; ?>
                                 <?php else: ?>
@@ -742,7 +742,7 @@ endif;
                             </td>
                         </tr>
                         
-                        <!-- Modal entrée de stock -->
+                        <!-- Stock in modal -->
                         <div class="modal fade" id="movementInModal<?php echo $part['id']; ?>" tabindex="-1">
                             <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content">
@@ -773,7 +773,7 @@ endif;
                             </div>
                         </div>
                         
-                        <!-- Modal sortie de stock -->
+                        <!-- Stock out modal -->
                         <div class="modal fade" id="movementOutModal<?php echo $part['id']; ?>" tabindex="-1">
                             <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content">
@@ -810,7 +810,7 @@ endif;
         </div>
     </div>
     
-    <!-- Légende -->
+    <!-- Legend -->
     <div class="row mt-3">
         <div class="col-md-12">
             <div class="stock-card">

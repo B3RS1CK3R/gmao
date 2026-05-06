@@ -1,5 +1,5 @@
 <?php
-// pages/users.php - Gestion des utilisateurs (admin uniquement)
+// pages/users.php - User Management (admin only)
 if(!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') {
     echo "<div class='alert alert-danger'>" . t('access_denied') . "</div>";
     return;
@@ -18,7 +18,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = "❌ " . t('password_too_short');
         } else {
             if(createUser($_POST['username'], $_POST['password'], $_POST['fullname'], $_POST['role'], $_POST['email'])) {
-                logUserAction($_SESSION['user_id'], 'user_created', "Utilisateur créé: {$_POST['username']}");
+                logUserAction($_SESSION['user_id'], 'user_created', "User created: {$_POST['username']}");
                 $message = "✅ " . t('save_success');
                 echo "<meta http-equiv='refresh' content='1;url=?page=users'>";
             } else {
@@ -29,7 +29,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     if($action == 'edit' && isset($_GET['id'])) {
         if(updateUser($_GET['id'], $_POST['fullname'], $_POST['role'], $_POST['email'], $_POST['is_active'])) {
-            logUserAction($_SESSION['user_id'], 'user_updated', "Utilisateur modifié ID: {$_GET['id']}");
+            logUserAction($_SESSION['user_id'], 'user_updated', "User modified ID: {$_GET['id']}");
             $message = "✅ " . t('save_success');
             echo "<meta http-equiv='refresh' content='1;url=?page=users'>";
         } else {
@@ -44,7 +44,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = "❌ " . t('password_mismatch');
         } else {
             if(updateUserPassword($_GET['id'], $_POST['new_password'])) {
-                logUserAction($_SESSION['user_id'], 'password_reset', "Mot de passe réinitialisé pour ID: {$_GET['id']}");
+                logUserAction($_SESSION['user_id'], 'password_reset', "Password reset for ID: {$_GET['id']}");
                 $message = "✅ " . t('save_success');
                 echo "<meta http-equiv='refresh' content='1;url=?page=users'>";
             } else {
@@ -56,7 +56,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 if($action == 'delete' && isset($_GET['id'])) {
     if(deleteUser($_GET['id'])) {
-        logUserAction($_SESSION['user_id'], 'user_deleted', "Utilisateur supprimé ID: {$_GET['id']}");
+        logUserAction($_SESSION['user_id'], 'user_deleted', "User deleted ID: {$_GET['id']}");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=users'>";
     } else {
@@ -455,7 +455,7 @@ if(!$logs) $logs = [];
                                     <span class="status-inactive"><i class="fas fa-circle" style="font-size: 8px;"></i> <?php echo t('inactive'); ?></span>
                                 <?php endif; ?>
                             </td>
-                            <td><?php echo $user['last_login'] ? date('d/m/Y H:i', strtotime($user['last_login'])) : t('never'); ?></td>
+                            <td><?php echo $user['last_login'] ? format_date_us($user['last_login'], true) : t('never'); ?></td>
                             <td>
                                 <?php if($tech): ?>
                                     <a href="?page=technician_detail&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-info" style="white-space: nowrap;">
@@ -517,7 +517,7 @@ if(!$logs) $logs = [];
                         <?php else: ?>
                             <?php foreach($logs as $log): ?>
                             <tr>
-                                <td><small><?php echo date('d/m/Y H:i:s', strtotime($log['created_at'])); ?></small></td>
+                                <td><small><?php echo format_date_us($log['created_at'], true); ?></small></td>
                                 <td><strong><?php echo htmlspecialchars($log['username'] ?? t('unknown')); ?></strong></td>
                                 <td>
                                     <?php

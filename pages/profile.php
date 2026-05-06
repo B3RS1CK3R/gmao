@@ -139,11 +139,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             <hr class="bg-light">
             <div class="small">
                 <i class="fas fa-calendar"></i> <?php echo t('member_since'); ?><br>
-                <?php echo date('d/m/Y', strtotime($user['created_at'])); ?>
+                    <?php echo $user['created_at'] ? format_date_us($user['created_at'], true) : '-'; ?>
             </div>
             <div class="small mt-2">
                 <i class="fas fa-clock"></i> <?php echo t('last_connection'); ?><br>
-                <?php echo $user['last_login'] ? date('d/m/Y H:i', strtotime($user['last_login'])) : t('never'); ?>
+                <?php echo $user['last_login'] ? format_date_us($user['last_login'], true) : t('never'); ?>
             </div>
         </div>
     </div>

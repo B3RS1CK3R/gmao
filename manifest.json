@@ -1,8 +1,8 @@
 {
-  "name": "GMAO Industrielle",
+  "name": "Industrial GMAO",
   "short_name": "GMAO Pro",
-  "description": "Application de Gestion de Maintenance Assistée par Ordinateur",
-  "start_url": "/gmao/index.php?page=mobile_dashboard",
+  "description": "Computerized Maintenance Management System",
+  "start_url": "/gmao_GEMINI/index.php?page=mobile_dashboard",
   "display": "standalone",
   "theme_color": "#667eea",
   "background_color": "#ffffff",

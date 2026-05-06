@@ -189,7 +189,7 @@ $recent_equipment = $stmt->fetchAll();
         }
         
         function getEquipmentInfo(id) {
-            fetch(`/gmao/api/get_equipment.php?id=${id}`)
+            fetch(`/gmao_GEMINI/api/get_equipment.php?id=${id}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {

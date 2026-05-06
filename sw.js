@@ -1,11 +1,11 @@
 // sw.js - Service Worker pour PWA
 const CACHE_NAME = 'gmao-cache-v1';
 const urlsToCache = [
-  '/gmao/',
-  '/gmao/index.php?page=mobile_dashboard',
-  '/gmao/index.php?page=mobile_interventions',
-  '/gmao/index.php?page=mobile_equipment',
-  '/gmao/index.php?page=mobile_scan',
+  '/gmao_GEMINI/',
+  '/gmao_GEMINI/index.php?page=mobile_dashboard',
+  '/gmao_GEMINI/index.php?page=mobile_interventions',
+  '/gmao_GEMINI/index.php?page=mobile_equipment',
+  '/gmao_GEMINI/index.php?page=mobile_scan',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
 ];

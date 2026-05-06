@@ -136,7 +136,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('created_at'); ?></label>
                         <div class="task-number-display" style="background: #e9ecef; color: #333;">
-                            <?php echo date('d/m/Y H:i'); ?>
+                            <?php echo format_date_us(date('Y-m-d H:i:s'), true); ?>
                         </div>
                         <small class="text-muted"><?php echo t('current_datetime'); ?></small>
                     </div>

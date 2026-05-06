@@ -1,5 +1,5 @@
 <?php
-// pages/preventive.php - Gestion des maintenances préventives
+// pages/preventive.php - Preventive maintenance management
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
@@ -9,9 +9,9 @@ $action = $_GET['action'] ?? 'list';
 $message = '';
 $error = '';
 
-// ========== TRAITEMENT DES ACTIONS ==========
+// ========== ACTION PROCESSING ==========
 
-// Ajout d'une maintenance préventive
+// Add preventive maintenance
 if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $last_done = $_POST['last_done'] ?: date('Y-m-d');
     $next_due = date('Y-m-d', strtotime($last_done . ' + ' . $_POST['frequency_days'] . ' days'));
@@ -29,15 +29,15 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     ]);
     
     if($result) {
-        logUserAction($_SESSION['user_id'], 'preventive_created', "Maintenance préventive créée pour équipement ID: {$_POST['equipment_id']}");
-        $message = "✅ Maintenance préventive créée avec succès";
+        logUserAction($_SESSION['user_id'], 'preventive_created', "Preventive maintenance created for equipment ID: {$_POST['equipment_id']}");
+        $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=preventive'>";
     } else {
-        $error = "❌ Erreur lors de la création";
+        $error = "❌ " . t('save_error');
     }
 }
 
-// Modification d'une maintenance préventive
+// Edit preventive maintenance
 if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $next_due = date('Y-m-d', strtotime($_POST['last_done'] . ' + ' . $_POST['frequency_days'] . ' days'));
     
@@ -61,15 +61,15 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
     ]);
     
     if($result) {
-        logUserAction($_SESSION['user_id'], 'preventive_updated', "Maintenance préventive ID: {$_GET['id']} modifiée");
-        $message = "✅ Maintenance préventive modifiée avec succès";
+        logUserAction($_SESSION['user_id'], 'preventive_updated', "Preventive maintenance ID: {$_GET['id']} updated");
+        $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=preventive'>";
     } else {
-        $error = "❌ Erreur lors de la modification";
+        $error = "❌ " . t('save_error');
     }
 }
 
-// Suppression d'une maintenance préventive
+// Delete preventive maintenance
 if($action == 'delete' && isset($_GET['id'])) {
     if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor') {
         if(isset($_POST['confirm_password'])) {
@@ -79,17 +79,17 @@ if($action == 'delete' && isset($_GET['id'])) {
             if(password_verify($_POST['confirm_password'], $user['password'])) {
                 $stmt2 = $pdo->prepare("DELETE FROM preventive_maintenance WHERE id = ?");
                 $stmt2->execute([$_GET['id']]);
-                logUserAction($_SESSION['user_id'], 'preventive_deleted', "Maintenance préventive ID: {$_GET['id']} supprimée");
-                $message = "✅ Maintenance préventive supprimée avec succès";
+                logUserAction($_SESSION['user_id'], 'preventive_deleted', "Preventive maintenance ID: {$_GET['id']} deleted");
+                $message = "✅ " . t('save_success');
                 echo "<meta http-equiv='refresh' content='1;url=?page=preventive'>";
             } else {
-                $error = "❌ Mot de passe incorrect";
+                $error = "❌ " . t('password_error');
             }
         }
     }
 }
 
-// Validation d'une maintenance (marquer comme effectuée)
+// Validate maintenance (mark as completed)
 if($action == 'complete' && isset($_GET['id'])) {
     $today = date('Y-m-d');
     
@@ -110,9 +110,9 @@ if($action == 'complete' && isset($_GET['id'])) {
                 equipment_id,
                 'preventive',
                 'medium',
-                CONCAT('Maintenance préventive - ', e.name),
+                CONCAT('Preventive maintenance - ', e.name),
                 instructions,
-                'systeme',
+                'system',
                 'maintenance_preventive',
                 DATE_ADD(CURDATE(), INTERVAL frequency_days DAY),
                 'a_faire'
@@ -122,16 +122,16 @@ if($action == 'complete' && isset($_GET['id'])) {
         ");
         $stmt3->execute([$_GET['id']]);
         
-        logUserAction($_SESSION['user_id'], 'preventive_completed', "Maintenance préventive ID: {$_GET['id']} validée");
-        $message = "✅ Maintenance validée et intervention automatique créée";
+        logUserAction($_SESSION['user_id'], 'preventive_completed', "Preventive maintenance ID: {$_GET['id']} validated");
+        $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=preventive'>";
     }
 }
 
-// Récupération des équipements pour les formulaires
+// Fetch equipment for forms
 $equipments = $pdo->query("SELECT id, code, name FROM equipment WHERE status = 'active' ORDER BY name")->fetchAll();
 
-// Récupération des maintenances préventives
+// Fetch preventive maintenances
 $preventives = $pdo->query("
     SELECT pm.*, e.name as equipment_name, e.code as equipment_code
     FROM preventive_maintenance pm
@@ -141,7 +141,7 @@ $preventives = $pdo->query("
         pm.next_due ASC
 ")->fetchAll();
 
-// ========== FORMULAIRE D'AJOUT ==========
+// ========== ADD FORM ==========
 if($action == 'add'):
 ?>
 <style>
@@ -161,44 +161,44 @@ if($action == 'add'):
 </style>
 <div class="form-card">
     <div class="form-card-header">
-        <i class="fas fa-plus-circle"></i> Ajouter une maintenance préventive
+        <i class="fas fa-plus-circle"></i> <?php echo t('add_maintenance'); ?>
     </div>
     <div class="card-body p-4">
         <form method="POST">
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Équipement <span class="text-danger">*</span></label>
+                    <label class="form-label"><?php echo t('equipment'); ?> <span class="text-danger">*</span></label>
                     <select name="equipment_id" class="form-select" required>
-                        <option value="">-- Sélectionner un équipement --</option>
+                        <option value="">-- <?php echo t('select_equipment'); ?> --</option>
                         <?php foreach($equipments as $eq): ?>
                         <option value="<?php echo $eq['id']; ?>"><?php echo htmlspecialchars($eq['code'] . ' - ' . $eq['name']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Fréquence <span class="text-danger">*</span></label>
+                    <label class="form-label"><?php echo t('frequency_days'); ?> <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <input type="number" name="frequency_days" class="form-control" min="1" required>
-                        <span class="input-group-text">jours</span>
+                        <span class="input-group-text"><?php echo t('days'); ?></span>
                     </div>
-                    <small class="text-muted">Exemples : 30 jours (mensuel), 90 jours (trimestriel), 365 jours (annuel)</small>
+                    <small class="text-muted"><?php echo t('frequency_help'); ?></small>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Dernière réalisation</label>
+                    <label class="form-label"><?php echo t('last_done'); ?></label>
                     <input type="date" name="last_done" class="form-control" value="<?php echo date('Y-m-d'); ?>">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Équipe assignée</label>
-                    <input type="text" name="assigned_team" class="form-control" placeholder="Ex: Équipe A, Service maintenance...">
+                    <label class="form-label"><?php echo t('assigned_team'); ?></label>
+                    <input type="text" name="assigned_team" class="form-control" placeholder="<?php echo t('team_placeholder'); ?>">
                 </div>
                 <div class="col-md-12 mb-3">
-                    <label class="form-label">Instructions / Procédure</label>
-                    <textarea name="instructions" class="form-control" rows="4" placeholder="Décrivez les opérations à réaliser, les contrôles à effectuer..."></textarea>
+                    <label class="form-label"><?php echo t('instructions'); ?></label>
+                    <textarea name="instructions" class="form-control" rows="4" placeholder="<?php echo t('instructions_placeholder'); ?>"></textarea>
                 </div>
             </div>
             <div class="mt-3">
-                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Créer</button>
-                <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-times"></i> Annuler</a>
+                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> <?php echo t('create'); ?></button>
+                <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
             </div>
         </form>
     </div>
@@ -207,13 +207,13 @@ if($action == 'add'):
 return;
 endif;
 
-// ========== FORMULAIRE DE MODIFICATION ==========
+// ========== EDIT FORM ==========
 if($action == 'edit' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT * FROM preventive_maintenance WHERE id = ?");
     $stmt->execute([$_GET['id']]);
     $pm = $stmt->fetch();
     if(!$pm) {
-        echo "<div class='alert alert-danger'>Maintenance non trouvée</div>";
+        echo "<div class='alert alert-danger'>" . t('not_found') . "</div>";
         return;
     }
 ?>
@@ -234,15 +234,15 @@ if($action == 'edit' && isset($_GET['id'])):
 </style>
 <div class="form-card">
     <div class="form-card-header">
-        <i class="fas fa-edit"></i> Modifier la maintenance préventive
+        <i class="fas fa-edit"></i> <?php echo t('edit_maintenance'); ?>
     </div>
     <div class="card-body p-4">
         <form method="POST">
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Équipement <span class="text-danger">*</span></label>
+                    <label class="form-label"><?php echo t('equipment'); ?> <span class="text-danger">*</span></label>
                     <select name="equipment_id" class="form-select" required>
-                        <option value="">-- Sélectionner un équipement --</option>
+                        <option value="">-- <?php echo t('select_equipment'); ?> --</option>
                         <?php foreach($equipments as $eq): ?>
                         <option value="<?php echo $eq['id']; ?>" <?php if($pm['equipment_id'] == $eq['id']) echo 'selected'; ?>>
                             <?php echo htmlspecialchars($eq['code'] . ' - ' . $eq['name']); ?>
@@ -251,33 +251,33 @@ if($action == 'edit' && isset($_GET['id'])):
                     </select>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Fréquence <span class="text-danger">*</span></label>
+                    <label class="form-label"><?php echo t('frequency_days'); ?> <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <input type="number" name="frequency_days" class="form-control" min="1" value="<?php echo $pm['frequency_days']; ?>" required>
-                        <span class="input-group-text">jours</span>
+                        <span class="input-group-text"><?php echo t('days'); ?></span>
                     </div>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Dernière réalisation</label>
+                    <label class="form-label"><?php echo t('last_done'); ?></label>
                     <input type="date" name="last_done" class="form-control" value="<?php echo $pm['last_done']; ?>">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Prochaine échéance</label>
+                    <label class="form-label"><?php echo t('next_due'); ?></label>
                     <input type="date" name="next_due" class="form-control" value="<?php echo $pm['next_due']; ?>" readonly>
-                    <small class="text-muted">Calculée automatiquement</small>
+                    <small class="text-muted">Calculated automatically</small>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Équipe assignée</label>
+                    <label class="form-label"><?php echo t('assigned_team'); ?></label>
                     <input type="text" name="assigned_team" class="form-control" value="<?php echo htmlspecialchars($pm['assigned_team']); ?>">
                 </div>
                 <div class="col-md-12 mb-3">
-                    <label class="form-label">Instructions / Procédure</label>
+                    <label class="form-label"><?php echo t('instructions'); ?></label>
                     <textarea name="instructions" class="form-control" rows="4"><?php echo htmlspecialchars($pm['instructions']); ?></textarea>
                 </div>
             </div>
             <div class="mt-3">
-                <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> Enregistrer</button>
-                <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-times"></i> Annuler</a>
+                <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> <?php echo t('save'); ?></button>
+                <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
             </div>
         </form>
     </div>
@@ -286,34 +286,34 @@ if($action == 'edit' && isset($_GET['id'])):
 return;
 endif;
 
-// ========== MODAL DE CONFIRMATION SUPPRESSION ==========
+// ========== DELETE CONFIRMATION MODAL ==========
 if($action == 'delete' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT pm.*, e.name as equipment_name FROM preventive_maintenance pm JOIN equipment e ON pm.equipment_id = e.id WHERE pm.id = ?");
     $stmt->execute([$_GET['id']]);
     $pm = $stmt->fetch();
     if(!$pm) {
-        echo "<div class='alert alert-danger'>Maintenance non trouvée</div>";
+        echo "<div class='alert alert-danger'>" . t('not_found') . "</div>";
         return;
     }
 ?>
 <div class="form-card">
     <div class="form-card-header" style="background: linear-gradient(135deg, #dc3545, #c82333);">
-        <i class="fas fa-trash-alt"></i> Supprimer la maintenance préventive
+        <i class="fas fa-trash-alt"></i> <?php echo t('delete_maintenance'); ?>
     </div>
     <div class="card-body p-4">
         <div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle"></i>
-            Attention ! Vous êtes sur le point de supprimer la maintenance préventive pour : <strong><?php echo htmlspecialchars($pm['equipment_name']); ?></strong>
+            <?php echo t('delete_confirm'); ?> : <strong><?php echo htmlspecialchars($pm['equipment_name']); ?></strong>
         </div>
-        <p>Cette action est irréversible.</p>
+        <p><?php echo t('delete_warning'); ?></p>
         <form method="POST">
             <div class="mb-3">
-                <label class="form-label">Confirmer avec votre mot de passe</label>
+                <label class="form-label"><?php echo t('confirm_password'); ?></label>
                 <input type="password" name="confirm_password" class="form-control" required>
             </div>
             <div class="mt-3">
-                <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Confirmer la suppression</button>
-                <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-times"></i> Annuler</a>
+                <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> <?php echo t('confirm'); ?></button>
+                <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
             </div>
         </form>
     </div>
@@ -353,10 +353,10 @@ endif;
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-calendar-alt"></i> Maintenance préventive</h2>
+    <h2><i class="fas fa-calendar-alt"></i> <?php echo t('preventive_maintenance'); ?></h2>
     <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
     <a href="?page=preventive&action=add" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Planifier une maintenance
+        <i class="fas fa-plus"></i> <?php echo t('plan_maintenance'); ?>
     </a>
     <?php endif; ?>
 </div>
@@ -375,7 +375,7 @@ endif;
     </div>
 <?php endif; ?>
 
-<!-- Résumé des statistiques -->
+<!-- Statistics summary -->
 <div class="row mb-4">
     <div class="col-md-4">
         <div class="info-card text-center">
@@ -387,7 +387,7 @@ endif;
                     }
                     echo $overdue_count;
                 ?></h3>
-                <p class="text-muted mb-0">Maintenances en retard</p>
+                <p class="text-muted mb-0"><?php echo t('overdue'); ?></p>
             </div>
         </div>
     </div>
@@ -402,7 +402,7 @@ endif;
                     }
                     echo $upcoming_count;
                 ?></h3>
-                <p class="text-muted mb-0">À venir dans 30 jours</p>
+                <p class="text-muted mb-0"><?php echo t('upcoming'); ?> (30 <?php echo t('days'); ?>)</p>
             </div>
         </div>
     </div>
@@ -423,24 +423,24 @@ endif;
     </div>
 </div>
 
-<!-- Liste des maintenances préventives -->
+<!-- Preventive maintenance list -->
 <div class="info-card">
     <div class="card-header-custom" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
-        <i class="fas fa-list"></i> Planning des maintenances préventives
+        <i class="fas fa-list"></i> <?php echo t('maintenance_list'); ?>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead class="table-dark">
                     <tr>
-                        <th>Équipement</th>
-                        <th>Code</th>
-                        <th>Fréquence</th>
-                        <th>Dernière</th>
-                        <th>Prochaine</th>
-                        <th>Statut</th>
-                        <th>Équipe</th>
-                        <th class="text-center">Actions</th>
+                        <th><?php echo t('equipment'); ?></th>
+                        <th><?php echo t('code'); ?></th>
+                        <th><?php echo t('frequency'); ?></th>
+                        <th><?php echo t('last_done'); ?></th>
+                        <th><?php echo t('next_due'); ?></th>
+                        <th><?php echo t('status'); ?></th>
+                        <th><?php echo t('team'); ?></th>
+                        <th class="text-center"><?php echo t('actions'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -451,10 +451,10 @@ endif;
                         
                         if(strtotime($pm['next_due']) < time()) {
                             $status_class = 'status-overdue';
-                            $status_text = '🔴 En retard';
+                            $status_text = '🔴 ' . t('overdue');
                         } elseif($days_diff <= 30) {
                             $status_class = 'status-upcoming';
-                            $status_text = '🟡 À venir (< 30j)';
+                            $status_text = '🟡 ' . t('upcoming') . ' (< 30d)';
                         } else {
                             $status_class = 'status-ok';
                             $status_text = '🟢 OK';
@@ -463,29 +463,29 @@ endif;
                     <tr>
                         <td><strong><?php echo htmlspecialchars($pm['equipment_name']); ?></strong></td>
                         <td><?php echo htmlspecialchars($pm['equipment_code']); ?></td>
-                        <td>Tous les <?php echo $pm['frequency_days']; ?> jours<br>
-                            <small class="text-muted">(<?php echo round($pm['frequency_days'] / 30, 1); ?> mois)</small>
+                        <td><?php echo t('every'); ?> <?php echo $pm['frequency_days']; ?> <?php echo t('days'); ?><br>
+                            <small class="text-muted">(<?php echo round($pm['frequency_days'] / 30, 1); ?> <?php echo t('months'); ?>)</small>
                         </td>
-                        <td><?php echo $pm['last_done'] ? date('d/m/Y', strtotime($pm['last_done'])) : 'Jamais'; ?></td>
+                        <td><?php echo $pm['last_done'] ? date('m/d/Y', strtotime($pm['last_done'])) : t('never'); ?></td>
                         <td>
-                            <?php echo date('d/m/Y', strtotime($pm['next_due'])); ?>
+                            <?php echo date('m/d/Y', strtotime($pm['next_due'])); ?>
                             <?php if(strtotime($pm['next_due']) < time()): ?>
-                                <br><small class="text-danger">Retard de <?php echo abs(round($days_diff)); ?> jours</small>
+                                <br><small class="text-danger"><?php echo t('overdue_by'); ?> <?php echo abs(round($days_diff)); ?> <?php echo t('days'); ?></small>
                             <?php elseif($days_diff <= 30): ?>
-                                <br><small class="text-warning">Dans <?php echo round($days_diff); ?> jours</small>
+                                <br><small class="text-warning"><?php echo t('in'); ?> <?php echo round($days_diff); ?> <?php echo t('days'); ?></small>
                             <?php endif; ?>
                         </td>
                         <td><span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span></td>
-                        <td><?php echo htmlspecialchars($pm['assigned_team'] ?: 'Non assignée'); ?></td>
+                        <td><?php echo htmlspecialchars($pm['assigned_team'] ?: t('unassigned')); ?></td>
                         <td class="text-center action-buttons">
-                            <a href="?page=preventive&action=complete&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-success" title="Valider" onclick="return confirm('Valider cette maintenance comme effectuée ?')">
+                            <a href="?page=preventive&action=complete&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('validate'); ?>" onclick="return confirm('<?php echo t('validate_confirm'); ?>')">
                                 <i class="fas fa-check"></i>
                             </a>
                             <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                            <a href="?page=preventive&action=edit&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-warning" title="Modifier">
+                            <a href="?page=preventive&action=edit&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('edit'); ?>">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <a href="?page=preventive&action=delete&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-danger" title="Supprimer">
+                            <a href="?page=preventive&action=delete&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('delete'); ?>" onclick="return confirm('<?php echo t('delete_confirm'); ?>')">
                                 <i class="fas fa-trash"></i>
                             </a>
                             <?php endif; ?>
@@ -498,15 +498,15 @@ endif;
     </div>
 </div>
 
-<!-- Légende -->
+<!-- Legend -->
 <div class="row mt-3">
     <div class="col-md-12">
         <div class="info-card">
             <div class="card-body">
                 <div class="d-flex justify-content-center gap-4">
-                    <div><span class="status-badge status-overdue">🔴 En retard</span> <small>Maintenance à réaliser immédiatement</small></div>
-                    <div><span class="status-badge status-upcoming">🟡 À venir (< 30j)</span> <small>Maintenance à planifier prochainement</small></div>
-                    <div><span class="status-badge status-ok">🟢 OK</span> <small>Maintenance dans les temps</small></div>
+                    <div><span class="status-badge status-overdue">🔴 <?php echo t('overdue'); ?></span> <small>Maintenance to perform immediately</small></div>
+                    <div><span class="status-badge status-upcoming">🟡 <?php echo t('upcoming'); ?> (< 30d)</span> <small>Maintenance to schedule soon</small></div>
+                    <div><span class="status-badge status-ok">🟢 OK</span> <small>Maintenance on schedule</small></div>
                 </div>
             </div>
         </div>

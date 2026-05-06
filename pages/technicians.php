@@ -1,11 +1,11 @@
 <?php
-// pages/technicians.php - Gestion complète des techniciens (CRUD)
+// pages/technicians.php - Full technicians management (CRUD)
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
 }
 
-// Vérification des droits (admin ou superviseur seulement)
+// Check permissions (admin or supervisor only)
 if($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'supervisor') {
     echo "<div class='alert alert-danger'>" . t('access_denied') . "</div>";
     return;
@@ -15,9 +15,9 @@ $action = $_GET['action'] ?? 'list';
 $message = '';
 $error = '';
 
-// ========== TRAITEMENT DES ACTIONS ==========
+// ========== ACTION PROCESSING ==========
 
-// Ajout d'un technicien
+// Add technician
 if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $sql = "INSERT INTO technicians (employee_id, firstname, lastname, phone, email, specialty, hire_date, status) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
@@ -34,7 +34,7 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     ]);
     
     if($result) {
-        logUserAction($_SESSION['user_id'], 'technician_created', "Technicien créé: {$_POST['employee_id']}");
+        logUserAction($_SESSION['user_id'], 'technician_created', "Technician created: {$_POST['employee_id']}");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=technicians'>";
     } else {
@@ -42,7 +42,7 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Modification d'un technicien
+// Edit technician
 if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $sql = "UPDATE technicians SET 
             employee_id = ?, 
@@ -68,7 +68,7 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
     ]);
     
     if($result) {
-        logUserAction($_SESSION['user_id'], 'technician_updated', "Technicien ID: {$_GET['id']} modifié");
+        logUserAction($_SESSION['user_id'], 'technician_updated', "Technician ID: {$_GET['id']} modified");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=technicians'>";
     } else {
@@ -76,7 +76,7 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
     }
 }
 
-// Suppression (soft delete - désactivation) avec validation mot de passe
+// Delete (soft delete - deactivation) with password validation
 if($action == 'delete' && isset($_GET['id']) && ($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor')) {
     if(isset($_POST['confirm_password'])) {
         $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
@@ -85,7 +85,7 @@ if($action == 'delete' && isset($_GET['id']) && ($_SESSION['role'] == 'admin' ||
         if(password_verify($_POST['confirm_password'], $user['password'])) {
             $stmt2 = $pdo->prepare("UPDATE technicians SET status = 'inactive' WHERE id = ?");
             $stmt2->execute([$_GET['id']]);
-            logUserAction($_SESSION['user_id'], 'technician_deleted', "Technicien ID: {$_GET['id']} désactivé");
+            logUserAction($_SESSION['user_id'], 'technician_deleted', "Technician ID: {$_GET['id']} deactivated");
             $message = "✅ " . t('save_success');
             echo "<meta http-equiv='refresh' content='1;url=?page=technicians'>";
         } else {
@@ -94,23 +94,23 @@ if($action == 'delete' && isset($_GET['id']) && ($_SESSION['role'] == 'admin' ||
     }
 }
 
-// Réactivation d'un technicien (admin uniquement)
+// Restore technician (admin only)
 if($action == 'restore' && isset($_GET['id']) && $_SESSION['role'] == 'admin') {
     $stmt = $pdo->prepare("UPDATE technicians SET status = 'active' WHERE id = ?");
     $stmt->execute([$_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'technician_restored', "Technicien ID: {$_GET['id']} réactivé");
+    logUserAction($_SESSION['user_id'], 'technician_restored', "Technician ID: {$_GET['id']} reactivated");
     $message = "✅ " . t('save_success');
     echo "<meta http-equiv='refresh' content='1;url=?page=technicians'>";
 }
 
-// Récupération des techniciens
+// Fetch technicians
 if($_SESSION['role'] == 'admin') {
     $technicians = $pdo->query("SELECT * FROM technicians ORDER BY lastname ASC")->fetchAll();
 } else {
     $technicians = $pdo->query("SELECT * FROM technicians WHERE status != 'inactive' ORDER BY lastname ASC")->fetchAll();
 }
 
-// Récupération des interventions assignées à chaque technicien
+// Fetch interventions assigned to each technician
 $interventions_count = [];
 foreach($technicians as $tech) {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM interventions WHERE intervenant_id = ? AND task_status NOT IN ('termine', 'cloturee')");
@@ -118,7 +118,7 @@ foreach($technicians as $tech) {
     $interventions_count[$tech['id']] = $stmt->fetchColumn();
 }
 
-// Récupération de l'historique des modifications pour chaque technicien
+// Fetch modifications history for each technician
 $history = [];
 foreach($technicians as $tech) {
     $stmt = $pdo->prepare("
@@ -132,12 +132,12 @@ foreach($technicians as $tech) {
     $history[$tech['id']] = $stmt->fetchAll();
 }
 
-// Statistiques
+// Statistics
 $active_count = count(array_filter($technicians, function($t) { return $t['status'] == 'active'; }));
 $leave_count = count(array_filter($technicians, function($t) { return $t['status'] == 'on_leave'; }));
 $inactive_count = count(array_filter($technicians, function($t) { return $t['status'] == 'inactive'; }));
 
-// ========== FORMULAIRE D'AJOUT ==========
+// ========== ADD FORM ==========
 if($action == 'add'):
 ?>
 <style>
@@ -241,7 +241,7 @@ if($action == 'add'):
 return;
 endif;
 
-// ========== FORMULAIRE DE MODIFICATION ==========
+// ========== EDIT FORM ==========
 if($action == 'edit' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT * FROM technicians WHERE id = ?");
     $stmt->execute([$_GET['id']]);
@@ -321,7 +321,7 @@ if($action == 'edit' && isset($_GET['id'])):
 return;
 endif;
 
-// ========== MODAL DE CONFIRMATION SUPPRESSION ==========
+// ========== DELETE CONFIRMATION MODAL ==========
 if($action == 'delete' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT * FROM technicians WHERE id = ?");
     $stmt->execute([$_GET['id']]);
@@ -471,7 +471,7 @@ endif;
         </div>
     <?php endif; ?>
     
-    <!-- Cartes statistiques -->
+    <!-- Statistics cards -->
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="stats-card" onclick="window.location.href='?page=technicians&status=active'">
@@ -493,7 +493,7 @@ endif;
         </div>
     </div>
     
-    <!-- Liste des techniciens -->
+    <!-- Technicians list -->
     <div class="info-card">
         <div class="card-header-custom">
             <i class="fas fa-list"></i> <?php echo t('technician_list'); ?>
@@ -534,7 +534,7 @@ endif;
                                     ?>
                                 </span>
                             </td>
-                            <td><?php echo $tech['hire_date'] ? date('d/m/Y', strtotime($tech['hire_date'])) : '-'; ?></td>
+                            <td><?php echo $tech['hire_date'] ? format_date_us($tech['hire_date'], false) : '-'; ?></td>
                             <td>
                                 <?php 
                                 $count = $interventions_count[$tech['id']] ?? 0;
@@ -558,7 +558,7 @@ endif;
                                         ];
                                         echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
                                         ?>
-                                        <br><small class="text-muted"><?php echo date('d/m/Y H:i', strtotime($h['created_at'])); ?></small>
+                                        <br><small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
                                     </div>
                                     <?php endforeach; ?>
                                 <?php else: ?>
@@ -597,7 +597,7 @@ endif;
         </div>
     </div>
     
-    <!-- Légende -->
+    <!-- Legend -->
     <div class="row mt-3">
         <div class="col-md-12">
             <div class="info-card">

@@ -17,14 +17,14 @@ if ($page !== 'login' && !isset($_SESSION['user_id'])) {
 
 // Pages qui utilisent la structure complète (sidebar + header)
 $pages_with_sidebar = [
-    'dashboard', 'performance', 'equipment', 'interventions', 
+    'dashboard', 'performance', 'equipment', 'equipment_detail', 'interventions', 
     'preventive', 'stock', 'technicians', 'planning', 'alerts',
-    'mail_settings', 'users', 'export_center', 'profile', 'technician_detail'
+    'mail_settings', 'users', 'export_center', 'profile', 'technician_detail', 'admin_migrations', 'equipment_attachments'
 ];
 
 // Pages simples sans sidebar
 $pages_without_sidebar = [
-    'equipment_qr', 'equipment_detail', 'assign_intervention', 
+    'equipment_qr', 'assign_intervention', 
     'technician_schedule', 'intervention_add', 'intervention_view', 
     'calendar', 'equipment_edit', 'intervention_edit', 'preventive_edit',
     'stock_detail', 'technician_edit'
@@ -51,14 +51,14 @@ elseif (in_array($page, $pages_with_sidebar)) {
     require_once ROOT_PATH . '/includes/functions.php';
     ?>
     <!DOCTYPE html>
-    <html lang="en">
+    <html lang="<?php echo getCurrentLanguage(); ?>">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>GMAO Industrial - <?php echo ucfirst(str_replace('_', ' ', $page)); ?></title>
+        <title>GMAO Pro - <?php echo t($page); ?></title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-        <link rel="stylesheet" href="/gmao/assets/css/toast.css">
+        <link rel="stylesheet" href="/gmao_GEMINI/assets/css/toast.css">
         <?php if($page == 'performance' || $page == 'dashboard'): ?>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <?php endif; ?>
@@ -96,10 +96,10 @@ elseif (in_array($page, $pages_with_sidebar)) {
             .priority-medium{background:#ffc107;color:#333}
             .priority-low{background:#28a745;color:white}
             .status-badge{display:inline-block;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600}
-            .status-a_faire{background:#6c757d;color:white}
-            .status-en_cours{background:#17a2b8;color:white}
-            .status-termine{background:#28a745;color:white}
-            .status-cloturee{background:#343a40;color:white}
+            .status-pending{background:#6c757d;color:white}
+            .status-in_progress{background:#17a2b8;color:white}
+            .status-completed{background:#28a745;color:white}
+            .status-closed{background:#343a40;color:white}
             .action-buttons .btn{padding:4px 8px;margin:0 2px;border-radius:6px}
             .role-badge{display:inline-block;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600}
             .role-admin{background:#dc3545;color:white}
@@ -122,7 +122,7 @@ elseif (in_array($page, $pages_with_sidebar)) {
                         <hr class="bg-light">
                         <nav class="nav flex-column">
                             <a class="nav-link <?php echo $page == 'dashboard' ? 'active' : ''; ?>" href="?page=dashboard"><i class="fas fa-tachometer-alt"></i> <?php echo t('dashboard'); ?></a>
-                            <a class="nav-link <?php echo $page == 'calendar' ? 'active' : ''; ?>" href="?page=calendar"><i class="fas fa-calendar-alt"></i> <?php echo t('planning'); ?></a>
+                            <a class="nav-link <?php echo $page == 'calendar' ? 'active' : ''; ?>" href="?page=calendar"><i class="fas fa-calendar-alt"></i> <?php echo t('calendar'); ?></a>
                             <a class="nav-link <?php echo $page == 'equipment' ? 'active' : ''; ?>" href="?page=equipment"><i class="fas fa-microchip"></i> <?php echo t('equipment'); ?></a>
                             <a class="nav-link <?php echo $page == 'interventions' ? 'active' : ''; ?>" href="?page=interventions"><i class="fas fa-tools"></i> <?php echo t('interventions'); ?></a>
                             <a class="nav-link <?php echo $page == 'preventive' ? 'active' : ''; ?>" href="?page=preventive"><i class="fas fa-calendar-alt"></i> <?php echo t('preventive_maintenance'); ?></a>
@@ -138,6 +138,7 @@ elseif (in_array($page, $pages_with_sidebar)) {
                             <?php if(isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
                             <a class="nav-link <?php echo $page == 'mail_settings' ? 'active' : ''; ?>" href="?page=mail_settings"><i class="fas fa-envelope"></i> <?php echo t('email_config'); ?></a>
                             <a class="nav-link <?php echo $page == 'users' ? 'active' : ''; ?>" href="?page=users"><i class="fas fa-users-cog"></i> <?php echo t('users'); ?></a>
+                            <a class="nav-link <?php echo $page == 'admin_migrations' ? 'active' : ''; ?>" href="?page=admin_migrations"><i class="fas fa-database"></i> <?php echo t('migrations'); ?></a>
                             <a class="nav-link <?php echo $page == 'export_center' ? 'active' : ''; ?>" href="?page=export_center"><i class="fas fa-download"></i> <?php echo t('export'); ?>/<?php echo t('import'); ?></a>
                             <?php endif; ?>
                             <a class="nav-link <?php echo $page == 'profile' ? 'active' : ''; ?>" href="?page=profile"><i class="fas fa-user-circle"></i> <?php echo t('profile'); ?></a>
@@ -150,11 +151,11 @@ elseif (in_array($page, $pages_with_sidebar)) {
                     <div class="navbar-top">
                         <div class="row align-items-center">
                             <div class="col-md-6">
-                                <h5 class="mb-0"><i class="fas fa-<?php echo $page == 'dashboard' ? 'tachometer-alt' : ($page == 'performance' ? 'chart-line' : ($page == 'equipment' ? 'microchip' : ($page == 'interventions' ? 'tools' : ($page == 'preventive' ? 'calendar-alt' : ($page == 'technicians' ? 'users' : ($page == 'planning' ? 'calendar-week' : ($page == 'alerts' ? 'bell' : 'boxes'))))))); ?>"></i> <?php echo ucfirst(str_replace('_', ' ', $page)); ?></h5>
+                                <h5 class="mb-0"><i class="fas fa-<?php echo $page == 'dashboard' ? 'tachometer-alt' : ($page == 'performance' ? 'chart-line' : ($page == 'equipment' ? 'microchip' : ($page == 'interventions' ? 'tools' : ($page == 'preventive' ? 'calendar-alt' : ($page == 'technicians' ? 'users' : ($page == 'planning' ? 'calendar-week' : ($page == 'alerts' ? 'bell' : 'boxes'))))))); ?>"></i> <?php echo t($page); ?></h5>
                             </div>
                             <div class="col-md-6 text-end">
                                 <span class="badge bg-info p-2"><i class="fas fa-user"></i> <?php echo $_SESSION['username'] ?? 'Technician'; ?></span>
-                                <span class="badge bg-secondary p-2 ms-2"><i class="fas fa-calendar"></i> <?php echo date('d/m/Y'); ?></span>
+                                <span class="badge bg-secondary p-2 ms-2"><i class="fas fa-calendar"></i> <?php echo date('m/d/Y'); ?></span>
                             </div>
                         </div>
                     </div>
@@ -166,11 +167,11 @@ elseif (in_array($page, $pages_with_sidebar)) {
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-        <script src="/gmao/assets/js/alerts.js"></script>
+        <script src="/gmao_GEMINI/assets/js/alerts.js"></script>
         <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/gmao/sw.js').then(function(registration) {
+                navigator.serviceWorker.register('/gmao_GEMINI/sw.js').then(function(registration) {
                     console.log('Service Worker registered:', registration.scope);
                 }).catch(function(error) {
                     console.log('Service Worker error:', error);

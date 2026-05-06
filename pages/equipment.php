@@ -1,5 +1,5 @@
 <?php
-// pages/equipment.php - Gestion complète des équipements (CRUD)
+// pages/equipment.php - Full equipment management (CRUD)
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
@@ -9,9 +9,9 @@ $action = $_GET['action'] ?? 'list';
 $message = '';
 $error = '';
 
-// ========== TRAITEMENT DES ACTIONS ==========
+// ========== ACTION PROCESSING ==========
 
-// Ajout d'un équipement
+// Add equipment
 if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $sql = "INSERT INTO equipment (code, name, type, location, supplier, purchase_date, warranty_end, technical_specs) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
@@ -28,7 +28,7 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     ]);
     
     if($result) {
-        logUserAction($_SESSION['user_id'], 'equipment_created', "Équipement créé: {$_POST['code']}");
+        logUserAction($_SESSION['user_id'], 'equipment_created', "Equipment created: {$_POST['code']}");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=equipment'>";
     } else {
@@ -36,7 +36,7 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Modification d'un équipement
+// Edit equipment
 if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $sql = "UPDATE equipment SET 
             code = ?, 
@@ -64,7 +64,7 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
     ]);
     
     if($result) {
-        logUserAction($_SESSION['user_id'], 'equipment_updated', "Équipement ID: {$_GET['id']} modifié");
+        logUserAction($_SESSION['user_id'], 'equipment_updated', "Equipment ID: {$_GET['id']} updated");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=equipment'>";
     } else {
@@ -72,7 +72,7 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
     }
 }
 
-// Suppression (soft delete - désactivation) avec validation mot de passe
+// Delete (soft delete - deactivation) with password validation
 if($action == 'delete' && isset($_GET['id'])) {
     if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor') {
         if(isset($_POST['confirm_password'])) {
@@ -82,7 +82,7 @@ if($action == 'delete' && isset($_GET['id'])) {
             if(password_verify($_POST['confirm_password'], $user['password'])) {
                 $stmt2 = $pdo->prepare("UPDATE equipment SET status = 'retired' WHERE id = ?");
                 $stmt2->execute([$_GET['id']]);
-                logUserAction($_SESSION['user_id'], 'equipment_deleted', "Équipement ID: {$_GET['id']} désactivé");
+                logUserAction($_SESSION['user_id'], 'equipment_deleted', "Equipment ID: {$_GET['id']} deactivated");
                 $message = "✅ " . t('save_success');
                 echo "<meta http-equiv='refresh' content='1;url=?page=equipment'>";
             } else {
@@ -92,23 +92,33 @@ if($action == 'delete' && isset($_GET['id'])) {
     }
 }
 
-// Réactivation d'un équipement (admin uniquement)
+// Restore equipment (admin only)
 if($action == 'restore' && isset($_GET['id']) && $_SESSION['role'] == 'admin') {
     $stmt = $pdo->prepare("UPDATE equipment SET status = 'active' WHERE id = ?");
     $stmt->execute([$_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'equipment_restored', "Équipement ID: {$_GET['id']} réactivé");
+    logUserAction($_SESSION['user_id'], 'equipment_restored', "Equipment ID: {$_GET['id']} reactivated");
     $message = "✅ " . t('save_success');
     echo "<meta http-equiv='refresh' content='1;url=?page=equipment'>";
 }
 
-// Récupération des équipements (incluant les retirés pour admin)
+// Fetch equipment (including retired for admin)
 if($_SESSION['role'] == 'admin') {
     $equipments = $pdo->query("SELECT * FROM equipment ORDER BY name")->fetchAll();
 } else {
     $equipments = $pdo->query("SELECT * FROM equipment WHERE status != 'retired' ORDER BY name")->fetchAll();
 }
 
-// Récupération de l'historique des modifications pour chaque équipement
+// Count attachments per equipment (simple cache)
+$attachmentCounts = [];
+try {
+    $stmt = $pdo->query("SELECT parent_id, COUNT(*) as c FROM attachments WHERE parent_type='equipment' GROUP BY parent_id");
+    foreach($stmt->fetchAll() as $r) { $attachmentCounts[$r['parent_id']] = $r['c']; }
+} catch (PDOException $e) {
+    // attachments table may not exist yet (migration not run) — ignore and continue
+    $attachmentCounts = [];
+}
+
+// Fetch modifications history for each equipment
 $history = [];
 foreach($equipments as $eq) {
     $stmt = $pdo->prepare("
@@ -122,7 +132,7 @@ foreach($equipments as $eq) {
     $history[$eq['id']] = $stmt->fetchAll();
 }
 
-// ========== FORMULAIRE D'AJOUT ==========
+// ========== ADD FORM ==========
 if($action == 'add'):
 ?>
 <style>
@@ -188,11 +198,11 @@ if($action == 'add'):
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('type'); ?></label>
-                    <input type="text" name="type" class="form-control" placeholder="Ex: Fraiseuse, Presse, Convoyeur...">
+                    <input type="text" name="type" class="form-control" placeholder="Ex: Milling machine, Press, Conveyor...">
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('location'); ?></label>
-                    <input type="text" name="location" class="form-control" placeholder="Ex: Atelier A, Bâtiment B...">
+                    <input type="text" name="location" class="form-control" placeholder="Ex: Workshop A, Building B...">
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('supplier'); ?></label>
@@ -208,7 +218,7 @@ if($action == 'add'):
                 </div>
                 <div class="col-md-12 mb-3">
                     <label class="form-label"><?php echo t('technical_specs'); ?></label>
-                    <textarea name="technical_specs" class="form-control" rows="3" placeholder="Caractéristiques techniques, puissance, dimensions..."></textarea>
+                    <textarea name="technical_specs" class="form-control" rows="3" placeholder="Technical specifications, power, dimensions..."></textarea>
                 </div>
             </div>
             <div class="mt-3">
@@ -218,11 +228,98 @@ if($action == 'add'):
         </form>
     </div>
 </div>
+
+
+<!-- Attachments management for this equipment (upload + list) -->
+<?php
+    // fetch attachments for this equipment
+    $stmt = $pdo->prepare("SELECT * FROM attachments WHERE parent_type = 'equipment' AND parent_id = ? ORDER BY created_at DESC");
+    $stmt->execute([$_GET['id']]);
+    $eq_attachments = $stmt->fetchAll();
+    $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+?>
+<div class="info-card">
+    <div class="card-header-custom">
+        <i class="fas fa-paperclip"></i> <?php echo t('documents'); ?>
+    </div>
+    <div class="card-body p-3">
+        <?php if(empty($eq_attachments)): ?>
+            <div class="text-muted"><?php echo t('no_documents'); ?></div>
+        <?php else: ?>
+            <div class="d-flex flex-wrap gap-2">
+                <?php foreach($eq_attachments as $att): ?>
+                    <div style="width:220px; text-align:left; border:1px solid #f0f0f0; padding:8px; border-radius:8px;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong><?php echo htmlspecialchars($att['original_name'] ?: ($att['external_path'] ?: $att['filename'])); ?></strong>
+                                <div class="small text-muted"><?php echo htmlspecialchars($att['mime'] === 'link' ? 'link' : $att['mime']); ?></div>
+                            </div>
+                            <div>
+                                <?php if(!empty($att['external_path'])): ?>
+                                    <a href="<?php echo htmlspecialchars($att['external_path']); ?>" target="_blank" class="btn btn-sm btn-info" title="<?php echo t('open_document'); ?>">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                <?php else: ?>
+                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-sm btn-secondary" title="<?php echo t('view'); ?>">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" download class="btn btn-sm btn-info" title="<?php echo t('download'); ?>">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="mt-2 small text-truncate" style="max-width:200px;"><?php echo htmlspecialchars($att['external_path'] ?? ''); ?></div>
+                        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor' || $_SESSION['user_id'] == $att['created_by']): ?>
+                            <div class="mt-2">
+                                <form action="api/delete_attachment.php" method="post" style="display:inline-block;" onsubmit="return confirm('<?php echo t('delete_confirm'); ?>');">
+                                    <input type="hidden" name="id" value="<?php echo $att['id']; ?>">
+                                    <?php echo csrf_input(); ?>
+                                    <button class="btn btn-sm btn-danger" type="submit"><?php echo t('delete'); ?></button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+            <hr>
+            <form id="equip-upload-form" action="api/upload_attachment.php" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="parent_type" value="equipment">
+                <input type="hidden" name="parent_id" value="<?php echo $_GET['id']; ?>">
+                <?php echo csrf_input(); ?>
+                <div class="mb-2">
+                    <input id="equip-file-input" type="file" name="file" required>
+                </div>
+                <button class="btn btn-sm btn-primary" type="submit"><?php echo t('upload'); ?></button>
+            </form>
+            <script>
+            (function(){
+                var form = document.getElementById('equip-upload-form');
+                if(!form) return;
+                var input = document.getElementById('equip-file-input');
+                var maxBytes = 10 * 1024 * 1024; // 10MB
+                form.addEventListener('submit', function(e){
+                    if(input.files && input.files[0]){
+                        if(input.files[0].size > maxBytes){
+                            e.preventDefault();
+                            alert('Le fichier est trop volumineux (max 10 MB).');
+                            return false;
+                        }
+                    }
+                });
+            })();
+            </script>
+        <?php endif; ?>
+    </div>
+</div>
 <?php
 return;
 endif;
 
-// ========== FORMULAIRE DE MODIFICATION ==========
+// ========== EDIT FORM ==========
 if($action == 'edit' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT * FROM equipment WHERE id = ?");
     $stmt->execute([$_GET['id']]);
@@ -305,11 +402,90 @@ if($action == 'edit' && isset($_GET['id'])):
         </form>
     </div>
 </div>
+<!-- Documents / Attachments (on edit page) -->
+<div class="info-card mt-3">
+    <div class="form-card-header">
+        <i class="fas fa-paperclip"></i> <?php echo t('documents'); ?>
+    </div>
+    <div class="card-body p-3">
+        <?php
+            $stmt = $pdo->prepare("SELECT * FROM attachments WHERE parent_type = 'equipment' AND parent_id = ? ORDER BY created_at DESC");
+            $stmt->execute([$eq['id']]);
+            $attachments_edit = $stmt->fetchAll();
+            $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+        ?>
+
+        <?php if(empty($attachments_edit)): ?>
+            <div class="text-muted"><?php echo t('no_documents'); ?></div>
+        <?php else: ?>
+            <div class="d-flex flex-wrap gap-2">
+                <?php foreach($attachments_edit as $att): ?>
+                    <div style="width:220px; text-align:left; border:1px solid #f0f0f0; padding:8px; border-radius:8px;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong><?php echo htmlspecialchars($att['original_name'] ?: ($att['external_path'] ?: $att['filename'])); ?></strong>
+                                <div class="small text-muted"><?php echo htmlspecialchars($att['mime'] === 'link' ? 'link' : $att['mime']); ?></div>
+                            </div>
+                            <div>
+                                <?php if(!empty($att['external_path'])): ?>
+                                    <a href="<?php echo htmlspecialchars($att['external_path']); ?>" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-external-link-alt"></i></a>
+                                <?php else: ?>
+                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-sm btn-secondary"><i class="fas fa-eye"></i></a>
+                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" download class="btn btn-sm btn-info"><i class="fas fa-download"></i></a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="mt-2 small text-truncate" style="max-width:200px;"><?php echo htmlspecialchars($att['external_path'] ?? ''); ?></div>
+                        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor' || $_SESSION['user_id'] == $att['created_by']): ?>
+                            <div class="mt-2">
+                                <form action="api/delete_attachment.php" method="post" style="display:inline-block;" onsubmit="return confirm('<?php echo t('delete_confirm'); ?>');">
+                                    <input type="hidden" name="id" value="<?php echo $att['id']; ?>">
+                                    <?php echo csrf_input(); ?>
+                                    <button class="btn btn-sm btn-danger" type="submit"><?php echo t('delete'); ?></button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+            <hr>
+            <form id="equip-edit-upload-form" action="api/upload_attachment.php" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="parent_type" value="equipment">
+                <input type="hidden" name="parent_id" value="<?php echo $eq['id']; ?>">
+                <?php echo csrf_input(); ?>
+                <div class="mb-2">
+                    <input id="equip-edit-file-input" type="file" name="file" required>
+                </div>
+                <button class="btn btn-sm btn-primary" type="submit"><?php echo t('upload'); ?></button>
+            </form>
+            <script>
+            (function(){
+                var form = document.getElementById('equip-edit-upload-form');
+                if(!form) return;
+                var input = document.getElementById('equip-edit-file-input');
+                var maxBytes = 10 * 1024 * 1024; // 10MB
+                form.addEventListener('submit', function(e){
+                    if(input.files && input.files[0]){
+                        if(input.files[0].size > maxBytes){
+                            e.preventDefault();
+                            alert('Le fichier est trop volumineux (max 10 MB).');
+                            return false;
+                        }
+                    }
+                });
+            })();
+            </script>
+        <?php endif; ?>
+    </div>
+</div>
 <?php
 return;
 endif;
 
-// ========== MODAL DE CONFIRMATION SUPPRESSION ==========
+// ========== DELETE CONFIRMATION MODAL ==========
 if($action == 'delete' && isset($_GET['id'])):
     $stmt = $pdo->prepare("SELECT * FROM equipment WHERE id = ?");
     $stmt->execute([$_GET['id']]);
@@ -464,27 +640,23 @@ endif;
                             </span>
                         </td>
                         <td style="max-width: 200px;">
-                            <?php if(!empty($history[$eq['id']])): ?>
-                                <?php foreach(array_slice($history[$eq['id']], 0, 2) as $h): ?>
+                            <?php if(!empty($history[$eq['id']])):
+                                $h = $history[$eq['id']][0]; ?>
                                 <div class="history-item">
-                                    <?php
-                                    $action_icons = [
-                                        'equipment_created' => '🟢 ' . t('created'),
-                                        'equipment_updated' => '✏️ ' . t('modified'),
-                                        'equipment_deleted' => '🗑️ ' . t('deactivated'),
-                                        'equipment_restored' => '🔄 ' . t('reactivated')
-                                    ];
-                                    echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
-                                    ?>
-                                    <br><small class="text-muted"><?php echo date('d/m/Y H:i', strtotime($h['created_at'])); ?></small>
+                                    <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
                                 </div>
-                                <?php endforeach; ?>
                             <?php else: ?>
                                 <small class="text-muted">-</small>
                             <?php endif; ?>
                         </td>
                         <td class="text-center action-buttons" onclick="event.stopPropagation()">
                             <?php if($eq['status'] != 'retired'): ?>
+                                <a href="?page=equipment_attachments&equipment_id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-light" title="<?php echo t('attachments'); ?>">
+                                    <i class="fas fa-paperclip"></i>
+                                    <?php if(!empty($attachmentCounts[$eq['id']])): ?>
+                                        <span class="badge bg-secondary ms-1"><?php echo $attachmentCounts[$eq['id']]; ?></span>
+                                    <?php endif; ?>
+                                </a>
                                 <a href="?page=equipment_qr&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('qr_code'); ?>">
                                     <i class="fas fa-qrcode"></i>
                                 </a>
@@ -492,7 +664,8 @@ endif;
                                 <a href="?page=equipment&action=edit&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('edit'); ?>">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="?page=equipment&action=delete&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('delete'); ?>">
+                                <a href="?page=equipment&action=delete&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('delete'); ?>" onclick="return confirm('<?php echo t('delete_confirm'); ?>')">
+
                                     <i class="fas fa-trash"></i>
                                 </a>
                                 <?php endif; ?>
@@ -515,7 +688,7 @@ endif;
     </div>
 </div>
 
-<!-- Légende -->
+<!-- Legend -->
 <div class="row mt-3">
     <div class="col-md-12">
         <div class="info-card">

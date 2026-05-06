@@ -205,7 +205,7 @@ $completed_count = count(array_filter($interventions, function($i) { return $i['
                 </div>
                 <?php if($inv['intervention_date']): ?>
                     <div class="intervention-date">
-                        <i class="fas fa-calendar-alt"></i> <?php echo date('d/m/Y', strtotime($inv['intervention_date'])); ?>
+                        <i class="fas fa-calendar-alt"></i> <?php echo format_date_us($inv['intervention_date'], false); ?>
                         <?php if($inv['scheduled_time']): ?>
                             <i class="fas fa-clock ms-2"></i> <?php echo date('H:i', strtotime($inv['scheduled_time'])); ?>
                         <?php endif; ?>
@@ -250,7 +250,7 @@ $completed_count = count(array_filter($interventions, function($i) { return $i['
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/gmao/sw.js')
+            navigator.serviceWorker.register('/gmao_GEMINI/sw.js')
                 .then(reg => console.log('Service Worker enregistrÃ©', reg))
                 .catch(err => console.log('Erreur Service Worker', err));
         }

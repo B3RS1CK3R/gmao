@@ -4,7 +4,7 @@ header('Content-Type: application/json');
 session_start();
 
 if(!isset($_SESSION['user_id'])) {
-    echo json_encode(['success' => false, 'error' => 'Non authentifié']);
+    echo json_encode(['success' => false, 'error' => 'Not authenticated']);
     exit();
 }
 
@@ -13,7 +13,7 @@ require_once __DIR__ . '/../config/database.php';
 $data = json_decode(file_get_contents('php://input'), true);
 
 if(!isset($data['id']) || !isset($data['date'])) {
-    echo json_encode(['success' => false, 'error' => 'Paramètres manquants']);
+    echo json_encode(['success' => false, 'error' => 'Missing parameters']);
     exit();
 }
 

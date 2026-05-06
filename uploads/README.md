@@ -1,0 +1,6 @@
+This folder stores uploaded attachments for equipment and interventions.
+Structure:
+- uploads/attachments/equipment/{equipment_id}/...
+- uploads/attachments/intervention/{intervention_id}/...
+
+Make sure webserver user can write to this directory.

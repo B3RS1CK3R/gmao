@@ -1,14 +1,14 @@
 <?php
-// pages/alerts.php - Centre d'alertes
+// pages/alerts.php - Alert Center
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
 }
 
-// Récupération des alertes actives
+// Fetch active alerts
 $alerts = [];
 
-// 1. Interventions critiques non terminées
+// 1. Critical interventions not completed
 $stmt = $pdo->query("
     SELECT i.*, e.name as equipment_name, e.code as equipment_code
     FROM interventions i 
@@ -27,14 +27,14 @@ foreach($criticalInterventions as $inv) {
         'priority' => 'critical',
         'title' => t('critical_intervention'),
         'message' => $inv['title'] . ' - ' . $inv['equipment_name'] . ' (' . $inv['equipment_code'] . ')',
-        'details' => t('created_on') . ' : ' . date('d/m/Y H:i', strtotime($inv['created_at'])) . '<br>' . nl2br(htmlspecialchars(substr($inv['description'], 0, 200))),
+        'details' => t('created_on') . ' : ' . format_date_us($inv['created_at'], true) . '<br>' . nl2br(htmlspecialchars(substr($inv['description'], 0, 200))),
         'url' => '?page=intervention_view&id=' . $inv['id'],
         'date' => $inv['created_at'],
         'status' => $inv['task_status']
     ];
 }
 
-// 2. Maintenances préventives en retard
+// 2. Overdue preventive maintenances
 $stmt = $pdo->query("
     SELECT pm.*, e.name as equipment_name, e.code as equipment_code
     FROM preventive_maintenance pm
@@ -59,7 +59,7 @@ foreach($overdueMaintenances as $pm) {
     ];
 }
 
-// 3. Maintenances préventives à venir (moins de 7 jours)
+// 3. Upcoming preventive maintenances (less than 7 days)
 $stmt = $pdo->query("
     SELECT pm.*, e.name as equipment_name, e.code as equipment_code,
            DATEDIFF(pm.next_due, CURDATE()) as days_left
@@ -78,14 +78,14 @@ foreach($upcomingMaintenances as $pm) {
         'priority' => 'info',
         'title' => t('maintenance_upcoming'),
         'message' => $pm['equipment_name'] . ' (' . $pm['equipment_code'] . ') - ' . t('in') . ' ' . $pm['days_left'] . ' ' . t('days'),
-        'details' => t('planned_date') . ' : ' . date('d/m/Y', strtotime($pm['next_due'])) . '<br>' . t('instructions') . ' : ' . nl2br(htmlspecialchars($pm['instructions'])),
+        'details' => t('planned_date') . ' : ' . format_date_us($pm['next_due'], false) . '<br>' . t('instructions') . ' : ' . nl2br(htmlspecialchars($pm['instructions'])),
         'url' => '?page=preventive',
         'date' => $pm['next_due'],
         'days_left' => $pm['days_left']
     ];
 }
 
-// 4. Stock critique
+// 4. Critical stock
 $stmt = $pdo->query("
     SELECT * FROM spare_parts 
     WHERE quantity <= min_quantity 
@@ -109,7 +109,7 @@ foreach($lowStock as $part) {
     ];
 }
 
-// 5. Garanties expirant bientôt
+// 5. Warranties expiring soon
 $stmt = $pdo->query("
     SELECT e.*, DATEDIFF(e.warranty_end, CURDATE()) as days_left
     FROM equipment e
@@ -128,7 +128,7 @@ foreach($warrantyExpiring as $eq) {
             'priority' => 'critical',
             'title' => t('warranty_expired'),
             'message' => $eq['name'] . ' (' . $eq['code'] . ') - ' . t('expired_since') . ' ' . abs($eq['days_left']) . ' ' . t('days'),
-            'details' => t('purchase_date') . ' : ' . date('d/m/Y', strtotime($eq['purchase_date'])) . '<br>' . t('warranty_end') . ' : ' . date('d/m/Y', strtotime($eq['warranty_end'])),
+            'details' => t('purchase_date') . ' : ' . format_date_us($eq['purchase_date'], false) . '<br>' . t('warranty_end') . ' : ' . format_date_us($eq['warranty_end'], false),
             'url' => '?page=equipment_detail&id=' . $eq['id'],
             'date' => $eq['warranty_end'],
             'days_overdue' => abs($eq['days_left'])
@@ -140,7 +140,7 @@ foreach($warrantyExpiring as $eq) {
             'priority' => 'warning',
             'title' => t('warranty_upcoming'),
             'message' => $eq['name'] . ' (' . $eq['code'] . ') - ' . t('expires_in') . ' ' . $eq['days_left'] . ' ' . t('days'),
-            'details' => t('purchase_date') . ' : ' . date('d/m/Y', strtotime($eq['purchase_date'])) . '<br>' . t('warranty_end') . ' : ' . date('d/m/Y', strtotime($eq['warranty_end'])),
+            'details' => t('purchase_date') . ' : ' . format_date_us($eq['purchase_date'], false) . '<br>' . t('warranty_end') . ' : ' . format_date_us($eq['warranty_end'], false),
             'url' => '?page=equipment_detail&id=' . $eq['id'],
             'date' => $eq['warranty_end'],
             'days_left' => $eq['days_left']
@@ -148,7 +148,7 @@ foreach($warrantyExpiring as $eq) {
     }
 }
 
-// 6. Interventions non assignées depuis plus de 3 jours
+// 6. Unassigned interventions older than 3 days
 $stmt = $pdo->query("
     SELECT i.*, e.name as equipment_name, e.code as equipment_code,
            DATEDIFF(NOW(), i.created_at) as days_old
@@ -174,12 +174,12 @@ foreach($unassigned as $inv) {
     ];
 }
 
-// Trier les alertes par date (plus récentes d'abord)
+// Sort alerts by date (newest first)
 usort($alerts, function($a, $b) {
     return strtotime($b['date']) - strtotime($a['date']);
 });
 
-// Compter les alertes par priorité
+// Count alerts by priority
 $critical_count = count(array_filter($alerts, function($a) { return $a['priority'] == 'critical'; }));
 $warning_count = count(array_filter($alerts, function($a) { return $a['priority'] == 'warning'; }));
 $info_count = count(array_filter($alerts, function($a) { return $a['priority'] == 'info'; }));
@@ -296,7 +296,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         </div>
     </div>
     
-    <!-- Résumé des alertes -->
+    <!-- Alerts summary -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="stats-card" onclick="filterAlerts('critical')">
@@ -324,7 +324,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         </div>
     </div>
     
-    <!-- Alertes par catégorie -->
+    <!-- Alerts by category -->
     <?php
     $categories = [
         'critical_intervention' => ['title' => t('critical_interventions_title'), 'icon' => 'fas fa-skull-crosswalk', 'color' => 'critical'],
@@ -355,7 +355,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
                         <div class="fw-bold"><?php echo $alert['title']; ?></div>
                         <div class="small text-muted mt-1"><?php echo $alert['message']; ?></div>
                         <div class="small text-muted mt-1">
-                            <i class="fas fa-calendar-alt"></i> <?php echo date('d/m/Y H:i', strtotime($alert['date'])); ?>
+                            <i class="fas fa-calendar-alt"></i> <?php echo format_date_us($alert['date'], true); ?>
                         </div>
                         <?php if(isset($alert['details'])): ?>
                         <div class="small text-muted mt-1">
@@ -409,10 +409,10 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
 </div>
 
 <script>
-// Stockage des alertes ignorées pour la session uniquement
+// Store dismissed alerts for session only
 let dismissedAlerts = [];
 
-// Mettre à jour l'affichage des alertes
+// Update alerts display
 function updateDisplayedAlerts() {
     const allAlerts = document.querySelectorAll('.alert-item');
     allAlerts.forEach(alert => {
@@ -426,7 +426,7 @@ function updateDisplayedAlerts() {
     updateCounters();
 }
 
-// Marquer une alerte comme lue
+// Mark an alert as read
 function dismissAlert(event, alertId) {
     event.stopPropagation();
     if (!dismissedAlerts.includes(alertId)) {
@@ -439,7 +439,7 @@ function dismissAlert(event, alertId) {
     }
 }
 
-// Tout marquer comme lu
+// Mark all as read
 function clearAllAlerts() {
     if(confirm('<?php echo t('mark_all_read_confirm'); ?>')) {
         const allAlerts = document.querySelectorAll('.alert-item');
@@ -460,7 +460,7 @@ function clearAllAlerts() {
     }
 }
 
-// Mettre à jour les compteurs
+// Update counters
 function updateCounters() {
     const visibleAlerts = document.querySelectorAll('.alert-item:not([style*="display: none"])');
     const total = visibleAlerts.length;
@@ -478,7 +478,7 @@ function updateCounters() {
     }
 }
 
-// Filtrer les alertes par priorité
+// Filter alerts by priority
 function filterAlerts(priority) {
     const allAlerts = document.querySelectorAll('.alert-item');
     allAlerts.forEach(alert => {
@@ -496,7 +496,7 @@ function filterAlerts(priority) {
     });
 }
 
-// Ouvrir une URL
+// Open URL
 function goToUrl(url) {
     window.location.href = url;
 }
@@ -516,7 +516,7 @@ function toggleCard(header) {
     }
 }
 
-// Initialisation
+// Initialization
 document.addEventListener('DOMContentLoaded', function() {
     dismissedAlerts = [];
 });

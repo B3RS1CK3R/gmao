@@ -26,7 +26,7 @@ try {
     if($equipment) {
         echo json_encode(['success' => true, 'equipment' => $equipment]);
     } else {
-        echo json_encode(['success' => false, 'error' => 'Équipement non trouvé']);
+        echo json_encode(['success' => false, 'error' => 'Equipment not found']);
     }
 } catch(PDOException $e) {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);

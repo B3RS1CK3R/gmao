@@ -54,6 +54,11 @@ $used_parts = $stmt->fetchAll();
 
 // Récupération des techniciens pour assignation
 $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
+
+// Récupération des pièces jointes (documents, images)
+$stmt = $pdo->prepare("SELECT * FROM attachments WHERE parent_type = 'intervention' AND parent_id = ? ORDER BY created_at DESC");
+$stmt->execute([$id]);
+$attachments = $stmt->fetchAll();
 ?>
 
 <style>
@@ -174,7 +179,7 @@ $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM techn
                 <table class="table table-sm table-borderless">
                     <tr><td style="width: 40%;"><strong><?php echo t('task_number'); ?></strong></td><td><code><?php echo htmlspecialchars($intervention['task_number'] ?? 'N/A'); ?></code></td></tr>
                     <tr><td><strong><?php echo t('title'); ?></strong></td><td><?php echo htmlspecialchars($intervention['title']); ?></td></tr>
-                    <tr><td><strong><?php echo t('created_at'); ?></strong></td><td><?php echo date('d/m/Y H:i', strtotime($intervention['created_at'])); ?></td></tr>
+                    <tr><td><strong><?php echo t('created_at'); ?></strong></td><td><?php echo format_date_us($intervention['created_at'], true); ?></td></tr>
                     <tr><td><strong><?php echo t('created_by'); ?></strong></td><td><?php echo htmlspecialchars($intervention['created_by_name'] ?? $intervention['reported_by']); ?></td></tr>
                     <tr><td><strong><?php echo t('priority'); ?></strong></td>
                         <td><span class="priority-badge priority-<?php echo $intervention['priority']; ?>"><?php echo t($intervention['priority']); ?></span></td>
@@ -280,7 +285,7 @@ $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM techn
                         </td>
                     </tr>
                     <tr><td><strong><?php echo t('planned_date'); ?></strong></td>
-                        <td><?php echo $intervention['intervention_date'] ? date('d/m/Y', strtotime($intervention['intervention_date'])) : t('not_planned'); ?>
+                        <td><?php echo $intervention['intervention_date'] ? format_date_us($intervention['intervention_date'], false) : t('not_planned'); ?>
                         <?php if(strtotime($intervention['intervention_date']) < time() && $intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee'): ?>
                             <span class="badge bg-danger ms-2"><?php echo t('overdue'); ?></span>
                         <?php endif; ?>
@@ -291,7 +296,7 @@ $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM techn
                     <tr><td><strong><?php echo t('actual_duration'); ?></strong></td><td><?php echo $intervention['duration_hours']; ?> <?php echo t('hours'); ?></td></tr>
                     <?php endif; ?>
                     <?php if($intervention['completed_date']): ?>
-                    <tr><td><strong><?php echo t('completion_date'); ?></strong></td><td><?php echo date('d/m/Y H:i', strtotime($intervention['completed_date'])); ?></td></tr>
+                    <tr><td><strong><?php echo t('completion_date'); ?></strong></td><td><?php echo format_date_us($intervention['completed_date'], true); ?></td></tr>
                     <?php endif; ?>
                 </table>
             </div>
@@ -320,6 +325,74 @@ $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM techn
             </div>
         </div>
         <?php endif; ?>
+
+        <!-- Documents / Attachments -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="fas fa-paperclip"></i> <?php echo t('documents'); ?>
+            </div>
+            <div class="card-body p-3">
+                <?php if(empty($attachments)): ?>
+                    <div class="text-muted"><?php echo t('no_documents'); ?></div>
+                <?php else: ?>
+                    <?php $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/'); ?>
+                    <div class="d-flex flex-wrap gap-2">
+                        <?php foreach($attachments as $att): ?>
+                            <div style="width:120px; text-align:center;">
+                                <?php if(strpos($att['mime'], 'image/') === 0): ?>
+                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/intervention/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank">
+                                        <img src="<?php echo $baseUrl; ?>/uploads/attachments/intervention/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" style="max-width:110px; max-height:80px; object-fit:cover; border-radius:6px;" alt="">
+                                    </a>
+                                <?php else: ?>
+                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/intervention/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank">
+                                        <div style="width:110px; height:80px; display:flex; align-items:center; justify-content:center; background:#f5f5f5; border-radius:6px;"><?php echo strtoupper(pathinfo($att['original_name'], PATHINFO_EXTENSION)); ?></div>
+                                    </a>
+                                <?php endif; ?>
+                                <div class="small text-truncate" style="max-width:120px;"><?php echo htmlspecialchars($att['original_name']); ?></div>
+                                <div class="mt-1">
+                                    <?php if(!empty($att['external_path'])): ?>
+                                        <a href="<?php echo htmlspecialchars($att['external_path']); ?>" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-external-link-alt"></i></a>
+                                    <?php else: ?>
+                                        <a href="<?php echo $baseUrl; ?>/uploads/attachments/intervention/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-sm btn-secondary"><i class="fas fa-eye"></i></a>
+                                        <a href="<?php echo $baseUrl; ?>/uploads/attachments/intervention/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" download class="btn btn-sm btn-info"><i class="fas fa-download"></i></a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor' || $_SESSION['role'] == 'technician'): ?>
+                    <hr>
+                    <form id="upload-attachment-form" action="api/upload_attachment.php" method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="parent_type" value="intervention">
+                        <input type="hidden" name="parent_id" value="<?php echo $intervention['id']; ?>">
+                        <?php echo csrf_input(); ?>
+                        <div class="mb-2">
+                            <input id="attachment-file-input" type="file" name="file" required>
+                        </div>
+                        <button class="btn btn-sm btn-primary" type="submit"><?php echo t('upload'); ?></button>
+                    </form>
+                    <script>
+                    (function(){
+                        var form = document.getElementById('upload-attachment-form');
+                        if(!form) return;
+                        var input = document.getElementById('attachment-file-input');
+                        var maxBytes = 10 * 1024 * 1024; // 10MB
+                        form.addEventListener('submit', function(e){
+                            if(input.files && input.files[0]){
+                                if(input.files[0].size > maxBytes){
+                                    e.preventDefault();
+                                    alert('Le fichier est trop volumineux (max 10 MB).');
+                                    return false;
+                                }
+                            }
+                        });
+                    })();
+                    </script>
+                <?php endif; ?>
+            </div>
+        </div>
         
         <!-- Pièces utilisées -->
         <?php if(!empty($used_parts)): ?>
@@ -382,7 +455,7 @@ $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM techn
                             echo $action_icons[$h['action']] ?? $h['action'];
                             ?>
                         </span>
-                        <small class="text-muted"><?php echo date('d/m/Y H:i', strtotime($h['created_at'])); ?></small>
+                        <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
                     </div>
                     <small class="text-muted"><?php echo t('by'); ?> : <?php echo htmlspecialchars($h['username'] ?? t('unknown')); ?> (IP: <?php echo htmlspecialchars($h['ip_address']); ?>)</small>
                     <div class="small text-muted mt-1"><?php echo htmlspecialchars($h['details']); ?></div>

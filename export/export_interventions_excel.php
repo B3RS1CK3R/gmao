@@ -7,6 +7,7 @@ if(!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/lang.php';
 require_once __DIR__ . '/../vendor/SimpleXLSXGen.php';
 
 // Récupérer les paramètres de filtre
@@ -18,21 +19,21 @@ $end_date = $_GET['end_date'] ?? date('Y-m-d');
 // Construire la requête SQL
 $sql = "
     SELECT 
-        i.task_number as 'N° Tâche',
-        i.title as 'Titre',
-        e.name as 'Équipement',
-        e.code as 'Code équipement',
+        i.task_number as 'Task Number',
+        i.title as 'Title',
+        e.name as 'Equipment',
+        e.code as 'Equipment Code',
         i.type as 'Type',
-        i.priority as 'Priorité',
-        i.task_status as 'Statut',
-        DATE_FORMAT(i.created_at, '%d/%m/%Y %H:%i') as 'Date création',
-        DATE_FORMAT(i.intervention_date, '%d/%m/%Y') as 'Date prévue',
-        t.firstname as 'Technicien prénom',
-        t.lastname as 'Technicien nom',
-        i.duration_hours as 'Durée (h)',
-        i.planned_duration as 'Durée prévue',
+        i.priority as 'Priority',
+        i.task_status as 'Status',
+        DATE_FORMAT(i.created_at, '%d/%m/%Y %H:%i') as 'Creation Date',
+        DATE_FORMAT(i.intervention_date, '%d/%m/%Y') as 'Planned Date',
+        t.firstname as 'Technician Firstname',
+        t.lastname as 'Technician Lastname',
+        i.duration_hours as 'Duration (h)',
+        i.planned_duration as 'Planned Duration',
         i.zone as 'Zone',
-        i.localisation as 'Localisation'
+        i.localisation as 'Location'
     FROM interventions i
     JOIN equipment e ON i.equipment_id = e.id
     LEFT JOIN technicians t ON i.intervenant_id = t.id
@@ -66,29 +67,29 @@ $interventions = $stmt->fetchAll();
 // Préparer les données pour l'export
 $rows = [];
 $rows[] = [
-    'N° Tâche', 'Titre', 'Équipement', 'Code équipement', 'Type', 
-    'Priorité', 'Statut', 'Date création', 'Date prévue', 
-    'Technicien prénom', 'Technicien nom', 'Durée (h)', 'Durée prévue', 
-    'Zone', 'Localisation'
+    'Task Number', 'Title', 'Equipment', 'Equipment Code', 'Type', 
+    'Priority', 'Status', 'Creation Date', 'Planned Date', 
+    'Technician Firstname', 'Technician Lastname', 'Duration (h)', 'Planned Duration', 
+    'Zone', 'Location'
 ];
 
 foreach($interventions as $inv) {
     $rows[] = [
-        $inv['N° Tâche'] ?? 'N/A',
-        $inv['Titre'],
-        $inv['Équipement'],
-        $inv['Code équipement'],
-        $inv['Type'],
-        $inv['Priorité'],
-        $inv['Statut'],
-        $inv['Date création'],
-        $inv['Date prévue'] ?? 'Non planifiée',
-        $inv['Technicien prénom'] ?? '',
-        $inv['Technicien nom'] ?? '',
-        $inv['Durée (h)'] ?? '',
-        $inv['Durée prévue'] ?? '',
+        $inv['Task Number'] ?? 'N/A',
+        $inv['Title'],
+        $inv['Equipment'],
+        $inv['Equipment Code'],
+        t($inv['Type']),
+        t($inv['Priority']),
+        t($inv['Status']),
+        $inv['Creation Date'],
+        $inv['Planned Date'] ?? t('not_planned'),
+        $inv['Technician Firstname'] ?? '',
+        $inv['Technician Lastname'] ?? '',
+        $inv['Duration (h)'] ?? '',
+        $inv['Planned Duration'] ?? '',
         $inv['Zone'] ?? '',
-        $inv['Localisation'] ?? ''
+        $inv['Location'] ?? ''
     ];
 }
 

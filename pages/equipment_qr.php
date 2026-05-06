@@ -186,7 +186,7 @@ $maintenances = $stmt->fetchAll();
                 </div>
             </div>
             
-            <!-- Dernières interventions -->
+            <!-- Latest interventions -->
             <div class="qr-card">
                 <div class="qr-card-header">
                     <i class="fas fa-history"></i> <?php echo t('last_interventions'); ?>
@@ -212,7 +212,7 @@ $maintenances = $stmt->fetchAll();
                                 <tbody>
                                     <?php foreach($maintenances as $m): ?>
                                     <tr>
-                                        <td><?php echo date('d/m/Y', strtotime($m['created_at'])); ?></td>
+                                        <td><?php echo format_date_us($m['created_at'], false); ?></td>
                                         <td><?php echo htmlspecialchars($m['title']); ?></td>
                                         <td>
                                             <span class="badge bg-<?php 
@@ -257,4 +257,4 @@ window.onafterprint = function() {
         normalContent.style.display = 'block';
     }
 };
-</script>
+</script>t>

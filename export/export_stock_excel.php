@@ -7,6 +7,7 @@ if(!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/lang.php';
 require_once __DIR__ . '/../vendor/SimpleXLSXGen.php';
 
 // Récupérer les paramètres de filtre
@@ -14,19 +15,19 @@ $filter_status = $_GET['status'] ?? 'all';
 
 $sql = "
     SELECT 
-        sp.part_number as 'Référence',
-        sp.name as 'Nom',
-        sp.quantity as 'Quantité',
-        sp.min_quantity as 'Seuil minimum',
-        sp.location as 'Emplacement',
-        sp.supplier as 'Fournisseur',
-        sp.unit_price as 'Prix unitaire (€)',
-        DATE_FORMAT(sp.last_restock, '%d/%m/%Y') as 'Dernier réapprov.',
+        sp.part_number as 'Reference',
+        sp.name as 'Name',
+        sp.quantity as 'Quantity',
+        sp.min_quantity as 'Minimum threshold',
+        sp.location as 'Location',
+        sp.supplier as 'Supplier',
+        sp.unit_price as 'Unit price (€)',
+        DATE_FORMAT(sp.last_restock, '%d/%m/%Y') as 'Last restock',
         CASE 
-            WHEN sp.quantity <= sp.min_quantity THEN 'Stock critique'
-            WHEN sp.quantity <= sp.min_quantity * 2 THEN 'À surveiller'
-            ELSE 'OK'
-        END as 'Statut'
+            WHEN sp.quantity <= sp.min_quantity THEN 'critical_stock'
+            WHEN sp.quantity <= sp.min_quantity * 2 THEN 'to_monitor'
+            ELSE 'sufficient'
+        END as 'Status'
     FROM spare_parts sp
     WHERE sp.quantity >= 0
 ";
@@ -47,19 +48,19 @@ $parts = $stmt->fetchAll();
 
 // Préparer les données pour l'export
 $rows = [];
-$rows[] = ['Référence', 'Nom', 'Quantité', 'Seuil minimum', 'Emplacement', 'Fournisseur', 'Prix unitaire (€)', 'Dernier réapprov.', 'Statut'];
+$rows[] = ['Reference', 'Name', 'Quantity', 'Minimum threshold', 'Location', 'Supplier', 'Unit price (€)', 'Last restock', 'Status'];
 
 foreach($parts as $part) {
     $rows[] = [
-        $part['Référence'],
-        $part['Nom'],
-        $part['Quantité'],
-        $part['Seuil minimum'],
-        $part['Emplacement'] ?? '',
-        $part['Fournisseur'] ?? '',
-        number_format($part['Prix unitaire (€)'], 2),
-        $part['Dernier réapprov.'] ?? '',
-        $part['Statut']
+        $part['Reference'],
+        $part['Name'],
+        $part['Quantity'],
+        $part['Minimum threshold'],
+        $part['Location'] ?? '',
+        $part['Supplier'] ?? '',
+        number_format($part['Unit price (€)'], 2),
+        $part['Last restock'] ?? '',
+        t($part['Status'])
     ];
 }
 

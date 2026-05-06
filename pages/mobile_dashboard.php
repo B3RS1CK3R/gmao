@@ -56,7 +56,7 @@ if($_SESSION['role'] == 'technician') {
     <meta name="theme-color" content="#667eea">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="/gmao/manifest.json">
+    <link rel="manifest" href="/gmao_GEMINI/manifest.json">
     <title>GMAO Mobile</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -309,7 +309,7 @@ if($_SESSION['role'] == 'technician') {
                                 ($interv['priority'] == 'high' ? 'warning' : 'secondary'); ?>">
                             <?php echo t($interv['priority']); ?>
                         </span>
-                        <span><?php echo $interv['intervention_date'] ? date('d/m/Y', strtotime($interv['intervention_date'])) : t('not_planned'); ?></span>
+                        <span><?php echo $interv['intervention_date'] ? format_date_us($interv['intervention_date'], false) : t('not_planned'); ?></span>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -377,7 +377,7 @@ if($_SESSION['role'] == 'technician') {
         updateConnectionStatus();
         
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/gmao/sw.js')
+            navigator.serviceWorker.register('/gmao_GEMINI/sw.js')
                 .then(reg => console.log('Service Worker enregistrÃ©', reg))
                 .catch(err => console.log('Erreur Service Worker', err));
         }

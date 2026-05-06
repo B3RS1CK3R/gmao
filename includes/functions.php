@@ -1,7 +1,47 @@
 <?php
-// includes/functions.php - VERSION COMPLÈTE
+// includes/functions.php - FULL VERSION
 require_once __DIR__ . '/../config/database.php';
-//require_once __DIR__ . '/../config/mail_config.php';
+require_once __DIR__ . '/lang.php';
+
+// Ensure session is active for CSRF helpers
+if(session_status() !== PHP_SESSION_ACTIVE) {
+    @session_start();
+}
+
+// Simple CSRF helpers
+function csrf_token() {
+    if(empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(24));
+    }
+    // Also set a cookie fallback to help forms when session cookie path issues occur
+    if(!headers_sent()) {
+        setcookie('csrf_token', $_SESSION['csrf_token'], time() + 3600, '/');
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function csrf_input() {
+    $token = htmlspecialchars(csrf_token());
+    return '<input type="hidden" name="csrf_token" value="' . $token . '">';
+}
+
+function validate_csrf($token) {
+    if(empty($token)) return false;
+    if(empty($_SESSION['csrf_token'])) return false;
+    return hash_equals($_SESSION['csrf_token'], $token);
+}
+
+// More tolerant validation: allow cookie fallback if form token missing
+function validate_csrf_fallback($token) {
+    if(!empty($token) && !empty($_SESSION['csrf_token'])) {
+        return hash_equals($_SESSION['csrf_token'], $token);
+    }
+    // fallback to cookie
+    if(!empty($_COOKIE['csrf_token']) && !empty($_SESSION['csrf_token'])) {
+        return hash_equals($_SESSION['csrf_token'], $_COOKIE['csrf_token']);
+    }
+    return false;
+}
 
 function isLoggedIn() {
     return isset($_SESSION['user_id']);
@@ -101,14 +141,14 @@ function getAlerts() {
     
     $overdue = updatePreventiveSchedule();
     foreach($overdue as $task) {
-        $alerts[] = "⚠️ Maintenance préventive en retard : " . htmlspecialchars($task['equipment_name']);
+        $alerts[] = "⚠️ " . t('maintenance_overdue') . " : " . htmlspecialchars($task['equipment_name']);
     }
     
     global $pdo;
     $stmt = $pdo->query("SELECT name, quantity, min_quantity FROM spare_parts WHERE quantity <= min_quantity");
     $lowStock = $stmt->fetchAll();
     foreach($lowStock as $part) {
-        $alerts[] = "📦 Stock bas : {$part['name']} ({$part['quantity']} restants, minimum {$part['min_quantity']})";
+        $alerts[] = "📦 " . t('low_stock_title') . " : {$part['name']} ({$part['quantity']} " . t('remaining') . ", min: {$part['min_quantity']})";
     }
     
     $stmt = $pdo->query("SELECT name, warranty_end FROM equipment 
@@ -118,9 +158,9 @@ function getAlerts() {
     foreach($warranty as $eq) {
         $days = ceil((strtotime($eq['warranty_end']) - time()) / 86400);
         if($days < 0) {
-            $alerts[] = "⚠️ Garantie expirée pour : " . htmlspecialchars($eq['name']);
+            $alerts[] = "⚠️ " . t('warranty_expired') . " : " . htmlspecialchars($eq['name']);
         } elseif($days <= 30) {
-            $alerts[] = "📅 Garantie bientôt expirée (J-$days) : " . htmlspecialchars($eq['name']);
+            $alerts[] = "📅 " . t('warranty_upcoming') . " ($days " . t('days_left') . ") : " . htmlspecialchars($eq['name']);
         }
     }
     
@@ -140,9 +180,9 @@ function getRecentInterventions($limit = 5) {
     return $stmt->fetchAll();
 }
 
-// ========== FONCTIONS QR CODES ==========
+// ========== QR CODE FUNCTIONS ==========
 function generateQRCode($equipment_id, $code) {
-    $url = "http://" . $_SERVER['HTTP_HOST'] . "/gmao/index.php?page=equipment_detail&id=" . $equipment_id;
+    $url = "http://" . $_SERVER['HTTP_HOST'] . "/gmao_GEMINI/index.php?page=equipment_detail&id=" . $equipment_id;
     $qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($url);
     return $qr_url;
 }
@@ -166,7 +206,15 @@ function getEquipmentDetails($id) {
     return $stmt->fetch();
 }
 
-// ========== FONCTIONS EMAIL ==========
+// Format date in US style (m/d/Y) with optional time
+function format_date_us($datetime, $withTime = true) {
+    if(empty($datetime) || in_array($datetime, ['0000-00-00', '0000-00-00 00:00:00'])) return t('not_specified');
+    $ts = strtotime($datetime);
+    if($ts === false) return htmlspecialchars($datetime);
+    return $withTime ? date('m/d/Y H:i', $ts) : date('m/d/Y', $ts);
+}
+
+// ========== EMAIL FUNCTIONS ==========
 function sendEmail($to, $subject, $message, $isHTML = true) {
     $headers = [];
     $headers[] = "MIME-Version: 1.0";
@@ -190,7 +238,7 @@ function sendEmail($to, $subject, $message, $isHTML = true) {
 }
 
 function sendPreventiveAlert($maintenance) {
-    $subject = "⚠️ ALERTE GMAO - Maintenance préventive due";
+    $subject = t('preventive_alert_subject') . " - {$maintenance['equipment_name']}";
     
     $message = "
     <html>
@@ -203,21 +251,21 @@ function sendPreventiveAlert($maintenance) {
         </style>
     </head>
     <body>
-        <h2>⚠️ Maintenance préventive requise</h2>
+        <h2>" . t('preventive_maintenance_required') . "</h2>
         <div class='alert-box'>
-            <p class='equipment'>🔧 Équipement : {$maintenance['equipment_name']}</p>
-            <p class='info'>📅 Date d'échéance : " . date('d/m/Y', strtotime($maintenance['next_due'])) . "</p>
-            <p class='info'>📝 Instructions : {$maintenance['instructions']}</p>
-            <p class='info'>👥 Équipe assignée : {$maintenance['assigned_team']}</p>
+            <p class='equipment'>🔧 " . t('equipment') . ": {$maintenance['equipment_name']}</p>
+            <p class='info'>📅 " . t('due_date') . ": " . date('m/d/Y', strtotime($maintenance['next_due'])) . "</p>
+            <p class='info'>📝 " . t('instructions') . ": {$maintenance['instructions']}</p>
+            <p class='info'>👥 " . t('assigned_team') . ": {$maintenance['assigned_team']}</p>
         </div>
         <p>
-            <a href='http://{$_SERVER['HTTP_HOST']}/gmao/index.php?page=preventive' 
+            <a href='http://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=preventive' 
                style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-               Voir dans GMAO
+               " . t('view_in_gmao') . "
             </a>
         </p>
         <hr>
-        <small>Message automatique envoyé par GMAO Industrielle</small>
+        <small>" . t('automatic_message') . "</small>
     </body>
     </html>
     ";
@@ -227,7 +275,7 @@ function sendPreventiveAlert($maintenance) {
 }
 
 function sendStockAlert($part) {
-    $subject = "📦 ALERTE GMAO - Stock critique : {$part['name']}";
+    $subject = t('stock_alert_subject') . ": {$part['name']}";
     
     $message = "
     <html>
@@ -239,22 +287,22 @@ function sendStockAlert($part) {
         </style>
     </head>
     <body>
-        <h2>📦 Alerte stock critique</h2>
-        <p>La pièce suivante atteint son seuil minimum :</p>
+        <h2>" . t('critical_stock_alert') . "</h2>
+        <p>" . t('part_reached_threshold') . ":</p>
         <table border='0' cellpadding='10' style='background:#f8f9fa; border-radius:5px; width:100%;'>
-            <tr><td style='background:#e9ecef'><strong>Référence :</strong></td><td>{$part['part_number']}</td></tr>
-            <tr><td style='background:#e9ecef'><strong>Nom :</strong></td><td>{$part['name']}</td></tr>
-            <tr><td style='background:#e9ecef'><strong>Quantité restante :</strong></td><td style='color:red'><strong>{$part['quantity']}</strong></td></tr>
-            <tr><td style='background:#e9ecef'><strong>Seuil minimum :</strong></td><td>{$part['min_quantity']}</td></tr>
-            <tr><td style='background:#e9ecef'><strong>Emplacement :</strong></td><td>{$part['location']}</td></tr>
-            <tr><td style='background:#e9ecef'><strong>Fournisseur :</strong></td><td>{$part['supplier']}</td></tr>
+            <tr><td style='background:#e9ecef'><strong>" . t('part_number') . ":</strong></td><td>{$part['part_number']}</td></tr>
+            <tr><td style='background:#e9ecef'><strong>" . t('name') . ":</strong></td><td>{$part['name']}</td></tr>
+            <tr><td style='background:#e9ecef'><strong>" . t('remaining_quantity') . ":</strong></td><td style='color:red'><strong>{$part['quantity']}</strong></td></tr>
+            <tr><td style='background:#e9ecef'><strong>" . t('minimum_threshold') . ":</strong></td><td>{$part['min_quantity']}</td></tr>
+            <tr><td style='background:#e9ecef'><strong>" . t('location') . ":</strong></td><td>{$part['location']}</td></tr>
+            <tr><td style='background:#e9ecef'><strong>" . t('supplier') . ":</strong></td><td>{$part['supplier']}</td></tr>
         </table>
-        <p style='margin-top:20px;'><a href='http://{$_SERVER['HTTP_HOST']}/gmao/index.php?page=stock' 
+        <p style='margin-top:20px;'><a href='http://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=stock' 
               style='background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-              Voir le stock
+              " . t('view_stock') . "
            </a></p>
         <hr>
-        <small>Message automatique envoyé par GMAO Industrielle</small>
+        <small>" . t('automatic_message') . "</small>
     </body>
     </html>
     ";
@@ -264,7 +312,7 @@ function sendStockAlert($part) {
 }
 
 function sendCriticalInterventionAlert($intervention, $equipment) {
-    $subject = "🚨 URGENT - Intervention critique : {$intervention['title']}";
+    $subject = t('critical_intervention_subject') . ": {$intervention['title']}";
     
     $message = "
     <html>
@@ -275,22 +323,22 @@ function sendCriticalInterventionAlert($intervention, $equipment) {
         </style>
     </head>
     <body>
-        <h2 style='color:#dc3545'>🚨 URGENCE - Nouvelle intervention critique</h2>
+        <h2 style='color:#dc3545'>" . t('new_critical_intervention') . "</h2>
         <div class='urgent-box'>
-            <p><strong>🔧 Équipement :</strong> {$equipment['name']}</p>
-            <p><strong>📝 Titre :</strong> {$intervention['title']}</p>
-            <p><strong>📄 Description :</strong> {$intervention['description']}</p>
-            <p><strong>👤 Signalé par :</strong> {$intervention['reported_by']}</p>
-            <p><strong>📅 Date :</strong> " . date('d/m/Y H:i', strtotime($intervention['created_at'])) . "</p>
+            <p><strong>🔧 " . t('equipment') . ":</strong> {$equipment['name']}</p>
+            <p><strong>📝 " . t('title') . ":</strong> {$intervention['title']}</p>
+            <p><strong>📄 " . t('description') . ":</strong> {$intervention['description']}</p>
+            <p><strong>👤 " . t('created_by') . ":</strong> {$intervention['reported_by']}</p>
+            <p><strong>📅 " . t('date') . ":</strong> " . date('m/d/Y H:i', strtotime($intervention['created_at'])) . "</p>
         </div>
         <p>
-            <a href='http://{$_SERVER['HTTP_HOST']}/gmao/index.php?page=interventions' 
+            <a href='http://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=interventions' 
                style='background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-               Voir l'intervention
+               " . t('view_intervention') . "
             </a>
         </p>
         <hr>
-        <small>Notification automatique GMAO - Action requise immédiate</small>
+        <small>" . t('immediate_action_required') . "</small>
     </body>
     </html>
     ";
@@ -305,7 +353,7 @@ function sendWeeklyReport() {
     $stmt = $pdo->query("
         SELECT 
             COUNT(*) as total_interventions,
-            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+            SUM(CASE WHEN task_status = 'completed' THEN 1 ELSE 0 END) as completed,
             SUM(CASE WHEN priority = 'critical' THEN 1 ELSE 0 END) as critical
         FROM interventions 
         WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
@@ -319,7 +367,7 @@ function sendWeeklyReport() {
     ");
     $newEq = $stmt->fetch();
     
-    $subject = "📊 Rapport hebdomadaire GMAO - Semaine " . date('W');
+    $subject = t('weekly_report_subject') . " " . date('W');
     
     $message = "
     <html>
@@ -330,31 +378,31 @@ function sendWeeklyReport() {
         </style>
     </head>
     <body>
-        <h2>📊 Rapport d'activité GMAO</h2>
-        <p>Période : " . date('d/m/Y', strtotime('-7 days')) . " au " . date('d/m/Y') . "</p>
+        <h2>" . t('weekly_activity_report') . "</h2>
+        <p>" . t('period') . " : " . date('m/d/Y', strtotime('-7 days')) . " to " . date('m/d/Y') . "</p>
         
         <div class='stats'>
-            <h3>📈 Interventions</h3>
+            <h3>📈 " . t('activity_interventions') . "</h3>
             <ul>
-                <li>Total : {$stats['total_interventions']}</li>
-                <li>Terminées : {$stats['completed']}</li>
-                <li>Critiques : {$stats['critical']}</li>
+                <li>" . t('total') . " : {$stats['total_interventions']}</li>
+                <li>" . t('completed') . " : {$stats['completed']}</li>
+                <li>" . t('critical') . " : {$stats['critical']}</li>
             </ul>
             
-            <h3>🆕 Équipements</h3>
+            <h3>🆕 " . t('equipment') . "</h3>
             <ul>
-                <li>Nouveaux équipements : {$newEq['new_equipment']}</li>
+                <li>" . t('new_equipment_count') . " : {$newEq['new_equipment']}</li>
             </ul>
         </div>
         
         <p style='margin-top:20px;'>
-            <a href='http://{$_SERVER['HTTP_HOST']}/gmao/index.php?page=dashboard' 
+            <a href='http://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=dashboard' 
                style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-               Accéder au tableau de bord
+               " . t('access_dashboard') . "
             </a>
         </p>
         <hr>
-        <small>Rapport automatique GMAO Industrielle</small>
+        <small>" . t('automatic_message') . "</small>
     </body>
     </html>
     ";
@@ -364,7 +412,7 @@ function sendWeeklyReport() {
     }
 }
 
-// ========== FONCTIONS GESTION DES TECHNICIENS ==========
+// ========== TECHNICIAN MANAGEMENT FUNCTIONS ==========
 
 function getAllTechnicians($status = null) {
     global $pdo;
@@ -428,11 +476,11 @@ function assignInterventionToTechnician($intervention_id, $technician_id, $sched
     try {
         $pdo->beginTransaction();
         
-        // Mettre à jour l'intervention
+        // Update intervention
         $stmt = $pdo->prepare("UPDATE interventions SET technician_id = ?, scheduled_date = ?, scheduled_time = ? WHERE id = ?");
         $stmt->execute([$technician_id, $scheduled_date, $scheduled_time, $intervention_id]);
         
-        // Ajouter au planning
+        // Add to schedule
         $stmt = $pdo->prepare("
             INSERT INTO work_schedule (technician_id, intervention_id, scheduled_start) 
             VALUES (?, ?, ?)
@@ -492,12 +540,12 @@ function getTechnicianWorkload($technician_id, $start_date, $end_date) {
     return $stmt->fetch()['count'];
 }
 
-// ========== FONCTIONS MTBF / MTTR ==========
+// ========== MTBF / MTTR FUNCTIONS ==========
 
 function calculateMTBF($equipment_id) {
     global $pdo;
     
-    // Récupérer les dates des pannes
+    // Get failure dates
     $stmt = $pdo->prepare("
         SELECT created_at FROM interventions 
         WHERE equipment_id = ? 
@@ -509,15 +557,15 @@ function calculateMTBF($equipment_id) {
     $failures = $stmt->fetchAll();
     
     if(count($failures) < 2) {
-        return 0; // Pas assez de données
+        return 0; // Not enough data
     }
     
-    // Calculer la moyenne des intervalles entre pannes
+    // Calculate mean time between failures
     $total_interval = 0;
     for($i = 1; $i < count($failures); $i++) {
         $date1 = strtotime($failures[$i-1]['created_at']);
         $date2 = strtotime($failures[$i]['created_at']);
-        $interval = ($date2 - $date1) / 3600; // en heures
+        $interval = ($date2 - $date1) / 3600; // in hours
         $total_interval += $interval;
     }
     
@@ -527,7 +575,7 @@ function calculateMTBF($equipment_id) {
 function calculateMTTR($equipment_id) {
     global $pdo;
     
-    // Récupérer les durées de réparation
+    // Get repair durations
     $stmt = $pdo->prepare("
         SELECT duration_hours FROM interventions 
         WHERE equipment_id = ? 
@@ -553,7 +601,7 @@ function calculateMTTR($equipment_id) {
 function calculateAvailability($equipment_id, $days = 30) {
     global $pdo;
     
-    // Récupérer les temps d'arrêt
+    // Get downtime
     $stmt = $pdo->prepare("
         SELECT SUM(duration_hours) as total_downtime
         FROM interventions 
@@ -606,7 +654,7 @@ function getAllEquipmentPerformance() {
         $mttr = calculateMTTR($eq['id']);
         $availability = calculateAvailability($eq['id']);
         
-        // Compter les pannes
+        // Count failures
         $stmt2 = $pdo->prepare("SELECT COUNT(*) FROM interventions WHERE equipment_id = ? AND type = 'corrective'");
         $stmt2->execute([$eq['id']]);
         $failure_count = $stmt2->fetchColumn();
@@ -651,11 +699,11 @@ function getGlobalPerformanceIndicators() {
     
     $indicators = [];
     
-    // Récupérer tous les équipements
+    // Get all active equipment
     $stmt = $pdo->query("SELECT id FROM equipment WHERE status = 'active'");
     $equipments = $stmt->fetchAll();
     
-    // Calcul du MTBF global
+    // Global MTBF calculation
     $total_mtbf = 0;
     $mtbf_count = 0;
     foreach($equipments as $eq) {
@@ -667,7 +715,7 @@ function getGlobalPerformanceIndicators() {
     }
     $indicators['global_mtbf'] = $mtbf_count > 0 ? round($total_mtbf / $mtbf_count, 1) : 0;
     
-    // Calcul du MTTR global
+    // Global MTTR calculation
     $stmt = $pdo->query("
         SELECT AVG(duration_hours) as global_mttr 
         FROM interventions 
@@ -676,7 +724,7 @@ function getGlobalPerformanceIndicators() {
     $result = $stmt->fetch();
     $indicators['global_mttr'] = round($result['global_mttr'] ?? 0, 1);
     
-    // Taux de pannes par type d'équipement
+    // Failure rate by equipment type
     $stmt = $pdo->query("
         SELECT e.type, COUNT(i.id) as failures_count
         FROM equipment e
@@ -686,7 +734,7 @@ function getGlobalPerformanceIndicators() {
     ");
     $indicators['failures_by_type'] = $stmt->fetchAll();
     
-    // Top 5 équipements les plus problématiques
+    // Top 5 most problematic equipment
     $stmt = $pdo->query("
         SELECT e.name, COUNT(i.id) as failures
         FROM equipment e
@@ -701,7 +749,7 @@ function getGlobalPerformanceIndicators() {
     return $indicators;
 }
 
-// ========== FONCTIONS GESTION UTILISATEURS AVANCÉE ==========
+// ========== ADVANCED USER MANAGEMENT FUNCTIONS ==========
 
 function getAllUsers() {
     global $pdo;
@@ -720,24 +768,24 @@ function createUser($username, $password, $fullname, $role, $email) {
     global $pdo;
     $hashed = password_hash($password, PASSWORD_DEFAULT);
     
-    // Démarrer une transaction
+    // Start transaction
     $pdo->beginTransaction();
     
     try {
-        // 1. Créer l'utilisateur
+        // 1. Create user
         $stmt = $pdo->prepare("INSERT INTO users (username, password, fullname, role, email, is_active) VALUES (?, ?, ?, ?, ?, 1)");
         $result = $stmt->execute([$username, $hashed, $fullname, $role, $email]);
         
         if($result && $role == 'technician') {
-            // 2. Si le rôle est technicien, créer également un technicien
+            // 2. If technician role, also create a technician entry
             $user_id = $pdo->lastInsertId();
             
-            // Séparer le nom complet en prénom et nom
+            // Split full name into first and last name
             $name_parts = explode(' ', trim($fullname), 2);
             $firstname = $name_parts[0];
             $lastname = isset($name_parts[1]) ? $name_parts[1] : '';
             
-            // Générer un matricule unique
+            // Generate unique employee ID
             $employee_id = 'TECH-' . str_pad($user_id, 4, '0', STR_PAD_LEFT);
             
             $stmt2 = $pdo->prepare("
@@ -771,7 +819,7 @@ function updateUserPassword($id, $new_password) {
 
 function deleteUser($id) {
     global $pdo;
-    // Ne pas supprimer l'admin principal
+    // Do not delete main admin
     $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
     $stmt->execute([$id]);
     $user = $stmt->fetch();
@@ -782,7 +830,7 @@ function deleteUser($id) {
     return $stmt2->execute([$id]);
 }
 
-// Journaliser les actions utilisateur
+// Log user actions
 function logUserAction($user_id, $action, $details = null) {
     global $pdo;
     $ip = $_SERVER['REMOTE_ADDR'] ?? null;
@@ -881,14 +929,14 @@ function requireRole($role) {
     }
 }
 
-// Générer un numéro de tâche unique
+// Generate unique task number
 function generateTaskNumber() {
     global $pdo;
     
     try {
         $pdo->beginTransaction();
         
-        // Récupérer et incrémenter le dernier numéro
+        // Get and increment last number
         $stmt = $pdo->query("SELECT last_number FROM task_sequence FOR UPDATE");
         $last_number = $stmt->fetchColumn();
         
@@ -907,12 +955,12 @@ function generateTaskNumber() {
         
     } catch(PDOException $e) {
         $pdo->rollBack();
-        // Fallback sur un numéro basé sur le timestamp
+        // Fallback to timestamp-based number
         return "TASK-" . date('YmdHis');
     }
 }
 
-// Récupérer le prochain numéro de tâche (aperçu)
+// Get next task number (preview)
 function getNextTaskNumber() {
     global $pdo;
     $stmt = $pdo->query("SELECT last_number + 1 as next FROM task_sequence");
@@ -920,26 +968,26 @@ function getNextTaskNumber() {
     return "TASK-" . ($next ?: 260032);
 }
 
-// Récupérer tous les intervenants (techniciens) pour le select
+// Get all intervenants (technicians) for select
 function getAllIntervenants() {
     global $pdo;
     $stmt = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname ASC");
     return $stmt->fetchAll();
 }
 
-// Mettre à jour le statut d'une intervention
+// Update intervention status
 function updateInterventionStatus($id, $status) {
     global $pdo;
     $stmt = $pdo->prepare("UPDATE interventions SET task_status = ? WHERE id = ?");
     return $stmt->execute([$status, $id]);
 }
 
-// Terminer une intervention avec rapport
+// Complete intervention with report
 function completeIntervention($id, $completion_report, $duration_hours = null) {
     global $pdo;
     $stmt = $pdo->prepare("
         UPDATE interventions 
-        SET task_status = 'termine', 
+        SET task_status = 'completed', 
             completed_date = NOW(), 
             completion_report = ?,
             duration_hours = COALESCE(?, duration_hours)

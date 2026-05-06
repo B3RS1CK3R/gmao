@@ -11,6 +11,7 @@ if(!isset($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/lang.php';
 
 $alerts = [];
 $counts = [
@@ -19,7 +20,7 @@ $counts = [
     'info' => 0
 ];
 
-// 1. Maintenances préventives en retard
+// 1. Overdue preventive maintenance
 $stmt = $pdo->query("
     SELECT pm.*, e.name as equipment_name 
     FROM preventive_maintenance pm 
@@ -36,8 +37,8 @@ foreach($overdue as $task) {
         'id' => 'pm_' . $task['id'],
         'type' => 'maintenance_overdue',
         'priority' => $days > 30 ? 'critical' : 'warning',
-        'title' => 'Maintenance en retard',
-        'message' => "{$task['equipment_name']} : en retard de " . abs($days) . " jours",
+        'title' => t('maintenance_overdue'),
+        'message' => "{$task['equipment_name']} : " . t('overdue_by') . " " . abs($days) . " " . t('days'),
         'url' => '/gmao/index.php?page=preventive',
         'timestamp' => time()
     ];
@@ -45,7 +46,7 @@ foreach($overdue as $task) {
     $counts[$days > 30 ? 'critical' : 'warning']++;
 }
 
-// 2. Stock critique
+// 2. Critical stock
 $stmt = $pdo->query("
     SELECT * FROM spare_parts 
     WHERE quantity <= min_quantity
@@ -53,14 +54,14 @@ $stmt = $pdo->query("
 $lowStock = $stmt->fetchAll();
 
 foreach($lowStock as $part) {
-    $ratio = $part['quantity'] / $part['min_quantity'];
+    $ratio = $part['quantity'] / ($part['min_quantity'] ?: 1);
     
     $alerts[] = [
         'id' => 'stock_' . $part['id'],
         'type' => 'stock_critical',
         'priority' => $ratio < 0.3 ? 'critical' : 'warning',
-        'title' => 'Stock critique',
-        'message' => "{$part['name']} : plus que {$part['quantity']} unités (min: {$part['min_quantity']})",
+        'title' => t('stock_critical_title'),
+        'message' => "{$part['name']} : " . t('only') . " {$part['quantity']} " . t('units') . " (min: {$part['min_quantity']})",
         'url' => '/gmao/index.php?page=stock',
         'timestamp' => time()
     ];
@@ -68,7 +69,7 @@ foreach($lowStock as $part) {
     $counts[$ratio < 0.3 ? 'critical' : 'warning']++;
 }
 
-// 3. Interventions critiques non assignées
+// 3. Unassigned critical interventions
 $stmt = $pdo->query("
     SELECT i.*, e.name as equipment_name 
     FROM interventions i 
@@ -82,13 +83,14 @@ $critical = $stmt->fetchAll();
 
 foreach($critical as $intervention) {
     $hours = (time() - strtotime($intervention['created_at'])) / 3600;
+    $hours_rounded = round($hours);
     
     $alerts[] = [
         'id' => 'interv_' . $intervention['id'],
         'type' => 'critical_intervention',
         'priority' => 'critical',
-        'title' => '🚨 Intervention critique',
-        'message' => "{$intervention['title']} sur {$intervention['equipment_name']} - Il y a " . round($hours) . "h",
+        'title' => '🚨 ' . t('critical_intervention'),
+        'message' => $intervention['title'] . " " . t('on') . " " . $intervention['equipment_name'] . " - " . $hours_rounded . "h",
         'url' => '/gmao/index.php?page=interventions',
         'timestamp' => time()
     ];
@@ -96,7 +98,7 @@ foreach($critical as $intervention) {
     $counts['critical']++;
 }
 
-// 4. Garanties expirant bientôt
+// 4. Warranties expiring soon
 $stmt = $pdo->query("
     SELECT name, warranty_end, code 
     FROM equipment 
@@ -114,8 +116,8 @@ foreach($warranty as $eq) {
             'id' => 'warranty_' . $eq['code'],
             'type' => 'warranty_expired',
             'priority' => 'critical',
-            'title' => 'Garantie expirée',
-            'message' => "{$eq['name']} : garantie expirée depuis " . abs(round($days)) . " jours",
+            'title' => t('warranty_expired_title'),
+            'message' => "{$eq['name']} : " . t('warranty_expired') . " " . abs(round($days)) . " " . t('days_ago'),
             'url' => '/gmao/index.php?page=equipment',
             'timestamp' => time()
         ];
@@ -125,8 +127,8 @@ foreach($warranty as $eq) {
             'id' => 'warranty_' . $eq['code'],
             'type' => 'warranty_upcoming',
             'priority' => 'warning',
-            'title' => 'Garantie bientôt expirée',
-            'message' => "{$eq['name']} : plus que " . round($days) . " jours de garantie",
+            'title' => t('warranty_upcoming_title'),
+            'message' => "{$eq['name']} : " . round($days) . " " . t('days_left'),
             'url' => '/gmao/index.php?page=equipment',
             'timestamp' => time()
         ];
@@ -134,7 +136,7 @@ foreach($warranty as $eq) {
     }
 }
 
-// 5. Interventions non assignées depuis plus de 3 jours
+// 5. Unassigned interventions for more than 3 days
 $stmt = $pdo->query("
     SELECT i.*, e.name as equipment_name 
     FROM interventions i 
@@ -152,8 +154,8 @@ foreach($unassigned as $inv) {
         'id' => 'unassigned_' . $inv['id'],
         'type' => 'unassigned_intervention',
         'priority' => 'warning',
-        'title' => 'Intervention non assignée',
-        'message' => "{$inv['title']} - En attente d'assignation depuis " . round($days) . " jours",
+        'title' => t('unassigned_intervention_title'),
+        'message' => "{$inv['title']} - " . t('waiting_assignment') . " " . round($days) . " " . t('days'),
         'url' => '/gmao/index.php?page=interventions&action=assign&id=' . $inv['id'],
         'timestamp' => time()
     ];

@@ -7,6 +7,8 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/lang.php';
 
 $message = '';
 $error = '';
@@ -18,9 +20,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
     $file = $_FILES['csv_file'];
     
     if($file['error'] != 0) {
-        $error = "Erreur lors du téléchargement du fichier";
+        $error = "Error uploading file";
     } elseif(pathinfo($file['name'], PATHINFO_EXTENSION) != 'csv') {
-        $error = "Le fichier doit être au format CSV";
+        $error = "File must be in CSV format";
     } else {
         $handle = fopen($file['tmp_name'], 'r');
         if($handle !== false) {
@@ -62,20 +64,20 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
             fclose($handle);
             
             if($imported_count > 0) {
-                logUserAction($_SESSION['user_id'], 'import_equipment', "Import CSV: $imported_count équipements importés");
-                $message = "✅ Import terminé : $imported_count équipements importés, $failed_count échecs";
+                logUserAction($_SESSION['user_id'], 'import_equipment', "CSV Import: $imported_count equipment imported");
+                $message = "✅ Import completed: $imported_count equipment imported, $failed_count failed";
             } else {
-                $error = "❌ Aucun équipement importé";
+                $error = "❌ No equipment imported";
             }
         }
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Import CSV - Équipements</title>
+    <title><?php echo t('import_csv'); ?> - <?php echo t('equipment'); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -87,9 +89,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
 <body>
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-upload"></i> Import CSV - Équipements</h2>
+        <h2><i class="fas fa-upload"></i> <?php echo t('import_csv'); ?> - <?php echo t('equipment'); ?></h2>
         <a href="../index.php?page=equipment" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Retour
+            <i class="fas fa-arrow-left"></i> <?php echo t('back'); ?>
         </a>
     </div>
     
@@ -109,42 +111,42 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
     
     <?php if(!empty($failed_rows)): ?>
         <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i> Échecs sur les lignes : <?php echo implode(', ', $failed_rows); ?>
+            <i class="fas fa-exclamation-triangle"></i> Failed on rows: <?php echo implode(', ', $failed_rows); ?>
         </div>
     <?php endif; ?>
     
     <div class="import-card">
         <div class="import-card-header">
-            <i class="fas fa-info-circle"></i> Format du fichier CSV
+            <i class="fas fa-info-circle"></i> <?php echo t('csv_format_info'); ?>
         </div>
         <div class="card-body p-4">
-            <p>Le fichier CSV doit utiliser le point-virgule (;) comme séparateur et avoir l'en-tête suivant :</p>
+            <p>The CSV file must use semicolon (;) as separator and have the following header:</p>
             <pre class="bg-light p-3 rounded">code;name;type;location;supplier</pre>
-            <p>Exemple de données :</p>
-            <pre class="bg-light p-3 rounded">MAC-001;Machine CNC;Fraiseuse;Atelier A;Mazak
-PRE-002;Presse hydraulique;Presse;Atelier B;Hydram</pre>
+            <p>Example data:</p>
+            <pre class="bg-light p-3 rounded">MAC-001;Machine CNC;Milling machine;Workshop A;Mazak
+PRE-002;Hydraulic press;Press;Workshop B;Hydram</pre>
             <div class="alert alert-info">
-                <i class="fas fa-download"></i> <a href="exemple_equipements.csv" download> télécharger un fichier exemple</a>
+                <i class="fas fa-download"></i> <a href="exemple_equipements.csv" download> download example file</a>
             </div>
         </div>
     </div>
     
     <div class="import-card">
         <div class="import-card-header">
-            <i class="fas fa-upload"></i> Importer des équipements
+            <i class="fas fa-upload"></i> <?php echo t('import'); ?> <?php echo t('equipment'); ?>
         </div>
         <div class="card-body p-4">
             <form method="POST" enctype="multipart/form-data">
                 <div class="mb-3">
-                    <label class="form-label">Fichier CSV <span class="text-danger">*</span></label>
+                    <label class="form-label">CSV File <span class="text-danger">*</span></label>
                     <input type="file" name="csv_file" class="form-control" accept=".csv" required>
                 </div>
                 <div class="mt-3">
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-upload"></i> Importer
+                        <i class="fas fa-upload"></i> <?php echo t('import'); ?>
                     </button>
                     <a href="../index.php?page=equipment" class="btn btn-secondary">
-                        <i class="fas fa-times"></i> Annuler
+                        <i class="fas fa-times"></i> <?php echo t('cancel'); ?>
                     </a>
                 </div>
             </form>

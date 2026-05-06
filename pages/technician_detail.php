@@ -17,7 +17,7 @@ $stmt->execute([$id]);
 $technician = $stmt->fetch();
 
 if(!$technician) {
-    echo "<div class='alert alert-danger'>Technicien non trouvé</div>";
+    echo "<div class='alert alert-danger'>" . t('technician_not_found') . "</div>";
     return;
 }
 
@@ -243,11 +243,11 @@ $skills = $stmt->fetchAll();
     </h2>
     <div>
         <a href="?page=technicians" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Retour à la liste
+            <i class="fas fa-arrow-left"></i> <?php echo t('view_technicians'); ?>
         </a>
         <?php if($technician['status'] != 'inactive'): ?>
         <a href="?page=technicians&action=edit&id=<?php echo $technician['id']; ?>" class="btn btn-warning">
-            <i class="fas fa-edit"></i> Modifier
+            <i class="fas fa-edit"></i> <?php echo t('edit'); ?>
         </a>
         <?php endif; ?>
     </div>
@@ -258,46 +258,50 @@ $skills = $stmt->fetchAll();
     <div class="col-md-4">
         <div class="info-card">
             <div class="info-card-header">
-                <i class="fas fa-id-card"></i> Informations personnelles
+                <i class="fas fa-id-card"></i> <?php echo t('personal_info'); ?>
             </div>
             <div class="card-body p-4">
                 <table class="table table-sm table-borderless">
                     <tr>
-                        <td style="width: 40%;"><strong>Matricule</strong></td>
+                        <td style="width: 40%;"><strong><?php echo t('employee_id'); ?></strong></td>
                         <td><?php echo htmlspecialchars($technician['employee_id']); ?></td>
                     </tr>
                     <tr>
-                        <td><strong>Nom complet</strong></td>
+                        <td><strong><?php echo t('fullname'); ?></strong></td>
                         <td><?php echo htmlspecialchars($technician['firstname'] . ' ' . $technician['lastname']); ?></td>
                     </tr>
                     <tr>
-                        <td><strong>Téléphone</strong></td>
-                        <td><?php echo htmlspecialchars($technician['phone'] ?: 'Non renseigné'); ?></td>
+                        <td><strong><?php echo t('phone'); ?></strong></td>
+                        <td><?php echo htmlspecialchars($technician['phone'] ?: t('not_provided')); ?></td>
                     </tr>
                     <tr>
-                        <td><strong>Email</strong></td>
-                        <td><?php echo htmlspecialchars($technician['email'] ?: 'Non renseigné'); ?></td>
+                        <td><strong><?php echo t('email'); ?></strong></td>
+                        <td><?php echo htmlspecialchars($technician['email'] ?: t('not_provided')); ?></td>
                     </tr>
                     <tr>
-                        <td><strong>Statut</strong></td>
+                        <td><strong><?php echo t('status'); ?></strong></td>
                         <td>
                             <span class="status-badge status-<?php echo $technician['status']; ?>">
-                                <?php echo $technician['status'] == 'active' ? '🟢 Actif' : ($technician['status'] == 'inactive' ? '⚫ Inactif' : '🟡 En congé'); ?>
+                                <?php 
+                                if($technician['status'] == 'active') echo '🟢 ' . t('active');
+                                elseif($technician['status'] == 'inactive') echo '⚫ ' . t('inactive');
+                                else echo '🟡 ' . t('on_leave');
+                                ?>
                             </span>
                         </td>
                     </tr>
                     <tr>
-                        <td><strong>Date d'embauche</strong></td>
-                        <td><?php echo $technician['hire_date'] ? date('d/m/Y', strtotime($technician['hire_date'])) : 'Non renseignée'; ?></td>
+                        <td><strong><?php echo t('hire_date'); ?></strong></td>
+                        <td><?php echo $technician['hire_date'] ? format_date_us($technician['hire_date'], false) : t('not_provided'); ?></td>
                     </tr>
                     <tr>
-                        <td><strong>Ancienneté</strong></td>
+                        <td><strong><?php echo t('seniority'); ?></strong></td>
                         <td>
                             <?php if($technician['hire_date']): 
                                 $hire = new DateTime($technician['hire_date']);
                                 $now = new DateTime();
                                 $diff = $hire->diff($now);
-                                echo $diff->y . ' an(s) et ' . $diff->m . ' mois';
+                                echo $diff->y . ' ' . t('year_s') . ' ' . t('and') . ' ' . $diff->m . ' ' . t('month_s');
                             else: 
                                 echo '-';
                             endif; ?>
@@ -306,25 +310,30 @@ $skills = $stmt->fetchAll();
                 </table>
             </div>
         </div>
-        
+
         <!-- Compétences -->
         <div class="info-card">
             <div class="info-card-header info">
-                <i class="fas fa-tools"></i> Compétences
+                <i class="fas fa-tools"></i> <?php echo t('skills'); ?>
             </div>
             <div class="card-body p-4">
                 <?php if(empty($skills)): ?>
-                    <p class="text-muted text-center mb-0">Aucune compétence renseignée</p>
+                    <p class="text-muted text-center mb-0"><?php echo t('no_skills'); ?></p>
                 <?php else: ?>
                     <div class="d-flex flex-wrap">
                         <?php foreach($skills as $skill): ?>
                             <span class="skill-tag skill-<?php echo $skill['skill_level']; ?>">
                                 <?php echo htmlspecialchars($skill['equipment_type']); ?>
                                 <span class="skill-level">
-                                    <?php echo $skill['skill_level'] == 'expert' ? '🏆 Expert' : ($skill['skill_level'] == 'advanced' ? '📈 Avancé' : ($skill['skill_level'] == 'intermediate' ? '📌 Intermédiaire' : '🌱 Débutant')); ?>
+                                    <?php 
+                                    if($skill['skill_level'] == 'expert') echo '🏆 ' . t('expert');
+                                    elseif($skill['skill_level'] == 'advanced') echo '📈 ' . t('advanced');
+                                    elseif($skill['skill_level'] == 'intermediate') echo '📌 ' . t('intermediate');
+                                    else echo '🌱 ' . t('beginner');
+                                    ?>
                                 </span>
                                 <?php if($skill['certified']): ?>
-                                    <i class="fas fa-certificate" title="Certifié"></i>
+                                    <i class="fas fa-certificate" title="<?php echo t('certified'); ?>"></i>
                                 <?php endif; ?>
                             </span>
                         <?php endforeach; ?>
@@ -332,12 +341,12 @@ $skills = $stmt->fetchAll();
                 <?php endif; ?>
             </div>
         </div>
-        
+
         <!-- Historique des modifications -->
         <?php if(!empty($history)): ?>
         <div class="info-card">
             <div class="info-card-header">
-                <i class="fas fa-history"></i> Historique des modifications
+                <i class="fas fa-history"></i> <?php echo t('modifications_history'); ?>
             </div>
             <div class="card-body p-3">
                 <?php foreach($history as $h): ?>
@@ -345,19 +354,13 @@ $skills = $stmt->fetchAll();
                     <div class="d-flex justify-content-between">
                         <span>
                             <?php
-                            $action_icons = [
-                                'technician_created' => '🟢 Création',
-                                'technician_updated' => '✏️ Modification',
-                                'technician_deleted' => '🗑️ Désactivation',
-                                'technician_restored' => '🔄 Réactivation'
-                            ];
-                            echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
+                            echo t($h['action']);
                             ?>
                         </span>
-                        <small class="text-muted"><?php echo date('d/m/Y H:i', strtotime($h['created_at'])); ?></small>
+                        <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
                     </div>
                     <small class="text-muted">
-                        Par : <?php echo htmlspecialchars($h['username'] ?? 'Inconnu'); ?> 
+                        <?php echo t('by'); ?> : <?php echo htmlspecialchars($h['username'] ?? t('unknown')); ?> 
                         (IP: <?php echo htmlspecialchars($h['ip_address']); ?>)
                     </small>
                     <div class="small text-muted mt-1"><?php echo htmlspecialchars($h['details']); ?></div>
@@ -367,7 +370,7 @@ $skills = $stmt->fetchAll();
         </div>
         <?php endif; ?>
     </div>
-    
+
     <!-- Colonne droite - Statistiques et interventions -->
     <div class="col-md-8">
         <!-- Statistiques -->
@@ -375,40 +378,40 @@ $skills = $stmt->fetchAll();
             <div class="col-md-3">
                 <div class="stat-box">
                     <div class="stat-number"><?php echo $total_interventions; ?></div>
-                    <div class="text-muted">Total interventions</div>
+                    <div class="text-muted"><?php echo t('total_interventions'); ?></div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-box">
                     <div class="stat-number text-success"><?php echo $completed; ?></div>
-                    <div class="text-muted">Terminées</div>
+                    <div class="text-muted"><?php echo t('completed'); ?></div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-box">
                     <div class="stat-number text-info"><?php echo $completion_rate; ?>%</div>
-                    <div class="text-muted">Taux complétion</div>
+                    <div class="text-muted"><?php echo t('completion_rate'); ?></div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-box">
                     <div class="stat-number text-warning"><?php echo $avg_duration; ?>h</div>
-                    <div class="text-muted">Durée moyenne</div>
+                    <div class="text-muted"><?php echo t('avg_duration'); ?></div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Interventions en cours -->
         <?php if($in_progress > 0): ?>
         <div class="info-card">
             <div class="info-card-header warning">
-                <i class="fas fa-spinner fa-pulse"></i> Interventions en cours
+                <i class="fas fa-spinner fa-pulse"></i> <?php echo t('interventions'); ?> <?php echo t('in_progress'); ?>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
-                            <tr><th>N° Tâche</th><th>Équipement</th><th>Titre</th><th>Priorité</th><th>Date prévue</th><th></th></tr>
+                            <tr><th><?php echo t('task_number'); ?></th><th><?php echo t('equipment'); ?></th><th><?php echo t('title'); ?></th><th><?php echo t('priority'); ?></th><th><?php echo t('planned_date'); ?></th><th></th></tr>
                         </thead>
                         <tbody>
                             <?php foreach($interventions as $inv): ?>
@@ -417,30 +420,30 @@ $skills = $stmt->fetchAll();
                                     <td><strong><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></strong></td>
                                     <td><?php echo htmlspecialchars($inv['equipment_name']); ?></td>
                                     <td><?php echo htmlspecialchars($inv['title']); ?></td>
-                                    <td><span class="priority-badge priority-<?php echo $inv['priority']; ?>"><?php echo $inv['priority']; ?></span></td>
-                                    <td><?php echo $inv['intervention_date'] ? date('d/m/Y', strtotime($inv['intervention_date'])) : '-'; ?></td>
+                                    <td><span class="priority-badge priority-<?php echo $inv['priority']; ?>"><?php echo t($inv['priority']); ?></span></td>
+                                    <td><?php echo $inv['intervention_date'] ? format_date_us($inv['intervention_date'], false) : '-'; ?></td>
                                     <td><a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a></td>
                                 </tr>
                                 <?php endif; ?>
                             <?php endforeach; ?>
                         </tbody>
-                    </td>
+                    </table>
                 </div>
             </div>
         </div>
         <?php endif; ?>
-        
+
         <!-- Prochaines interventions -->
         <?php if(!empty($upcoming)): ?>
         <div class="info-card">
             <div class="info-card-header info">
-                <i class="fas fa-calendar-alt"></i> Prochaines interventions
+                <i class="fas fa-calendar-alt"></i> <?php echo t('upcoming_interventions'); ?>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
-                            <tr><th>N° Tâche</th><th>Équipement</th><th>Titre</th><th>Priorité</th><th>Date</th><th></th></tr>
+                            <tr><th><?php echo t('task_number'); ?></th><th><?php echo t('equipment'); ?></th><th><?php echo t('title'); ?></th><th><?php echo t('priority'); ?></th><th><?php echo t('date'); ?></th><th></th></tr>
                         </thead>
                         <tbody>
                             <?php foreach($upcoming as $inv): ?>
@@ -448,8 +451,8 @@ $skills = $stmt->fetchAll();
                                 <td><strong><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></strong></td>
                                 <td><?php echo htmlspecialchars($inv['equipment_name']); ?></td>
                                 <td><?php echo htmlspecialchars($inv['title']); ?></td>
-                                <td><span class="priority-badge priority-<?php echo $inv['priority']; ?>"><?php echo $inv['priority']; ?></span></td>
-                                <td><?php echo date('d/m/Y', strtotime($inv['intervention_date'])); ?></td>
+                                <td><span class="priority-badge priority-<?php echo $inv['priority']; ?>"><?php echo t($inv['priority']); ?></span></td>
+                                <td><?php echo format_date_us($inv['intervention_date'], false); ?></td>
                                 <td><a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a></td>
                             </tr>
                             <?php endforeach; ?>
@@ -459,30 +462,30 @@ $skills = $stmt->fetchAll();
             </div>
         </div>
         <?php endif; ?>
-        
+
         <!-- Historique complet des interventions -->
         <div class="info-card">
             <div class="info-card-header">
-                <i class="fas fa-history"></i> Historique des interventions
+                <i class="fas fa-history"></i> <?php echo t('interventions_history'); ?>
             </div>
             <div class="card-body p-0">
                 <?php if(empty($interventions)): ?>
                     <div class="text-center text-muted py-4">
                         <i class="fas fa-inbox fa-2x mb-2"></i>
-                        <p>Aucune intervention pour ce technicien</p>
+                        <p><?php echo t('no_interventions'); ?></p>
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>N° Tâche</th>
-                                    <th>Équipement</th>
-                                    <th>Titre</th>
-                                    <th>Priorité</th>
-                                    <th>Statut</th>
-                                    <th>Date</th>
-                                    <th>Durée</th>
+                                    <th><?php echo t('task_number'); ?></th>
+                                    <th><?php echo t('equipment'); ?></th>
+                                    <th><?php echo t('title'); ?></th>
+                                    <th><?php echo t('priority'); ?></th>
+                                    <th><?php echo t('status'); ?></th>
+                                    <th><?php echo t('date'); ?></th>
+                                    <th><?php echo t('duration'); ?></th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -492,7 +495,7 @@ $skills = $stmt->fetchAll();
                                     <td><strong><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></strong></td>
                                     <td><?php echo htmlspecialchars($inv['equipment_name']); ?></td>
                                     <td><?php echo htmlspecialchars($inv['title']); ?></td>
-                                    <td><span class="priority-badge priority-<?php echo $inv['priority']; ?>"><?php echo $inv['priority']; ?></span></td>
+                                    <td><span class="priority-badge priority-<?php echo $inv['priority']; ?>"><?php echo t($inv['priority']); ?></span></td>
                                     <td>
                                         <?php
                                         $status_icons = [
@@ -501,10 +504,10 @@ $skills = $stmt->fetchAll();
                                             'termine' => '✅',
                                             'cloturee' => '🔒'
                                         ];
-                                        echo ($status_icons[$inv['task_status']] ?? '📌') . ' ' . $inv['task_status'];
+                                        echo ($status_icons[$inv['task_status']] ?? '📌') . ' ' . t($inv['task_status']);
                                         ?>
                                     </td>
-                                    <td><?php echo $inv['intervention_date'] ? date('d/m/Y', strtotime($inv['intervention_date'])) : '-'; ?></td>
+                                    <td><?php echo $inv['intervention_date'] ? format_date_us($inv['intervention_date'], false) : '-'; ?></td>
                                     <td><?php echo $inv['duration_hours'] ? $inv['duration_hours'] . 'h' : '-'; ?></td>
                                     <td><a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a></td>
                                 </tr>
@@ -515,18 +518,18 @@ $skills = $stmt->fetchAll();
                 <?php endif; ?>
             </div>
         </div>
-        
+
         <!-- Planning du technicien -->
         <div class="info-card">
             <div class="info-card-header success">
-                <i class="fas fa-chart-bar"></i> Planning hebdomadaire
+                <i class="fas fa-chart-bar"></i> <?php echo t('weekly_schedule'); ?>
             </div>
             <div class="card-body p-4">
                 <?php
                 // Calcul du nombre d'interventions par jour de la semaine
-                $week_days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+                $week_days = [t('monday'), t('tuesday'), t('wednesday'), t('thursday'), t('friday'), t('saturday'), t('sunday')];
                 $day_counts = array_fill(0, 7, 0);
-                
+
                 foreach($interventions as $inv) {
                     if($inv['intervention_date'] && strtotime($inv['intervention_date']) >= strtotime('-30 days')) {
                         $day_num = date('N', strtotime($inv['intervention_date'])) - 1;
@@ -539,21 +542,21 @@ $skills = $stmt->fetchAll();
                     <div class="col text-center">
                         <div class="small text-muted"><?php echo substr($day, 0, 3); ?></div>
                         <div class="h4 mb-0 text-primary"><?php echo $day_counts[$index]; ?></div>
-                        <small>interv.</small>
+                        <small><?php echo t('interv_short'); ?></small>
                     </div>
                     <?php endforeach; ?>
                 </div>
             </div>
         </div>
-        
+
         <!-- Boutons d'action -->
         <?php if($technician['status'] != 'inactive'): ?>
         <div class="action-buttons">
             <a href="?page=planning&technician=<?php echo $technician['id']; ?>" class="btn btn-primary">
-                <i class="fas fa-calendar-alt"></i> Voir son planning
+                <i class="fas fa-calendar-alt"></i> <?php echo t('view_planning'); ?>
             </a>
             <button type="button" class="btn btn-danger" onclick="confirmDeactivate()">
-                <i class="fas fa-user-slash"></i> Désactiver le technicien
+                <i class="fas fa-user-slash"></i> <?php echo t('deactivate_technician'); ?>
             </button>
         </div>
         <?php endif; ?>
@@ -562,7 +565,7 @@ $skills = $stmt->fetchAll();
 
 <script>
 function confirmDeactivate() {
-    if(confirm('Êtes-vous sûr de vouloir désactiver ce technicien ?\n\nIl ne pourra plus être assigné à de nouvelles interventions.')) {
+    if(confirm('<?php echo t('deactivate_technician_confirm'); ?>')) {
         window.location.href = '?page=technicians&action=delete&id=<?php echo $technician['id']; ?>';
     }
 }

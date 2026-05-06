@@ -1,5 +1,5 @@
 <?php
-// pages/assign_intervention.php - Assignation d'une intervention à un technicien
+// pages/assign_intervention.php - Assigning an intervention to a technician
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
@@ -30,7 +30,7 @@ $technicians = $pdo->query("
     ORDER BY lastname ASC
 ")->fetchAll();
 
-// Récupérer les interventions déjà assignées au technicien pour la même date
+// Retrieve interventions already assigned to the technician for the same date
 $scheduled_date = $intervention['intervention_date'];
 $interventions_taken = [];
 if($scheduled_date) {
@@ -251,4 +251,4 @@ document.getElementById('assignForm').addEventListener('submit', function(e) {
         alert('<?php echo t('select_technician_warning'); ?>');
     }
 });
-</script>
+</script>ipt>

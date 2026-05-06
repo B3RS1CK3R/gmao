@@ -8,10 +8,11 @@ if(!isset($_SESSION['user_id'])) {
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if($id == 0) {
-    die('ID intervention manquant');
+    die('Missing intervention ID');
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/lang.php';
 
 // Récupérer l'intervention
 $stmt = $pdo->prepare("
@@ -28,7 +29,7 @@ $stmt->execute([$id]);
 $intervention = $stmt->fetch();
 
 if(!$intervention) {
-    die('Intervention non trouvée');
+    die('Intervention not found');
 }
 
 // Récupérer les pièces utilisées
@@ -42,10 +43,10 @@ $stmt->execute([$id]);
 $used_parts = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Rapport intervention - <?php echo htmlspecialchars($intervention['task_number']); ?></title>
+    <title>Intervention Report - <?php echo htmlspecialchars($intervention['task_number']); ?></title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -128,45 +129,44 @@ $used_parts = $stmt->fetchAll();
 </head>
 <body>
     <div class="no-print" style="text-align: right; margin-bottom: 20px;">
-        <button onclick="window.print()">🖨️ Imprimer</button>
-        <button onclick="window.close()">❌ Fermer</button>
+        <button onclick="window.print()">🖨️ Print</button>
+        <button onclick="window.close()">❌ Close</button>
     </div>
     
     <div class="header">
-        <h1>Rapport d'intervention</h1>
-        <p>GMAO Industrielle - Document technique</p>
+        <h1>Intervention Report</h1>
+        <p>Industrial GMAO - Technical Document</p>
     </div>
     
-    <!-- Identification -->
     <div class="section">
         <div class="section-title">1. Identification</div>
         <table class="info-table">
-            <tr><td width="30%"><strong>N° de tâche</strong></td><td><?php echo htmlspecialchars($intervention['task_number'] ?? 'N/A'); ?></td></tr>
-            <tr><td><strong>Titre</strong></td><td><?php echo htmlspecialchars($intervention['title']); ?></td></tr>
-            <tr><td><strong>Date de création</strong></td><td><?php echo date('d/m/Y H:i', strtotime($intervention['created_at'])); ?></td></tr>
-            <tr><td><strong>Créé par</strong></td><td><?php echo htmlspecialchars($intervention['created_by_name'] ?? $intervention['reported_by']); ?></td></tr>
-            <tr><td><strong>Criticité</strong></td><td><span class="status-badge status-<?php echo $intervention['priority']; ?>"><?php echo strtoupper($intervention['priority']); ?></span></td></tr>
-            <tr><td><strong>Statut</strong></td><td><?php echo $intervention['task_status']; ?></td></tr>
+            <tr><td width="30%"><strong>Task Number</strong></td><td><?php echo htmlspecialchars($intervention['task_number'] ?? 'N/A'); ?></td></tr>
+            <tr><td><strong>Title</strong></td><td><?php echo htmlspecialchars($intervention['title']); ?></td></tr>
+            <tr><td><strong>Creation Date</strong></td><td><?php echo format_date_us($intervention['created_at'], true); ?></td></tr>
+            <tr><td><strong>Created by</strong></td><td><?php echo htmlspecialchars($intervention['created_by_name'] ?? $intervention['reported_by']); ?></td></tr>
+            <tr><td><strong>Priority</strong></td><td><span class="status-badge status-<?php echo $intervention['priority']; ?>"><?php echo strtoupper($intervention['priority']); ?></span></td></tr>
+            <tr><td><strong>Status</strong></td><td><?php echo $intervention['task_status']; ?></td></tr>
         </table>
     </div>
     
     <!-- Équipement -->
     <div class="section">
-        <div class="section-title">2. Équipement concerné</div>
+        <div class="section-title">2. Equipment concerned</div>
         <table class="info-table">
-            <tr><td width="30%"><strong>Nom</strong></td><td><?php echo htmlspecialchars($intervention['equipment_name']); ?></td></tr>
+            <tr><td width="30%"><strong>Name</strong></td><td><?php echo htmlspecialchars($intervention['equipment_name']); ?></td></tr>
             <tr><td><strong>Code</strong></td><td><?php echo htmlspecialchars($intervention['equipment_code']); ?></td></tr>
-            <tr><td><strong>Localisation</strong></td><td><?php echo htmlspecialchars($intervention['equipment_location'] ?: 'Non spécifiée'); ?></td></tr>
-            <tr><td><strong>Zone</strong></td><td><?php echo htmlspecialchars($intervention['zone'] ?: 'Non spécifiée'); ?></td></tr>
-            <tr><td><strong>Localisation précise</strong></td><td><?php echo htmlspecialchars($intervention['localisation'] ?: 'Non spécifiée'); ?></td></tr>
+            <tr><td><strong>Location</strong></td><td><?php echo htmlspecialchars($intervention['equipment_location'] ?: t('not_specified')); ?></td></tr>
+            <tr><td><strong>Zone</strong></td><td><?php echo htmlspecialchars($intervention['zone'] ?: t('not_specified')); ?></td></tr>
+            <tr><td><strong>Precise Location</strong></td><td><?php echo htmlspecialchars($intervention['localisation'] ?: t('not_specified')); ?></td></tr>
         </table>
     </div>
     
     <!-- Description -->
     <div class="section">
-        <div class="section-title">3. Description de l'intervention</div>
+        <div class="section-title">3. Intervention description</div>
         <div style="padding: 10px; background: #f9f9f9; border-radius: 5px;">
-            <?php echo nl2br(htmlspecialchars($intervention['description'] ?: 'Aucune description')); ?>
+            <?php echo nl2br(htmlspecialchars($intervention['description'] ?: t('no_description'))); ?>
         </div>
     </div>
     
@@ -174,39 +174,39 @@ $used_parts = $stmt->fetchAll();
     <div class="section">
         <div class="section-title">4. Planning</div>
         <table class="info-table">
-            <tr><td width="30%"><strong>Type de tâche</strong></td><td><?php echo htmlspecialchars($intervention['task_type'] ?: $intervention['type']); ?></td></tr>
-            <tr><td><strong>Date prévue</strong></td><td><?php echo $intervention['intervention_date'] ? date('d/m/Y', strtotime($intervention['intervention_date'])) : 'Non planifiée'; ?></td></tr>
-            <tr><td><strong>Durée prévue</strong></td><td><?php echo htmlspecialchars($intervention['planned_duration'] ?: 'Non spécifiée'); ?></td></tr>
+            <tr><td width="30%"><strong>Task type</strong></td><td><?php echo t($intervention['task_type'] ?: $intervention['type']); ?></td></tr>
+            <tr><td><strong>Planned Date</strong></td><td><?php echo $intervention['intervention_date'] ? format_date_us($intervention['intervention_date'], false) : t('not_planned'); ?></td></tr>
+            <tr><td><strong>Planned Duration</strong></td><td><?php echo htmlspecialchars($intervention['planned_duration'] ?: t('not_specified')); ?></td></tr>
             <?php if($intervention['duration_hours']): ?>
-            <tr><td><strong>Durée réelle</strong></td><td><?php echo $intervention['duration_hours']; ?> heure(s)</td></tr>
+            <tr><td><strong>Actual Duration</strong></td><td><?php echo $intervention['duration_hours']; ?> <?php echo t('hours'); ?></td></tr>
             <?php endif; ?>
             <?php if($intervention['completed_date']): ?>
-            <tr><td><strong>Date de réalisation</strong></td><td><?php echo date('d/m/Y H:i', strtotime($intervention['completed_date'])); ?></td></tr>
+            <tr><td><strong>Completion Date</strong></td><td><?php echo format_date_us($intervention['completed_date'], true); ?></td></tr>
             <?php endif; ?>
         </table>
     </div>
     
     <!-- Intervenant -->
     <div class="section">
-        <div class="section-title">5. Intervenant(s)</div>
+        <div class="section-title">5. Technician(s)</div>
         <?php if($intervention['firstname']): ?>
         <table class="info-table">
-            <tr><td width="30%"><strong>Technicien</strong></td><td><?php echo htmlspecialchars($intervention['firstname'] . ' ' . $intervention['lastname']); ?></td></tr>
-            <tr><td><strong>Spécialité</strong></td><td><?php echo htmlspecialchars($intervention['specialty']); ?></td></tr>
-            <tr><td><strong>Téléphone</strong></td><td><?php echo htmlspecialchars($intervention['phone'] ?: 'Non renseigné'); ?></td></tr>
+            <tr><td width="30%"><strong>Technician</strong></td><td><?php echo htmlspecialchars($intervention['firstname'] . ' ' . $intervention['lastname']); ?></td></tr>
+            <tr><td><strong>Specialty</strong></td><td><?php echo htmlspecialchars($intervention['specialty']); ?></td></tr>
+            <tr><td><strong>Phone</strong></td><td><?php echo htmlspecialchars($intervention['phone'] ?: 'Not specified'); ?></td></tr>
         </table>
         <?php else: ?>
-        <p>Aucun technicien assigné</p>
+        <p>No technician assigned</p>
         <?php endif; ?>
     </div>
     
     <!-- Pièces utilisées -->
     <?php if(!empty($used_parts)): ?>
     <div class="section">
-        <div class="section-title">6. Pièces détachées utilisées</div>
+        <div class="section-title">6. Spare parts used</div>
         <table>
             <thead>
-                <tr><th>Référence</th><th>Nom</th><th>Quantité</th><th>Prix unitaire</th><th>Total</th></tr>
+                <tr><th>Reference</th><th>Name</th><th>Quantity</th><th>Unit Price</th><th>Total</th></tr>
             </thead>
             <tbody>
                 <?php 
@@ -235,7 +235,7 @@ $used_parts = $stmt->fetchAll();
     <!-- Rapport -->
     <?php if($intervention['completion_report']): ?>
     <div class="section">
-        <div class="section-title">7. Rapport d'intervention</div>
+        <div class="section-title">7. Intervention report</div>
         <div style="padding: 10px; background: #f9f9f9; border-radius: 5px;">
             <?php echo nl2br(htmlspecialchars($intervention['completion_report'])); ?>
         </div>
@@ -245,15 +245,15 @@ $used_parts = $stmt->fetchAll();
     <!-- Signatures -->
     <div class="signature">
         <div class="signature-line">
-            Signature du technicien
+            Technician's Signature
         </div>
         <div class="signature-line">
-            Signature du responsable
+            Manager's Signature
         </div>
     </div>
     
     <div class="footer">
-        Document généré automatiquement par GMAO Industrielle le <?php echo date('d/m/Y H:i'); ?>
+        Document automatically generated by Industrial GMAO on <?php echo format_date_us(date('Y-m-d H:i:s'), true); ?>
     </div>
     
     <script>

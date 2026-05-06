@@ -205,7 +205,7 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
                     </tr>
                     <tr>
                         <td><strong>Dernier réapprov.</strong></td>
-                        <td><?php echo $part['last_restock'] ? date('d/m/Y', strtotime($part['last_restock'])) : 'Non renseigné'; ?></td>
+                        <td><?php echo $part['last_restock'] ? format_date_us($part['last_restock'], false) : 'Non renseigné'; ?></td>
                     </tr>
                 </table>
             </div>
@@ -323,7 +323,7 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
                             <tbody>
                                 <?php foreach($movements as $mov): ?>
                                 <tr>
-                                    <td><?php echo date('d/m/Y H:i', strtotime($mov['movement_date'])); ?></td>
+                                    <td><?php echo format_date_us($mov['movement_date'], true); ?></td>
                                     <td>
                                         <?php if($mov['movement_type'] == 'in'): ?>
                                             <span class="badge bg-success">📥 Entrée</span>
@@ -364,7 +364,7 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
                             echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
                             ?>
                         </span>
-                        <small class="text-muted"><?php echo date('d/m/Y H:i', strtotime($h['created_at'])); ?></small>
+                        <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
                     </div>
                     <small class="text-muted">
                         Par : <?php echo htmlspecialchars($h['username'] ?? 'Inconnu'); ?> 
