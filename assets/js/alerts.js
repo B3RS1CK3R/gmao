@@ -1,31 +1,34 @@
-// assets/js/alerts.js - Gestion des alertes temps réel
+// @ts-nocheck
+// assets/js/alerts.js - Real-time alert management
+
 class AlertSystem {
     constructor() {
         this.toastContainer = null;
         this.audioContext = null;
         this.lastAlerts = [];
         this.checkInterval = null;
-        this.soundEnabled = true;
+        this.soundEnabled = localStorage.getItem('gmao_sound_enabled') !== 'false';
+        this.popupsEnabled = localStorage.getItem('gmao_popups_enabled') !== 'false';
         this.notificationPermission = false;
         
         this.init();
     }
     
     init() {
-        // Créer le conteneur de toasts
         this.createContainer();
-        
-        // Charger les préférences
         this.loadPreferences();
-        
-        // Demander la permission pour les notifications
         this.requestNotificationPermission();
-        
-        // Démarrer la vérification périodique
         this.startPeriodicCheck();
-        
-        // Écouter les événements de connexion
         this.setupEventListeners();
+        
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'gmao_popups_enabled') {
+                this.popupsEnabled = e.newValue !== 'false';
+            }
+            if (e.key === 'gmao_sound_enabled') {
+                this.soundEnabled = e.newValue !== 'false';
+            }
+        });
     }
     
     createContainer() {
@@ -55,7 +58,6 @@ class AlertSystem {
     }
     
     setupEventListeners() {
-        // Recharger les alertes quand la page devient visible
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 this.checkAlerts();
@@ -64,13 +66,13 @@ class AlertSystem {
     }
     
     startPeriodicCheck() {
-        this.checkAlerts(); // Vérification immédiate
-        this.checkInterval = setInterval(() => this.checkAlerts(), 30000); // Toutes les 30 secondes
+        this.checkAlerts();
+        this.checkInterval = setInterval(() => this.checkAlerts(), 30000);
     }
     
     async checkAlerts() {
         try {
-            const response = await fetch('/gmao/api/get_alerts.php');
+            const response = await fetch('/gmao_GEMINI/api/get_alerts.php');
             const data = await response.json();
             
             if (data.success && data.alerts) {
@@ -78,7 +80,7 @@ class AlertSystem {
                 this.updateNotificationBadges(data.counts);
             }
         } catch (error) {
-            console.error('Erreur vérification alertes:', error);
+            console.error('Error checking alerts:', error);
         }
     }
     
@@ -90,14 +92,14 @@ class AlertSystem {
         });
         
         newAlerts.forEach(alert => {
-            this.showToast(alert);
+            if (this.popupsEnabled) {
+                this.showToast(alert);
+            }
             
-            // Notification système (si permis)
             if (this.notificationPermission && alert.priority === 'critical') {
                 this.showSystemNotification(alert);
             }
             
-            // Son d'alerte
             if (this.soundEnabled && alert.priority === 'critical') {
                 this.playAlertSound();
             }
@@ -108,51 +110,96 @@ class AlertSystem {
     
     showToast(alert) {
         let icon = '🔔';
-        let borderColor = 'info';
+        let priorityClass = 'info';
+        let title = 'Notification';
+        let message = alert.message || 'You have a new alert';
         
         switch(alert.type) {
             case 'maintenance_overdue':
                 icon = '⚠️';
-                borderColor = 'warning';
+                priorityClass = 'warning';
+                title = 'Maintenance Overdue';
+                message = alert.message || 'A preventive maintenance task is overdue';
                 break;
             case 'stock_critical':
                 icon = '📦';
-                borderColor = 'warning';
+                priorityClass = 'warning';
+                title = 'Critical Stock Alert';
+                message = alert.message || 'A spare part has reached critical stock level';
                 break;
             case 'critical_intervention':
                 icon = '🚨';
-                borderColor = 'critical';
+                priorityClass = 'critical';
+                title = 'Critical Intervention';
+                message = alert.message || 'A critical intervention requires immediate attention';
                 break;
-            case 'warranty_expiring':
+            case 'warranty_expired':
+                icon = '⚠️';
+                priorityClass = 'critical';
+                title = 'Warranty Expired';
+                message = alert.message || 'Equipment warranty has expired';
+                break;
+            case 'warranty_upcoming':
                 icon = '📅';
-                borderColor = 'info';
+                priorityClass = 'info';
+                title = 'Warranty Expiring Soon';
+                message = alert.message || 'Equipment warranty is about to expire';
+                break;
+            case 'unassigned_intervention':
+                icon = '📋';
+                priorityClass = 'warning';
+                title = 'Unassigned Intervention';
+                message = alert.message || 'An intervention is waiting for assignment';
                 break;
             default:
                 icon = '🔔';
+                priorityClass = alert.priority === 'critical' ? 'critical' : (alert.priority === 'warning' ? 'warning' : 'info');
+                title = alert.title || 'Notification';
+                message = alert.message || 'You have a new notification';
+        }
+        
+        if (alert.priority === 'critical') {
+            priorityClass = 'critical';
+        } else if (alert.priority === 'warning') {
+            priorityClass = 'warning';
+        }
+        
+        if (alert.title && alert.title !== title) {
+            title = alert.title;
         }
         
         const toast = document.createElement('div');
-        toast.className = `toast-notification ${borderColor}`;
+        toast.className = `toast-notification ${priorityClass}`;
         toast.innerHTML = `
-            <div class="toast-icon">${icon}</div>
+            <div class="toast-icon">${this.escapeHtml(icon)}</div>
             <div class="toast-content">
-                <div class="toast-title">${alert.title}</div>
-                <div class="toast-message">${alert.message}</div>
+                <div class="toast-title">${this.escapeHtml(title)}</div>
+                <div class="toast-message">${this.escapeHtml(message)}</div>
                 <div class="toast-time">${new Date().toLocaleTimeString()}</div>
             </div>
-            <div class="toast-close" onclick="this.parentElement.remove()">✕</div>
+            <div class="toast-close">✕</div>
         `;
         
-        toast.addEventListener('click', () => {
+        const closeBtn = toast.querySelector('.toast-close');
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toast.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => toast.remove(), 300);
+        });
+        
+        toast.addEventListener('click', (e) => {
+            if (e.target === closeBtn || closeBtn.contains(e.target)) {
+                return;
+            }
             if (alert.url) {
                 window.location.href = alert.url;
             }
-            toast.remove();
+            toast.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => toast.remove(), 300);
         });
         
         this.toastContainer.appendChild(toast);
         
-        // Auto-suppression après 8 secondes
         setTimeout(() => {
             if (toast.parentElement) {
                 toast.style.animation = 'slideOutRight 0.3s ease-out';
@@ -161,11 +208,18 @@ class AlertSystem {
         }, 8000);
     }
     
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     showSystemNotification(alert) {
         if (document.hidden) {
-            new Notification(alert.title, {
-                body: alert.message,
-                icon: '/gmao/assets/icons/icon-192.png',
+            let body = alert.message || 'You have a critical alert';
+            new Notification(alert.title || 'Critical Alert', {
+                body: body,
+                icon: '/gmao_GEMINI/assets/icons/icon-192.png',
                 tag: alert.id,
                 requireInteraction: true
             });
@@ -175,6 +229,10 @@ class AlertSystem {
     playAlertSound() {
         if (!this.audioContext) {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
         }
         
         const oscillator = this.audioContext.createOscillator();
@@ -196,13 +254,13 @@ class AlertSystem {
         const total = (counts.critical || 0) + (counts.warning || 0);
         
         badges.forEach(badge => {
-            if (badge.closest('.nav-link').getAttribute('href') === '?page=alerts') {
+            const link = badge.closest('.nav-link');
+            if (link && link.getAttribute('href') === '?page=alerts') {
                 badge.textContent = total;
                 badge.style.display = total > 0 ? 'inline-block' : 'none';
             }
         });
         
-        // Mettre à jour le titre de la page
         if (total > 0) {
             document.title = `(${total}) GMAO Pro`;
         } else {
@@ -216,6 +274,12 @@ class AlertSystem {
         return this.soundEnabled;
     }
     
+    togglePopups() {
+        this.popupsEnabled = !this.popupsEnabled;
+        localStorage.setItem('gmao_popups_enabled', this.popupsEnabled);
+        return this.popupsEnabled;
+    }
+    
     stop() {
         if (this.checkInterval) {
             clearInterval(this.checkInterval);
@@ -223,7 +287,6 @@ class AlertSystem {
     }
 }
 
-// Initialisation au chargement de la page
 let alertSystem = null;
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -18,7 +18,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = "❌ " . t('password_too_short');
         } else {
             if(createUser($_POST['username'], $_POST['password'], $_POST['fullname'], $_POST['role'], $_POST['email'])) {
-                logUserAction($_SESSION['user_id'], 'user_created', "User created: {$_POST['username']}");
+                logUserAction($_SESSION['user_id'], 'user_created', "User created: {$_POST['username']} (Role: {$_POST['role']}, Full name: {$_POST['fullname']})");
                 $message = "✅ " . t('save_success');
                 echo "<meta http-equiv='refresh' content='1;url=?page=users'>";
             } else {
@@ -29,7 +29,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     if($action == 'edit' && isset($_GET['id'])) {
         if(updateUser($_GET['id'], $_POST['fullname'], $_POST['role'], $_POST['email'], $_POST['is_active'])) {
-            logUserAction($_SESSION['user_id'], 'user_updated', "User modified ID: {$_GET['id']}");
+            logUserAction($_SESSION['user_id'], 'user_updated', "User modified ID: {$_GET['id']} - New role: {$_POST['role']}, Status: " . ($_POST['is_active'] ? 'Active' : 'Inactive'));
             $message = "✅ " . t('save_success');
             echo "<meta http-equiv='refresh' content='1;url=?page=users'>";
         } else {
@@ -44,7 +44,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = "❌ " . t('password_mismatch');
         } else {
             if(updateUserPassword($_GET['id'], $_POST['new_password'])) {
-                logUserAction($_SESSION['user_id'], 'password_reset', "Password reset for ID: {$_GET['id']}");
+                $user = getUser($_GET['id']);
+                logUserAction($_SESSION['user_id'], 'password_reset', "Password reset for user: " . ($user ? $user['username'] : "ID: {$_GET['id']}") . " by administrator");
                 $message = "✅ " . t('save_success');
                 echo "<meta http-equiv='refresh' content='1;url=?page=users'>";
             } else {
@@ -55,8 +56,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 if($action == 'delete' && isset($_GET['id'])) {
+    $user = getUser($_GET['id']);
     if(deleteUser($_GET['id'])) {
-        logUserAction($_SESSION['user_id'], 'user_deleted', "User deleted ID: {$_GET['id']}");
+        logUserAction($_SESSION['user_id'], 'user_deleted', "User permanently deleted: " . ($user ? $user['username'] : "ID: {$_GET['id']}") . " (Role: " . ($user ? $user['role'] : 'unknown') . ")");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=users'>";
     } else {
@@ -154,7 +156,7 @@ if(!$logs) $logs = [];
         white-space: nowrap;
     }
     
-    /* Journal des actions */
+    /* Journal des actions - Improved */
     .log-table {
         width: 100%;
         border-collapse: collapse;
@@ -173,6 +175,21 @@ if(!$logs) $logs = [];
     .log-col-action { width: 14%; }
     .log-col-details { width: 52%; }
     .log-col-ip { width: 10%; }
+    
+    /* Style for log details to make them more readable */
+    .log-details-content {
+        font-size: 13px;
+        line-height: 1.4;
+        color: #333;
+    }
+    .log-badge {
+        display: inline-block;
+        background: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 11px;
+    }
     
     /* Formulaires */
     .form-control, .form-select {
@@ -234,6 +251,12 @@ if(!$logs) $logs = [];
         }
         .users-table {
             min-width: 900px;
+        }
+        .log-table-container {
+            overflow-x: auto;
+        }
+        .log-table {
+            min-width: 800px;
         }
     }
 </style>
@@ -490,10 +513,10 @@ if(!$logs) $logs = [];
         </div>
     </div>
     
-    <!-- Journal des actions -->
+    <!-- Journal des actions - IMPROVED VERSION with clearer messages -->
     <div class="card mt-4">
         <div class="card-header bg-secondary text-white">
-            <h5 class="mb-0"><i class="fas fa-history"></i> <?php echo t('action_log'); ?></h5>
+            <h5 class="mb-0"><i class="fas fa-history"></i> <?php echo t('action_log'); ?> - Detailed Activity History</h5>
         </div>
         <div class="card-body p-0">
             <div class="log-table-container">
@@ -512,33 +535,163 @@ if(!$logs) $logs = [];
                             <tr>
                                 <td colspan="5" class="text-center text-muted py-4">
                                     <i class="fas fa-inbox"></i> <?php echo t('no_logs'); ?>
-                                  <\/td>
+                                </td>
                             </tr>
                         <?php else: ?>
-                            <?php foreach($logs as $log): ?>
+                            <?php foreach($logs as $log): 
+                                // Generate detailed, human-readable action descriptions
+                                $action_icon = '';
+                                $action_label = '';
+                                $detailed_message = '';
+                                
+                                switch($log['action']) {
+                                    case 'login_success':
+                                        $action_icon = '🔓';
+                                        $action_label = 'Login Success';
+                                        $detailed_message = 'User successfully authenticated and logged into the system';
+                                        break;
+                                        
+                                    case 'login_failed':
+                                        $action_icon = '🔒';
+                                        $action_label = 'Login Failed';
+                                        $detailed_message = 'Failed login attempt - invalid credentials';
+                                        break;
+                                        
+                                    case 'logout':
+                                        $action_icon = '🚪';
+                                        $action_label = 'Logout';
+                                        $detailed_message = 'User logged out of the system';
+                                        break;
+                                        
+                                    case 'user_created':
+                                        $action_icon = '👤+';
+                                        $action_label = 'User Created';
+                                        $detailed_message = 'New user account created: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'user_updated':
+                                        $action_icon = '✏️';
+                                        $action_label = 'User Updated';
+                                        $detailed_message = 'User account modified: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'user_deleted':
+                                        $action_icon = '🗑️';
+                                        $action_label = 'User Deleted';
+                                        $detailed_message = 'User account permanently removed: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'user_restored':
+                                        $action_icon = '🔄';
+                                        $action_label = 'User Restored';
+                                        $detailed_message = 'Deleted user account restored: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'password_reset':
+                                        $action_icon = '🔑';
+                                        $action_label = 'Password Reset';
+                                        $detailed_message = 'User password was reset by administrator: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'password_changed':
+                                        $action_icon = '🔐';
+                                        $action_label = 'Password Changed';
+                                        $detailed_message = 'User changed their own password';
+                                        break;
+                                        
+                                    case 'profile_updated':
+                                        $action_icon = '📝';
+                                        $action_label = 'Profile Updated';
+                                        $detailed_message = 'User profile information modified: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'role_changed':
+                                        $action_icon = '🎭';
+                                        $action_label = 'Role Changed';
+                                        $detailed_message = 'User role/permission level modified: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'equipment_created':
+                                        $action_icon = '🖥️+';
+                                        $action_label = 'Equipment Added';
+                                        $detailed_message = 'New equipment added to inventory: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'equipment_updated':
+                                        $action_icon = '🖥️✏️';
+                                        $action_label = 'Equipment Updated';
+                                        $detailed_message = 'Equipment information modified: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'equipment_deleted':
+                                        $action_icon = '🖥️🗑️';
+                                        $action_label = 'Equipment Deleted';
+                                        $detailed_message = 'Equipment removed from inventory: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'intervention_created':
+                                        $action_icon = '🔧+';
+                                        $action_label = 'Intervention Created';
+                                        $detailed_message = 'New maintenance intervention created: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'intervention_updated':
+                                        $action_icon = '🔧✏️';
+                                        $action_label = 'Intervention Updated';
+                                        $detailed_message = 'Maintenance intervention modified: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'intervention_completed':
+                                        $action_icon = '✅';
+                                        $action_label = 'Intervention Completed';
+                                        $detailed_message = 'Maintenance intervention marked as completed: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'attachment_uploaded':
+                                        $action_icon = '📎+';
+                                        $action_label = 'File Uploaded';
+                                        $detailed_message = 'Document/file attached to record: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    case 'attachment_deleted':
+                                        $action_icon = '📎🗑️';
+                                        $action_label = 'File Deleted';
+                                        $detailed_message = 'Document/file removed: ' . htmlspecialchars($log['details']);
+                                        break;
+                                        
+                                    default:
+                                        $action_icon = '📌';
+                                        $action_label = ucwords(str_replace('_', ' ', $log['action']));
+                                        $detailed_message = htmlspecialchars($log['details']);
+                                }
+                                
+                                // If details are empty, provide a default meaningful message
+                                if(empty($log['details']) || trim($log['details']) == '') {
+                                    $detailed_message = 'No additional details available for this action';
+                                } elseif(empty($action_label) || $action_label == ucwords(str_replace('_', ' ', $log['action']))) {
+                                    $detailed_message = htmlspecialchars($log['details']);
+                                }
+                            ?>
                             <tr>
-                                <td><small><?php echo format_date_us($log['created_at'], true); ?></small></td>
-                                <td><strong><?php echo htmlspecialchars($log['username'] ?? t('unknown')); ?></strong></td>
-                                <td>
-                                    <?php
-                                    $action_icon = '';
-                                    $action_label = '';
-                                    switch($log['action']) {
-                                        case 'login_success': $action_icon = '🔓'; $action_label = t('login_success_log'); break;
-                                        case 'user_created': $action_icon = '👤+'; $action_label = t('user_created_log'); break;
-                                        case 'user_updated': $action_icon = '✏️'; $action_label = t('user_updated_log'); break;
-                                        case 'user_deleted': $action_icon = '🗑️'; $action_label = t('user_deleted_log'); break;
-                                        case 'password_reset': $action_icon = '🔑'; $action_label = t('password_reset_log'); break;
-                                        case 'profile_updated': $action_icon = '📝'; $action_label = t('profile_updated_log'); break;
-                                        default: $action_icon = '📌'; $action_label = str_replace('_', ' ', ucfirst($log['action']));
-                                    }
-                                    ?>
+                                <td class="log-date"><small><?php echo format_date_us($log['created_at'], true); ?></small></td>
+                                <td class="log-user">
+                                    <strong><?php echo htmlspecialchars($log['username'] ?? 'System'); ?></strong>
+                                    <?php if(isset($log['username']) && $log['username'] == 'admin'): ?>
+                                        <span class="log-badge">Admin</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="log-action">
                                     <span style="white-space: nowrap;">
-                                        <?php echo $action_icon; ?> <strong><?php echo $action_label; ?></strong>
+                                        <?php echo $action_icon; ?> 
+                                        <strong><?php echo $action_label; ?></strong>
                                     </span>
-                                  <\/td>
-                                <td class="log-details"><small><?php echo htmlspecialchars($log['details']); ?></small><\/td>
-                                <td class="log-ip"><code><?php echo htmlspecialchars($log['ip_address']); ?></code><\/td>
+                                </td>
+                                <td class="log-details">
+                                    <div class="log-details-content">
+                                        <?php echo $detailed_message; ?>
+                                    </div>
+                                </td>
+                                <td class="log-ip"><code><?php echo htmlspecialchars($log['ip_address'] ?? 'N/A'); ?></code></td>
                             </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>

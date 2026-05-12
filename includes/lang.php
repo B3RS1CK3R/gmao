@@ -1,10 +1,19 @@
 <?php
-// includes/lang.php - English only version
-// All texts are in English, no language selection
+/**
+ * includes/lang.php - Localization Data
+ * Contains the dictionary of all UI strings used throughout the application.
+ * Note: This version is hardcoded to English only as per project requirements.
+ */
 
+/**
+ * Translation function. Retrieves a string by its key from the internal dictionary.
+ * 
+ * @param string $key The translation key.
+ * @return string The translated string or the key if not found.
+ */
 function t($key) {
     $translations = [
-        // General
+        // ========== GENERAL UI ==========
         'dashboard' => 'Dashboard',
         'equipment' => 'Equipment',
         'interventions' => 'Interventions',
@@ -59,8 +68,18 @@ function t($key) {
         'no_interventions' => 'No interventions',
         'admin' => 'Admin',
         'on' => 'on',
+        'technician_detail' => 'Technician Details',
+        'popup_notifications' => 'Popup Notifications',
+        'popup_settings_desc' => 'Show popup alerts when new events occur',
+        'preference_saved' => 'Preference saved',
+        'critical_alerts' => 'Critical Alerts',
+        'warning_alerts' => 'Warning Alerts',
+        'info_alerts' => 'Information',
+        'type' => 'Type',
+        'message' => 'Message',
+        'priority' => 'Priority',
         
-        // Login
+        // ========== LOGIN & SECURITY ==========
         'login_title' => 'GMAO Industrial',
         'login_subtitle' => 'Maintenance Management System',
         'username' => 'Username',
@@ -83,7 +102,7 @@ function t($key) {
         'delete_equipment' => 'Delete Equipment',
         'restore' => 'Restore',
         
-        // Equipment
+        // ========== EQUIPMENT ==========
         'code' => 'Code',
         'name' => 'Name',
         'type' => 'Type',
@@ -97,7 +116,7 @@ function t($key) {
         'equipment_list' => 'Equipment List',
         'add_equipment' => 'Add Equipment',
         'edit_equipment' => 'Edit Equipment',
-        'equipment_details' => 'Equipment Details',
+        'equipment_detail' => 'Equipment Details',
         'active' => 'Active',
         'maintenance' => 'Maintenance',
         'broken' => 'Broken',
@@ -122,7 +141,7 @@ function t($key) {
         'broken_description' => 'Equipment is broken',
         'retired_description' => 'Equipment is retired',
         
-        // Interventions
+        // ========== INTERVENTIONS ==========
         'task_number' => 'Task Number',
         'title' => 'Title',
         'description' => 'Description',
@@ -161,7 +180,6 @@ function t($key) {
         'cancel_intervention' => 'Cancel Intervention',
         'identification' => 'Identification',
         'equipment_and_location' => 'Equipment and Location',
-        'planning' => 'Planning',
         'organisation' => 'Organization',
         'classification' => 'Classification',
         'intervention_type' => 'Intervention Type',
@@ -182,7 +200,7 @@ function t($key) {
         'not_planned' => 'Not planned',
         'intervention_created' => 'Intervention created',
         
-        // Technicians
+        // ========== TECHNICIANS ==========
         'employee_id' => 'Employee ID',
         'firstname' => 'First Name',
         'lastname' => 'Last Name',
@@ -191,13 +209,14 @@ function t($key) {
         'specialty' => 'Specialty',
         'hire_date' => 'Hire Date',
         'active' => 'Active',
+        'active_interventions' => 'Active Interventions',
+        'last_modifications' => 'Last Modifications',
         'inactive' => 'Inactive',
         'on_leave' => 'On Leave',
         'technician_list' => 'Technicians List',
         'add_technician' => 'Add Technician',
         'edit_technician' => 'Edit Technician',
         'technician_details' => 'Technician Details',
-        'total_interventions' => 'Total Interventions',
         'completion_rate' => 'Completion Rate',
         'avg_duration' => 'Avg Duration',
         'technician_not_found' => 'Technician not found',
@@ -217,7 +236,6 @@ function t($key) {
         'deactivate' => 'Deactivate',
         'deactivate_confirm' => 'Deactivate this technician?\n\nHe will no longer be available for assignments.',
         'technicians_active' => 'Active Technicians',
-        'active_interventions' => 'Active Interventions',
         'specialty_placeholder' => 'Ex: Electrician, Mechanic...',
         'delete_warning_technician' => 'The technician will no longer be available for assignments but will remain in the history.',
         'active_desc' => 'Available for assignments',
@@ -242,7 +260,7 @@ function t($key) {
         'deactivate_technician' => 'Deactivate technician',
         'deactivate_technician_confirm' => 'Are you sure you want to deactivate this technician?\n\nHe will no longer be available for assignments.',
         
-        // Stock
+        // ========== STOCK ==========
         'part_number' => 'Part Number',
         'quantity' => 'Quantity',
         'min_quantity' => 'Min Quantity',
@@ -282,7 +300,7 @@ function t($key) {
         'open' => 'Open',
         'stock_level' => 'Stock Level',
         
-        // Preventive Maintenance
+        // ========== PREVENTIVE MAINTENANCE ==========
         'every' => 'Every',
         'days' => 'days',
         'months' => 'months',
@@ -313,26 +331,28 @@ function t($key) {
         'assigned_team' => 'Assigned Team',
         'frequency_days' => 'Frequency (days)',
         
-        // Alerts
+        // ========== ALERTS ==========
         'alert_center' => 'Alert Center',
         'critical_alerts' => 'Critical Alerts',
         'warning_alerts' => 'Warning Alerts',
         'info_alerts' => 'Information',
         'total_alerts' => 'Total Alerts',
-        'critical_intervention' => 'Critical Intervention',
-        'maintenance_overdue' => 'Overdue Maintenance',
+        'critical_intervention' => '🚨 Critical Intervention',
+        'maintenance_overdue' => '⚠️ Overdue Maintenance',
         'maintenance_upcoming' => 'Upcoming Maintenance',
-        'stock_critical_title' => 'Critical Stock',
-        'low_stock_title' => 'Low Stock',
-        'warranty_expired' => 'Warranty Expired',
-        'warranty_upcoming' => 'Warranty Expiring Soon',
-        'unassigned_intervention' => 'Unassigned Intervention',
+        'stock_critical_title' => '📦 Critical Stock Alert',
+        'low_stock_title' => '⚠️ Low Stock',
+        'remaining' => 'remaining',
+        'warranty_expired' => '⚠️ Warranty Expired',
+        'warranty_upcoming' => '📅 Warranty Expiring Soon',
+        'days_left' => 'days left',
+        'unassigned_intervention_title' => 'Unassigned Intervention',
         'critical_interventions_title' => 'Critical Interventions',
         'maintenance_overdue_title' => 'Overdue Maintenances',
         'maintenance_upcoming_title' => 'Upcoming Maintenances',
-        'warranty_expired_title' => 'Expired Warranties',
-        'warranty_upcoming_title' => 'Warranties Expiring Soon',
-        'unassigned_intervention_title' => 'Unassigned Interventions',
+        'warranty_expired_title' => '⚠️ Warranty Expired',
+        'warranty_upcoming_title' => '📅 Warranty Expiring Soon',
+        'unassigned_intervention_title' => '📋 Unassigned Intervention',
         'created_on' => 'Created on',
         'delay' => 'Delay of',
         'expired_since' => 'Expired since',
@@ -347,8 +367,53 @@ function t($key) {
         'info' => 'Information',
         'excellent' => 'Excellent!',
         'alerts_active' => 'active alerts',
+        'new_equipment_count' => 'New equipment',
+        'view_stock' => 'View stock',
+        'view_in_gmao' => 'View in GMAO',
+        'access_dashboard' => 'Access Dashboard',
+        'automatic_message' => 'Automatic message sent by Industrial GMAO',
+        'overdue_by' => 'Overdue by',
+        'only' => 'only',
+        'units' => 'units left',
+        'on' => 'on',
+        'waiting_assignment' => 'Waiting for assignment for',
+        'days_ago' => 'day(s) ago',
+        'days_left' => 'day(s) left',
+        'warranty_expired' => 'Expired',
+        'critical_intervention' => '🚨 Critical Intervention',
+        'count_days' => 'day(s)',
+        'for' => 'for',
+        'minutes' => 'minutes',
+        'hours' => 'hours',
+        'gmao_alerts' => 'GMAO Alerts',
+        'no_alerts' => 'No new alerts',
+        'view_all_alerts' => 'View all alerts',
+        'unauthenticated' => 'Unauthenticated',
+        'popup_notifications' => 'Popup Notifications',
+        'popup_settings_desc' => 'Show popup alerts when new events occur',
+        'critical_alerts' => 'Critical Alerts',
+        'warning_alerts' => 'Warning Alerts',
+        'info_alerts' => 'Information',
+        'total_alerts' => 'Total Alerts',
+        'critical_interventions_title' => 'Critical Interventions',
+        'maintenance_overdue_title' => 'Overdue Maintenances',
+        'maintenance_upcoming_title' => 'Upcoming Maintenances',
+        'stock_critical_title' => 'Critical Stock',
+        'warranty_expired_title' => 'Expired Warranties',
+        'warranty_upcoming_title' => 'Warranties Expiring Soon',
+        'unassigned_intervention_title' => 'Unassigned Interventions',
+        'mark_all_read' => 'Mark all as read',
+        'mark_all_read_confirm' => 'Mark all alerts as read for this session?',
+        'alerts_hidden_session' => 'All alerts have been hidden for this session.',
+        'excellent' => 'Excellent!',
+        'no_alerts' => 'No alerts to display',
+        'stock_at' => 'Stock at',
+        'expires_in' => 'Expires in',
+        'expired_since' => 'Expired since',
+        'delay' => 'Delay of',
+        'waiting_assignment' => 'Waiting for assignment for',
         
-        // Performance
+        // ========== PERFORMANCE ==========
         'mtbf' => 'MTBF',
         'mttr' => 'MTTR',
         'availability' => 'Availability',
@@ -387,7 +452,7 @@ function t($key) {
         'excellent_performance' => 'All equipment has good performance. Continue like this!',
         'failures_by_type_pie' => 'Failures by equipment type',
         
-        // Users
+        // ========== USERS ==========
         'user_list' => 'Users List',
         'add_user' => 'Add User',
         'edit_user' => 'Edit User',
@@ -419,7 +484,7 @@ function t($key) {
         'english' => 'English',
         'language_updated' => 'Language updated',
         
-        // Email
+        // ========== EMAIL & SMTP ==========
         'smtp_settings' => 'SMTP Settings',
         'smtp_host' => 'SMTP Host',
         'smtp_port' => 'SMTP Port',
@@ -455,7 +520,7 @@ function t($key) {
         'alert_recipients_help' => 'Separate addresses with commas',
         'test_email_help' => 'Leave empty to not send a test',
         
-        // Export
+        // ========== EXPORT & IMPORT ==========
         'export_center' => 'Export Center',
         'export_interventions_excel' => 'Export Interventions - Excel',
         'export_interventions_desc' => 'Export the list of interventions in Excel format (.xlsx)',
@@ -490,7 +555,7 @@ function t($key) {
         'generate' => 'Generate',
         'enter_id_warning' => 'Please enter a task number or ID',
         
-        // Email Templates
+        // ========== EMAIL TEMPLATES ==========
         'preventive_alert_subject' => '⚠️ GMAO ALERT - Preventive maintenance due',
         'preventive_maintenance_required' => '⚠️ Preventive Maintenance Required',
         'due_date' => 'Due date',
@@ -499,7 +564,6 @@ function t($key) {
         'stock_alert_subject' => '📦 GMAO ALERT - Critical stock',
         'critical_stock_alert' => '📦 Critical stock alert',
         'part_reached_threshold' => 'The following part has reached its minimum threshold',
-        'remaining_quantity' => 'Remaining quantity',
         'minimum_threshold' => 'Minimum threshold',
         'view_stock' => 'View stock',
         'critical_intervention_subject' => '🚨 URGENT - Critical intervention',
@@ -512,8 +576,9 @@ function t($key) {
         'activity_interventions' => 'Interventions',
         'new_equipment_count' => 'New equipment',
         'access_dashboard' => 'Access Dashboard',
+        'remaining_quantity' => 'Remaining quantity',
         
-        // Planning & Calendar
+        // ========== PLANNING & CALENDAR ==========
         'planning_title' => 'Interventions Planning',
         'calendar_view' => 'Calendar View',
         'previous_day' => 'Previous Day',
@@ -546,7 +611,7 @@ function t($key) {
         'interventions_today' => 'interventions today',
         'no_specialty' => 'No specialty',
         
-        // Mobile
+        // ========== MOBILE INTERFACE ==========
         'welcome' => 'Welcome',
         'online' => 'Online',
         'offline' => 'Offline',
@@ -572,7 +637,7 @@ function t($key) {
         'no_interventions_found' => 'No interventions found',
         'scan_qr_position' => 'Center the QR code in the frame',
         
-        // Common
+        // ========== MISCELLANEOUS & COMMON ==========
         'assign' => 'Assign',
         'unassigned' => 'Unassigned',
         'revision' => 'Revision',
@@ -606,7 +671,7 @@ function t($key) {
         'wifi_instruction' => 'Your smartphone must be on the same Wi-Fi as this computer',
         'url_copied' => 'URL copied!',
         
-        // Database values mapping
+        // ========== DATABASE STATUS MAPPING ==========
         'pending' => 'Pending',
         'in_progress' => 'In Progress',
         'completed' => 'Completed',
@@ -620,11 +685,23 @@ function t($key) {
     return $translations[$key] ?? $key;
 }
 
+/**
+ * Get the current language code.
+ * Hardcoded to 'en' (English) as per project policy.
+ * 
+ * @return string
+ */
 function getCurrentLanguage() {
     return 'en';
 }
 
+/**
+ * Set the user's preferred language.
+ * Note: Kept for backward compatibility, but always forces English.
+ * 
+ * @param string $language The requested language code.
+ * @return bool Always true.
+ */
 function setLanguage($language) {
-    // Kept for compatibility but does nothing
     return true;
 }

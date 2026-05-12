@@ -1,5 +1,5 @@
 <?php
-// pages/profile.php - Contenu du profil
+// pages/profile.php - User Profile
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
@@ -117,6 +117,31 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         background: #e06a0a;
         color: white;
     }
+    .input-group {
+        position: relative;
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        width: 100%;
+    }
+    .input-group .form-control {
+        position: relative;
+        flex: 1 1 auto;
+        width: 1%;
+        min-width: 0;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    .input-group .btn-outline-secondary {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border: 1px solid #ddd;
+        border-left: none;
+        background: white;
+    }
+    .input-group .btn-outline-secondary:hover {
+        background: #f0f0f0;
+    }
 </style>
 
 <div class="row">
@@ -139,7 +164,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             <hr class="bg-light">
             <div class="small">
                 <i class="fas fa-calendar"></i> <?php echo t('member_since'); ?><br>
-                    <?php echo $user['created_at'] ? format_date_us($user['created_at'], true) : '-'; ?>
+                <?php echo $user['created_at'] ? format_date_us($user['created_at'], true) : '-'; ?>
             </div>
             <div class="small mt-2">
                 <i class="fas fa-clock"></i> <?php echo t('last_connection'); ?><br>
@@ -198,16 +223,31 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <form method="POST">
                     <div class="mb-3">
                         <label class="form-label"><?php echo t('current_password'); ?></label>
-                        <input type="password" name="current_password" class="form-control" required>
+                        <div class="input-group">
+                            <input type="password" name="current_password" id="current_password" class="form-control" required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('current_password')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label"><?php echo t('new_password'); ?></label>
-                        <input type="password" name="new_password" id="new_password" class="form-control" required>
+                        <div class="input-group">
+                            <input type="password" name="new_password" id="new_password" class="form-control" required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('new_password')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                         <small class="text-muted"><?php echo t('password_too_short'); ?></small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label"><?php echo t('confirm_password'); ?></label>
-                        <input type="password" name="confirm_password" id="confirm_password" class="form-control" required>
+                        <div class="input-group">
+                            <input type="password" name="confirm_password" id="confirm_password" class="form-control" required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('confirm_password')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                         <small class="text-muted" id="passwordMatchMsg"></small>
                     </div>
                     <button type="submit" name="change_password" class="btn btn-warning"><?php echo t('change_password'); ?></button>
@@ -218,23 +258,45 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 </div>
 
 <script>
-function checkPasswordMatch() {
-    const password = document.getElementById('new_password').value;
-    const confirm = document.getElementById('confirm_password').value;
-    const msgSpan = document.getElementById('passwordMatchMsg');
-    
-    if (password !== confirm) {
-        msgSpan.innerHTML = '<span class="text-danger"><i class="fas fa-times-circle"></i> <?php echo t('password_mismatch'); ?></span>';
-        return false;
-    } else if (password === '' && confirm === '') {
-        msgSpan.innerHTML = '';
-        return false;
-    } else {
-        msgSpan.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> <?php echo t('password_match'); ?></span>';
-        return true;
+function togglePassword(fieldId) {
+    const field = document.getElementById(fieldId);
+    // Find the button (next sibling or previous sibling depending on structure)
+    let button = field.nextElementSibling;
+    if (button && button.tagName === 'BUTTON') {
+        if (field.type === 'password') {
+            field.type = 'text';
+            button.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        } else {
+            field.type = 'password';
+            button.innerHTML = '<i class="fas fa-eye"></i>';
+        }
     }
 }
 
-document.getElementById('new_password').addEventListener('keyup', checkPasswordMatch);
-document.getElementById('confirm_password').addEventListener('keyup', checkPasswordMatch);
+function checkPasswordMatch() {
+    const password = document.getElementById('new_password')?.value;
+    const confirm = document.getElementById('confirm_password')?.value;
+    const msgSpan = document.getElementById('passwordMatchMsg');
+    
+    if (msgSpan) {
+        if (password !== confirm) {
+            msgSpan.innerHTML = '<span class="text-danger"><i class="fas fa-times-circle"></i> <?php echo t('password_mismatch'); ?></span>';
+            return false;
+        } else if (password === '' && confirm === '') {
+            msgSpan.innerHTML = '';
+            return false;
+        } else {
+            msgSpan.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> <?php echo t('password_match'); ?></span>';
+            return true;
+        }
+    }
+    return true;
+}
+
+const newPwd = document.getElementById('new_password');
+const confirmPwd = document.getElementById('confirm_password');
+if (newPwd && confirmPwd) {
+    newPwd.addEventListener('keyup', checkPasswordMatch);
+    confirmPwd.addEventListener('keyup', checkPasswordMatch);
+}
 </script>

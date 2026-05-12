@@ -144,6 +144,31 @@ $skills = $stmt->fetchAll();
         font-weight: bold;
         color: #667eea;
     }
+    
+    /* ===== NOUVEAU STYLE POUR LES 4 CADRES STATISTIQUES ===== */
+    .stats-card {
+        text-align: center;
+        padding: 15px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+        cursor: pointer;
+        margin-bottom: 20px;
+    }
+    .stats-card:hover {
+        transform: translateY(-3px);
+    }
+    .stats-number {
+        font-size: 28px;
+        font-weight: bold;
+    }
+    .stats-label {
+        color: #6c757d;
+        font-size: 14px;
+        margin-top: 5px;
+    }
+    
     .history-item {
         padding: 10px 0;
         border-bottom: 1px solid #eee;
@@ -238,6 +263,7 @@ $skills = $stmt->fetchAll();
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>
         <i class="fas fa-user-cog"></i> 
+        <?php echo t('technician_detail'); ?> : 
         <?php echo htmlspecialchars($technician['firstname'] . ' ' . $technician['lastname']); ?>
         <small class="text-muted">(<?php echo htmlspecialchars($technician['employee_id']); ?>)</small>
     </h2>
@@ -262,8 +288,7 @@ $skills = $stmt->fetchAll();
             </div>
             <div class="card-body p-4">
                 <table class="table table-sm table-borderless">
-                    <tr>
-                        <td style="width: 40%;"><strong><?php echo t('employee_id'); ?></strong></td>
+                    <tr><td style="width: 40%;"><strong><?php echo t('employee_id'); ?></strong></td>
                         <td><?php echo htmlspecialchars($technician['employee_id']); ?></td>
                     </tr>
                     <tr>
@@ -373,30 +398,30 @@ $skills = $stmt->fetchAll();
 
     <!-- Colonne droite - Statistiques et interventions -->
     <div class="col-md-8">
-        <!-- Statistiques -->
+        <!-- ===== STATISTIQUES MODIFIÉES (style identique à technicians.php) ===== -->
         <div class="row mb-4">
             <div class="col-md-3">
-                <div class="stat-box">
-                    <div class="stat-number"><?php echo $total_interventions; ?></div>
-                    <div class="text-muted"><?php echo t('total_interventions'); ?></div>
+                <div class="stats-card">
+                    <div class="stats-number" style="color: #667eea;"><?php echo $total_interventions; ?></div>
+                    <div class="stats-label"><?php echo t('total_interventions'); ?></div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-box">
-                    <div class="stat-number text-success"><?php echo $completed; ?></div>
-                    <div class="text-muted"><?php echo t('completed'); ?></div>
+                <div class="stats-card">
+                    <div class="stats-number" style="color: #28a745;"><?php echo $completed; ?></div>
+                    <div class="stats-label"><?php echo t('completed'); ?></div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-box">
-                    <div class="stat-number text-info"><?php echo $completion_rate; ?>%</div>
-                    <div class="text-muted"><?php echo t('completion_rate'); ?></div>
+                <div class="stats-card">
+                    <div class="stats-number" style="color: #17a2b8;"><?php echo $completion_rate; ?>%</div>
+                    <div class="stats-label"><?php echo t('completion_rate'); ?></div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-box">
-                    <div class="stat-number text-warning"><?php echo $avg_duration; ?>h</div>
-                    <div class="text-muted"><?php echo t('avg_duration'); ?></div>
+                <div class="stats-card">
+                    <div class="stats-number" style="color: #fd7e14;"><?php echo $avg_duration; ?>h</div>
+                    <div class="stats-label"><?php echo t('avg_duration'); ?></div>
                 </div>
             </div>
         </div>

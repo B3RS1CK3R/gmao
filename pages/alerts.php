@@ -284,6 +284,56 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         font-size: 28px;
         font-weight: bold;
     }
+    
+    /* ===== SWITCH STYLES ===== */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+    }
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    input:checked + .slider {
+        background-color: #28a745;
+    }
+    input:checked + .slider:before {
+        transform: translateX(26px);
+    }
+    .popup-settings {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
 </style>
 
 <div class="container-fluid">
@@ -293,6 +343,20 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
             <button class="btn-clear-all me-2" onclick="clearAllAlerts()">
                 <i class="fas fa-check-double"></i> <?php echo t('mark_all_read'); ?>
             </button>
+        </div>
+    </div>
+    
+    <!-- ===== POPUP SETTINGS SWITCH (AJOUTÉ) ===== -->
+    <div class="popup-settings">
+        <div>
+            <i class="fas fa-bell-slash"></i> <strong><?php echo t('popup_notifications'); ?></strong>
+            <small class="text-muted d-block"><?php echo t('popup_settings_desc'); ?></small>
+        </div>
+        <div>
+            <label class="switch">
+                <input type="checkbox" id="popupsToggle" checked>
+                <span class="slider"></span>
+            </label>
         </div>
     </div>
     
@@ -411,6 +475,34 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
 <script>
 // Store dismissed alerts for session only
 let dismissedAlerts = [];
+
+// ===== POPUP SETTINGS MANAGEMENT (AJOUTÉ) =====
+const popupsToggle = document.getElementById('popupsToggle');
+if (popupsToggle) {
+    const savedPopupPreference = localStorage.getItem('gmao_popups_enabled');
+    if (savedPopupPreference !== null) {
+        popupsToggle.checked = savedPopupPreference === 'true';
+    }
+    
+    popupsToggle.addEventListener('change', function() {
+        const enabled = this.checked;
+        localStorage.setItem('gmao_popups_enabled', enabled);
+        
+        if (typeof alertSystem !== 'undefined' && alertSystem) {
+            alertSystem.popupsEnabled = enabled;
+        }
+        
+        const msg = document.createElement('div');
+        msg.className = 'alert alert-success alert-dismissible fade show';
+        msg.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+        msg.innerHTML = `
+            <i class="fas fa-check-circle"></i> Popup notifications ${enabled ? 'enabled' : 'disabled'}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(msg);
+        setTimeout(() => msg.remove(), 2000);
+    });
+}
 
 // Update alerts display
 function updateDisplayedAlerts() {

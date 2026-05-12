@@ -104,7 +104,7 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
 // Fetch technicians list
 $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
 
-// Fetch interventions with all details
+// Fetch interventions with all details - CORRECTED ORDER BY with COALESCE
 $interventions = $pdo->query("
     SELECT i.*, e.name as equipment_name, e.code as equipment_code, e.location as equipment_location,
            t.id as technician_id, t.firstname, t.lastname, t.specialty
@@ -113,13 +113,13 @@ $interventions = $pdo->query("
     LEFT JOIN technicians t ON i.intervenant_id = t.id
     ORDER BY 
         CASE i.task_status 
-            WHEN 'a_faire' THEN 1
-            WHEN 'en_cours' THEN 2
-            WHEN 'termine' THEN 3
-            WHEN 'cloturee' THEN 4
+            WHEN 'a_faire' THEN 1      -- to do
+            WHEN 'en_cours' THEN 2     -- in progress
+            WHEN 'termine' THEN 3      -- completed
+            WHEN 'cloturee' THEN 4     -- closed
             ELSE 5
         END,
-        i.intervention_date ASC,
+        COALESCE(i.intervention_date, i.created_at) ASC,
         i.created_at DESC
 ")->fetchAll();
 
@@ -169,6 +169,27 @@ if($action == 'assign' && isset($_GET['id'])):
         padding: 15px 20px;
         font-weight: bold;
     }
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+    }
+    .btn-info {
+        background: #17a2b8;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
 </style>
 <div class="form-card">
     <div class="form-card-header">
@@ -210,8 +231,44 @@ if($action == 'complete' && isset($_GET['id'])):
         return;
     }
 ?>
+<style>
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .form-card-header {
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
+    }
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+    }
+    .btn-success {
+        background: #28a745;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+</style>
 <div class="form-card">
-    <div class="form-card-header" style="background: linear-gradient(135deg, #28a745, #1e7e34);">
+    <div class="form-card-header">
         <i class="fas fa-check-circle"></i> <?php echo t('complete_intervention'); ?>
     </div>
     <div class="card-body p-4">
@@ -248,8 +305,44 @@ if($action == 'delete' && isset($_GET['id'])):
         return;
     }
 ?>
+<style>
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .form-card-header {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
+    }
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+    }
+    .btn-danger {
+        background: #dc3545;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+</style>
 <div class="form-card">
-    <div class="form-card-header" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+    <div class="form-card-header">
         <i class="fas fa-trash-alt"></i> <?php echo t('cancel_intervention'); ?>
     </div>
     <div class="card-body p-4">
@@ -300,6 +393,32 @@ if($action == 'edit' && isset($_GET['id'])):
         color: white;
         padding: 15px 20px;
         font-weight: bold;
+    }
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .btn-warning {
+        background: #fd7e14;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+        color: white;
+    }
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
     }
 </style>
 <div class="form-card">
@@ -396,11 +515,24 @@ endif;
 ?>
 
 <style>
-    .stats-card {
+    .info-card {
         background: white;
         border-radius: 15px;
-        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .card-header-custom {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
+    }
+    .stats-card {
         text-align: center;
+        padding: 15px;
+        background: white;
+        border-radius: 15px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         transition: transform 0.2s;
         cursor: pointer;
@@ -415,10 +547,10 @@ endif;
     }
     .filter-bar {
         background: white;
-        border-radius: 12px;
+        border-radius: 15px;
         padding: 15px;
         margin-bottom: 20px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
     .priority-badge {
         display: inline-block;
@@ -442,25 +574,59 @@ endif;
     .status-en_cours { background: #17a2b8; color: white; }
     .status-termine { background: #28a745; color: white; }
     .status-cloturee { background: #343a40; color: white; }
-    .action-buttons .btn { padding: 4px 8px; margin: 0 2px; border-radius: 6px; }
-    .intervention-table {
-        background: white;
-        border-radius: 15px;
-        overflow: hidden;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    
+    /* Action buttons - uniform size and alignment */
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: nowrap;
     }
-    .intervention-table th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .action-buttons .btn {
+        padding: 5px 8px;
+        margin: 0;
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+    }
+    .action-buttons .btn i {
+        font-size: 12px;
+    }
+    .disabled-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        background: #e9ecef;
+        border-radius: 6px;
+        color: #6c757d;
+    }
+    
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .table {
+        min-width: 1000px;
+    }
+    .table-dark th {
+        background: #212529;
         color: white;
         padding: 12px 15px;
         font-weight: 600;
     }
-    .intervention-table td {
+    .table td {
         padding: 12px 15px;
         vertical-align: middle;
         border-bottom: 1px solid #eee;
     }
-    .intervention-table tr:hover {
+    .table tr:hover {
         background: #f8f9fa;
     }
     .history-item {
@@ -470,6 +636,56 @@ endif;
     }
     .history-item:last-child {
         border-bottom: none;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+    .btn-primary:hover {
+        filter: brightness(0.95);
+    }
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+    .btn-warning {
+        background: #fd7e14;
+        border: none;
+        border-radius: 6px;
+        color: white;
+    }
+    .btn-warning:hover {
+        background: #e06a0a;
+        color: white;
+    }
+    .btn-danger {
+        background: #dc3545;
+        border: none;
+        border-radius: 6px;
+    }
+    .btn-info {
+        background: #17a2b8;
+        border: none;
+        border-radius: 6px;
+    }
+    .btn-success {
+        background: #28a745;
+        border: none;
+        border-radius: 6px;
+    }
+    .form-select-sm {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+    .text-muted {
+        color: #6c757d !important;
     }
 </style>
 
@@ -501,25 +717,25 @@ endif;
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="stats-card" onclick="filterByStatus('all')">
-                <div class="stats-number text-primary"><?php echo $total; ?></div>
+                <div class="stats-number" style="color: #667eea;"><?php echo $total; ?></div>
                 <div class="text-muted"><?php echo t('total'); ?></div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="stats-card" onclick="filterByStatus('a_faire')">
-                <div class="stats-number text-secondary"><?php echo $a_faire; ?></div>
+                <div class="stats-number" style="color: #6c757d;"><?php echo $a_faire; ?></div>
                 <div class="text-muted"><?php echo t('to_do'); ?></div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="stats-card" onclick="filterByStatus('en_cours')">
-                <div class="stats-number text-info"><?php echo $en_cours; ?></div>
+                <div class="stats-number" style="color: #17a2b8;"><?php echo $en_cours; ?></div>
                 <div class="text-muted"><?php echo t('in_progress'); ?></div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="stats-card" onclick="filterByStatus('termine')">
-                <div class="stats-number text-success"><?php echo $termine; ?></div>
+                <div class="stats-number" style="color: #28a745;"><?php echo $termine; ?></div>
                 <div class="text-muted"><?php echo t('completed'); ?></div>
             </div>
         </div>
@@ -545,118 +761,122 @@ endif;
         </div>
     </div>
     
-    <!-- Interventions list -->
-    <div class="intervention-table">
-        <div class="table-responsive">
-            <table class="table mb-0" id="interventionsTable">
-                <thead>
-                    <tr>
-                        <th><?php echo t('task_number'); ?></th>
-                        <th><?php echo t('equipment'); ?></th>
-                        <th><?php echo t('title'); ?></th>
-                        <th><?php echo t('priority'); ?></th>
-                        <th><?php echo t('status'); ?></th>
-                        <th><?php echo t('technician'); ?></th>
-                        <th><?php echo t('planned_date'); ?></th>
-                        <th><?php echo t('last_modifications'); ?></th>
-                        <th class="text-center"><?php echo t('actions'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach($interventions as $inv): ?>
-                    <tr data-status="<?php echo $inv['task_status']; ?>">
-                        <td>
-                            <strong><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></strong>
-                            <?php if($inv['completion_report']): ?>
-                                <i class="fas fa-file-alt text-muted ms-1" title="<?php echo t('report'); ?>"></i>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <?php echo htmlspecialchars($inv['equipment_name']); ?><br>
-                            <small class="text-muted"><?php echo htmlspecialchars($inv['equipment_code']); ?></small>
-                        </td>
-                        <td><?php echo htmlspecialchars($inv['title']); ?></td>
-                        <td>
-                            <span class="priority-badge priority-<?php echo $inv['priority']; ?>">
-                                <?php echo t($inv['priority']); ?>
-                            </span>
-                        </td>
-                        <td>
-                            <select class="form-select form-select-sm" style="width: 120px;" 
-                                    onchange="if(confirm('<?php echo t('status_confirm'); ?>')) window.location.href='?page=interventions&action=change_status&id=<?php echo $inv['id']; ?>&status='+this.value"
-                                    onclick="event.stopPropagation()">
-                                <option value="a_faire" <?php if($inv['task_status'] == 'a_faire') echo 'selected'; ?>><?php echo t('to_do'); ?></option>
-                                <option value="en_cours" <?php if($inv['task_status'] == 'en_cours') echo 'selected'; ?>><?php echo t('in_progress'); ?></option>
-                                <option value="termine" <?php if($inv['task_status'] == 'termine') echo 'selected'; ?>><?php echo t('completed'); ?></option>
-                                <option value="cloturee" <?php if($inv['task_status'] == 'cloturee') echo 'selected'; ?>><?php echo t('closed'); ?></option>
-                            </select>
-                        </td>
-                        <td>
-                            <?php if($inv['firstname']): ?>
-                                <?php echo htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']); ?>
-                                <br><small class="text-muted"><?php echo htmlspecialchars($inv['specialty']); ?></small>
-                            <?php else: ?>
-                                <span class="text-muted"><?php echo t('unassigned'); ?></span>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <?php echo $inv['intervention_date'] ? date('m/d/Y', strtotime($inv['intervention_date'])) : '-'; ?>
-                        </td>
-                        <td style="max-width: 150px;">
-                            <?php if(!empty($history[$inv['id']])): ?>
-                                <?php foreach(array_slice($history[$inv['id']], 0, 2) as $h): ?>
-                                <div class="history-item">
-                                    <?php
-                                    $action_icons = [
-                                        'intervention_created' => '🟢 ' . t('created'),
-                                        'intervention_updated' => '✏️ ' . t('modified'),
-                                        'intervention_status_change' => '📊 ' . t('status_changed'),
-                                        'intervention_assigned' => '👤 ' . t('assigned'),
-                                        'intervention_completed' => '✅ ' . t('completed'),
-                                        'intervention_deleted' => '🗑️ ' . t('cancelled')
-                                    ];
-                                    echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
-                                    ?>
-                                    <br><small class="text-muted"><?php echo date('m/d/Y H:i', strtotime($h['created_at'])); ?></small>
-                                </div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <small class="text-muted">-</small>
-                            <?php endif; ?>
-                        </td>
-                        <td class="text-center action-buttons" onclick="event.stopPropagation()">
-                            <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <?php if($inv['task_status'] != 'termine' && $inv['task_status'] != 'cloturee'): ?>
-                                <a href="?page=interventions&action=complete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('complete'); ?>">
-                                    <i class="fas fa-check"></i>
+    <!-- Interventions list with unified chart -->
+    <div class="info-card">
+        <div class="card-header-custom">
+            <i class="fas fa-list"></i> <?php echo t('intervention_list'); ?>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="interventionsTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th><?php echo t('task_number'); ?></th>
+                            <th><?php echo t('equipment'); ?></th>
+                            <th><?php echo t('title'); ?></th>
+                            <th><?php echo t('priority'); ?></th>
+                            <th><?php echo t('status'); ?></th>
+                            <th><?php echo t('technician'); ?></th>
+                            <th><?php echo t('planned_date'); ?></th>
+                            <th><?php echo t('last_modifications'); ?></th>
+                            <th class="text-center"><?php echo t('actions'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($interventions as $inv): ?>
+                        <tr data-status="<?php echo $inv['task_status']; ?>">
+                            <td>
+                                <strong><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></strong>
+                                <?php if($inv['completion_report']): ?>
+                                    <i class="fas fa-file-alt text-muted ms-1" title="<?php echo t('report'); ?>"></i>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php echo htmlspecialchars($inv['equipment_name']); ?><br>
+                                <small class="text-muted"><?php echo htmlspecialchars($inv['equipment_code']); ?></small>
+                            </td>
+                            <td><?php echo htmlspecialchars($inv['title']); ?></td>
+                            <td>
+                                <span class="priority-badge priority-<?php echo $inv['priority']; ?>">
+                                    <?php echo t($inv['priority']); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" style="width: 120px;" 
+                                        onchange="if(confirm('<?php echo t('status_confirm'); ?>')) window.location.href='?page=interventions&action=change_status&id=<?php echo $inv['id']; ?>&status='+this.value"
+                                        onclick="event.stopPropagation()">
+                                    <option value="a_faire" <?php if($inv['task_status'] == 'a_faire') echo 'selected'; ?>><?php echo t('to_do'); ?></option>
+                                    <option value="en_cours" <?php if($inv['task_status'] == 'en_cours') echo 'selected'; ?>><?php echo t('in_progress'); ?></option>
+                                    <option value="termine" <?php if($inv['task_status'] == 'termine') echo 'selected'; ?>><?php echo t('completed'); ?></option>
+                                    <option value="cloturee" <?php if($inv['task_status'] == 'cloturee') echo 'selected'; ?>><?php echo t('closed'); ?></option>
+                                </select>
+                            </td>
+                            <td>
+                                <?php if($inv['firstname']): ?>
+                                    <?php echo htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']); ?>
+                                    <br><small class="text-muted"><?php echo htmlspecialchars($inv['specialty']); ?></small>
+                                <?php else: ?>
+                                    <span class="text-muted"><?php echo t('unassigned'); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php echo $inv['intervention_date'] ? date('m/d/Y', strtotime($inv['intervention_date'])) : '-'; ?>
+                            </td>
+                            <td style="max-width: 150px;">
+                                <?php if(!empty($history[$inv['id']])): ?>
+                                    <?php foreach(array_slice($history[$inv['id']], 0, 2) as $h): ?>
+                                    <div class="history-item">
+                                        <?php
+                                        $action_icons = [
+                                            'intervention_created' => '🟢 ' . t('created'),
+                                            'intervention_updated' => '✏️ ' . t('modified'),
+                                            'intervention_status_change' => '📊 ' . t('status_changed'),
+                                            'intervention_assigned' => '👤 ' . t('assigned'),
+                                            'intervention_completed' => '✅ ' . t('completed'),
+                                            'intervention_deleted' => '🗑️ ' . t('cancelled')
+                                        ];
+                                        echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
+                                        ?>
+                                        <br><small class="text-muted"><?php echo date('m/d/Y H:i', strtotime($h['created_at'])); ?></small>
+                                    </div>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <small class="text-muted">-</small>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-center action-buttons" onclick="event.stopPropagation()">
+                                <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
+                                    <i class="fas fa-eye"></i>
                                 </a>
-                                <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                    <a href="?page=interventions&action=assign&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
-                                        <i class="fas fa-user-plus"></i>
+                                <?php if($inv['task_status'] != 'termine' && $inv['task_status'] != 'cloturee'): ?>
+                                    <a href="?page=interventions&action=complete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('complete'); ?>">
+                                        <i class="fas fa-check-circle"></i>
                                     </a>
-                                    <a href="?page=interventions&action=edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="?page=interventions&action=delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>" onclick="return confirm('<?php echo t('delete_confirm'); ?>')">
-
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+                                    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+                                        <a href="?page=interventions&action=assign&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
+                                            <i class="fas fa-user-plus"></i>
+                                        </a>
+                                        <a href="?page=interventions&action=edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                            <i class="fas fa-pen"></i>
+                                        </a>
+                                        <a href="?page=interventions&action=delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>" onclick="return confirm('<?php echo t('delete_confirm'); ?>')">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="disabled-icon"><i class="fas fa-lock"></i></span>
+                                    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+                                        <a href="?page=interventions&action=edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                            <i class="fas fa-pen"></i>
+                                        </a>
+                                    <?php endif; ?>
                                 <?php endif; ?>
-                            <?php else: ?>
-                                <span class="text-muted"><i class="fas fa-lock"></i></span>
-                                <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                    <a href="?page=interventions&action=edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                <?php endif; ?>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

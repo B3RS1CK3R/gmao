@@ -103,11 +103,27 @@ if($action == 'restore' && isset($_GET['id']) && $_SESSION['role'] == 'admin') {
     echo "<meta http-equiv='refresh' content='1;url=?page=technicians'>";
 }
 
-// Fetch technicians
+// Fetch technicians - afficher tous par défaut
+$status_filter = $_GET['status'] ?? 'all';
+$technicians = [];
+
 if($_SESSION['role'] == 'admin') {
-    $technicians = $pdo->query("SELECT * FROM technicians ORDER BY lastname ASC")->fetchAll();
+    if($status_filter == 'all') {
+        $technicians = $pdo->query("SELECT * FROM technicians ORDER BY lastname ASC")->fetchAll();
+    } else {
+        $stmt = $pdo->prepare("SELECT * FROM technicians WHERE status = ? ORDER BY lastname ASC");
+        $stmt->execute([$status_filter]);
+        $technicians = $stmt->fetchAll();
+    }
 } else {
-    $technicians = $pdo->query("SELECT * FROM technicians WHERE status != 'inactive' ORDER BY lastname ASC")->fetchAll();
+    // Pour les superviseurs, ne pas montrer les inactifs
+    if($status_filter == 'all' || $status_filter == 'inactive') {
+        $technicians = $pdo->query("SELECT * FROM technicians WHERE status != 'inactive' ORDER BY lastname ASC")->fetchAll();
+    } else {
+        $stmt = $pdo->prepare("SELECT * FROM technicians WHERE status = ? AND status != 'inactive' ORDER BY lastname ASC");
+        $stmt->execute([$status_filter]);
+        $technicians = $stmt->fetchAll();
+    }
 }
 
 // Fetch interventions assigned to each technician
@@ -132,10 +148,14 @@ foreach($technicians as $tech) {
     $history[$tech['id']] = $stmt->fetchAll();
 }
 
-// Statistics
-$active_count = count(array_filter($technicians, function($t) { return $t['status'] == 'active'; }));
-$leave_count = count(array_filter($technicians, function($t) { return $t['status'] == 'on_leave'; }));
-$inactive_count = count(array_filter($technicians, function($t) { return $t['status'] == 'inactive'; }));
+// Statistics (basées sur tous les techniciens)
+$stmt = $pdo->query("SELECT COUNT(*) FROM technicians WHERE status = 'active'");
+$active_count = $stmt->fetchColumn();
+$stmt = $pdo->query("SELECT COUNT(*) FROM technicians WHERE status = 'on_leave'");
+$leave_count = $stmt->fetchColumn();
+$stmt = $pdo->query("SELECT COUNT(*) FROM technicians WHERE status = 'inactive'");
+$inactive_count = $stmt->fetchColumn();
+$total_count = $active_count + $leave_count + $inactive_count;
 
 // ========== ADD FORM ==========
 if($action == 'add'):
@@ -384,7 +404,14 @@ endif;
     .status-on_leave { background: #ffc107; color: #333; }
     .table-row-clickable { cursor: pointer; transition: background 0.2s; }
     .table-row-clickable:hover { background: #f8f9fa; }
-    .action-buttons .btn { padding: 4px 8px; margin: 0 2px; border-radius: 6px; }
+    .action-buttons {
+        white-space: nowrap;
+    }
+    .action-buttons .btn {
+        padding: 4px 8px;
+        margin: 0 2px;
+        border-radius: 6px;
+    }
     .history-item {
         padding: 5px 0;
         font-size: 10px;
@@ -475,19 +502,19 @@ endif;
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="stats-card" onclick="window.location.href='?page=technicians&status=active'">
-                <div class="stats-number text-success"><?php echo $active_count; ?></div>
+                <div class="stats-number" style="color: #28a745;"><?php echo $active_count; ?></div>
                 <div class="text-muted"><?php echo t('technicians_active'); ?></div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="stats-card" onclick="window.location.href='?page=technicians&status=on_leave'">
-                <div class="stats-number text-warning"><?php echo $leave_count; ?></div>
+                <div class="stats-number" style="color: #ffc107;"><?php echo $leave_count; ?></div>
                 <div class="text-muted"><?php echo t('on_leave'); ?></div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="stats-card" onclick="window.location.href='?page=technicians&status=inactive'">
-                <div class="stats-number text-secondary"><?php echo $inactive_count; ?></div>
+                <div class="stats-number" style="color: #6c757d;"><?php echo $inactive_count; ?></div>
                 <div class="text-muted"><?php echo t('inactive'); ?></div>
             </div>
         </div>
@@ -507,8 +534,6 @@ endif;
                             <th><?php echo t('lastname'); ?></th>
                             <th><?php echo t('firstname'); ?></th>
                             <th><?php echo t('specialty'); ?></th>
-                            <th><?php echo t('phone'); ?></th>
-                            <th><?php echo t('email'); ?></th>
                             <th><?php echo t('status'); ?></th>
                             <th><?php echo t('hire_date'); ?></th>
                             <th><?php echo t('active_interventions'); ?></th>
@@ -523,8 +548,6 @@ endif;
                             <td><?php echo htmlspecialchars($tech['lastname']); ?></td>
                             <td><?php echo htmlspecialchars($tech['firstname']); ?></td>
                             <td><?php echo htmlspecialchars($tech['specialty'] ?: '-'); ?></td>
-                            <td><?php echo htmlspecialchars($tech['phone'] ?: '-'); ?></td>
-                            <td><?php echo htmlspecialchars($tech['email'] ?: '-'); ?></td>
                             <td>
                                 <span class="status-badge status-<?php echo $tech['status']; ?>">
                                     <?php 
@@ -592,7 +615,7 @@ endif;
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
-                </table>
+                <table>
             </div>
         </div>
     </div>

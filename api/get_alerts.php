@@ -1,11 +1,11 @@
 <?php
-// api/get_alerts.php - API pour récupérer les alertes en temps réel
+// api/get_alerts.php - API endpoint for real-time alerts
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 
 session_start();
 if(!isset($_SESSION['user_id'])) {
-    echo json_encode(['success' => false, 'error' => 'Non authentifié']);
+    echo json_encode(['success' => false, 'error' => t('unauthenticated')]);
     exit();
 }
 
@@ -32,14 +32,15 @@ $overdue = $stmt->fetchAll();
 
 foreach($overdue as $task) {
     $days = (strtotime(date('Y-m-d')) - strtotime($task['next_due'])) / 86400;
+    $days_rounded = abs(round($days));
     
     $alerts[] = [
         'id' => 'pm_' . $task['id'],
         'type' => 'maintenance_overdue',
         'priority' => $days > 30 ? 'critical' : 'warning',
         'title' => t('maintenance_overdue'),
-        'message' => "{$task['equipment_name']} : " . t('overdue_by') . " " . abs($days) . " " . t('days'),
-        'url' => '/gmao/index.php?page=preventive',
+        'message' => $task['equipment_name'] . ': ' . t('overdue_by') . ' ' . $days_rounded . ' ' . t('count_days'),
+        'url' => '/gmao_GEMINI/index.php?page=preventive',
         'timestamp' => time()
     ];
     
@@ -61,8 +62,8 @@ foreach($lowStock as $part) {
         'type' => 'stock_critical',
         'priority' => $ratio < 0.3 ? 'critical' : 'warning',
         'title' => t('stock_critical_title'),
-        'message' => "{$part['name']} : " . t('only') . " {$part['quantity']} " . t('units') . " (min: {$part['min_quantity']})",
-        'url' => '/gmao/index.php?page=stock',
+        'message' => $part['name'] . ': ' . t('only') . ' ' . $part['quantity'] . ' ' . t('units') . ' (min: ' . $part['min_quantity'] . ')',
+        'url' => '/gmao_GEMINI/index.php?page=stock',
         'timestamp' => time()
     ];
     
@@ -89,9 +90,9 @@ foreach($critical as $intervention) {
         'id' => 'interv_' . $intervention['id'],
         'type' => 'critical_intervention',
         'priority' => 'critical',
-        'title' => '🚨 ' . t('critical_intervention'),
-        'message' => $intervention['title'] . " " . t('on') . " " . $intervention['equipment_name'] . " - " . $hours_rounded . "h",
-        'url' => '/gmao/index.php?page=interventions',
+        'title' => t('critical_intervention'),
+        'message' => $intervention['title'] . ' ' . t('on') . ' ' . $intervention['equipment_name'] . ' - ' . $hours_rounded . ' ' . t('hours'),
+        'url' => '/gmao_GEMINI/index.php?page=interventions',
         'timestamp' => time()
     ];
     
@@ -110,6 +111,7 @@ $warranty = $stmt->fetchAll();
 
 foreach($warranty as $eq) {
     $days = (strtotime($eq['warranty_end']) - time()) / 86400;
+    $days_rounded = round($days);
     
     if($days < 0) {
         $alerts[] = [
@@ -117,8 +119,8 @@ foreach($warranty as $eq) {
             'type' => 'warranty_expired',
             'priority' => 'critical',
             'title' => t('warranty_expired_title'),
-            'message' => "{$eq['name']} : " . t('warranty_expired') . " " . abs(round($days)) . " " . t('days_ago'),
-            'url' => '/gmao/index.php?page=equipment',
+            'message' => $eq['name'] . ': ' . t('warranty_expired') . ' ' . abs($days_rounded) . ' ' . t('days_ago'),
+            'url' => '/gmao_GEMINI/index.php?page=equipment',
             'timestamp' => time()
         ];
         $counts['critical']++;
@@ -128,8 +130,8 @@ foreach($warranty as $eq) {
             'type' => 'warranty_upcoming',
             'priority' => 'warning',
             'title' => t('warranty_upcoming_title'),
-            'message' => "{$eq['name']} : " . round($days) . " " . t('days_left'),
-            'url' => '/gmao/index.php?page=equipment',
+            'message' => $eq['name'] . ': ' . $days_rounded . ' ' . t('days_left'),
+            'url' => '/gmao_GEMINI/index.php?page=equipment',
             'timestamp' => time()
         ];
         $counts['warning']++;
@@ -149,21 +151,22 @@ $unassigned = $stmt->fetchAll();
 
 foreach($unassigned as $inv) {
     $days = (time() - strtotime($inv['created_at'])) / 86400;
+    $days_rounded = round($days);
     
     $alerts[] = [
         'id' => 'unassigned_' . $inv['id'],
         'type' => 'unassigned_intervention',
         'priority' => 'warning',
         'title' => t('unassigned_intervention_title'),
-        'message' => "{$inv['title']} - " . t('waiting_assignment') . " " . round($days) . " " . t('days'),
-        'url' => '/gmao/index.php?page=interventions&action=assign&id=' . $inv['id'],
+        'message' => $inv['title'] . ' - ' . t('waiting_assignment') . ' ' . $days_rounded . ' ' . t('count_days'),
+        'url' => '/gmao_GEMINI/index.php?page=interventions&action=assign&id=' . $inv['id'],
         'timestamp' => time()
     ];
     
     $counts['warning']++;
 }
 
-// Limiter le nombre d'alertes
+// Limit number of alerts
 $alerts = array_slice($alerts, 0, 20);
 
 echo json_encode([

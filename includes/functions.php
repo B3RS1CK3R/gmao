@@ -1,52 +1,79 @@
 <?php
-// includes/functions.php - FULL VERSION
+/**
+ * includes/functions.php - Core Application Functions
+ * Contains security helpers, database access functions, and business logic for the GMAO system.
+ */
+
+// Load database configuration and localization helper
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/lang.php';
 
-// Ensure session is active for CSRF helpers
+// Ensure session is active for CSRF helpers and user authentication
 if(session_status() !== PHP_SESSION_ACTIVE) {
     @session_start();
 }
 
-// Simple CSRF helpers
+// ========== SECURITY & CSRF HELPERS ==========
+
+/**
+ * Generate or retrieve the current CSRF token for the session.
+ * Also sets a cookie fallback to prevent token loss due to session timeouts or path issues.
+ */
 function csrf_token() {
     if(empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(24));
     }
-    // Also set a cookie fallback to help forms when session cookie path issues occur
+    // Set a cookie fallback to help forms when session cookie path issues occur
     if(!headers_sent()) {
         setcookie('csrf_token', $_SESSION['csrf_token'], time() + 3600, '/');
     }
     return $_SESSION['csrf_token'];
 }
 
+/**
+ * Generate a hidden HTML input field containing the CSRF token.
+ */
 function csrf_input() {
     $token = htmlspecialchars(csrf_token());
     return '<input type="hidden" name="csrf_token" value="' . $token . '">';
 }
 
+/**
+ * Validate the provided CSRF token against the session token.
+ */
 function validate_csrf($token) {
     if(empty($token)) return false;
     if(empty($_SESSION['csrf_token'])) return false;
     return hash_equals($_SESSION['csrf_token'], $token);
 }
 
-// More tolerant validation: allow cookie fallback if form token missing
+/**
+ * More tolerant CSRF validation: allow cookie fallback if the form token is missing.
+ * Useful for AJAX requests or edge cases where session might be flaky.
+ */
 function validate_csrf_fallback($token) {
     if(!empty($token) && !empty($_SESSION['csrf_token'])) {
         return hash_equals($_SESSION['csrf_token'], $token);
     }
-    // fallback to cookie
+    // Fallback to cookie verification
     if(!empty($_COOKIE['csrf_token']) && !empty($_SESSION['csrf_token'])) {
         return hash_equals($_SESSION['csrf_token'], $_COOKIE['csrf_token']);
     }
     return false;
 }
 
+// ========== AUTHENTICATION ==========
+
+/**
+ * Check if a user is currently logged in.
+ */
 function isLoggedIn() {
     return isset($_SESSION['user_id']);
 }
 
+/**
+ * Force the user to login. Redirects to the login page if not authenticated.
+ */
 function requireLogin() {
     if (!isLoggedIn()) {
         header('Location: index.php?page=login');
@@ -54,6 +81,12 @@ function requireLogin() {
     }
 }
 
+// ========== EQUIPMENT MANAGEMENT ==========
+
+/**
+ * Fetch a single equipment item by ID or all items if no ID is provided.
+ * When fetching all, it also includes a count of pending interventions.
+ */
 function getEquipment($id = null) {
     global $pdo;
     if ($id) {
@@ -68,6 +101,9 @@ function getEquipment($id = null) {
     }
 }
 
+/**
+ * Insert a new equipment record into the database.
+ */
 function addEquipment($data) {
     global $pdo;
     $sql = "INSERT INTO equipment (code, name, type, location, supplier, purchase_date, warranty_end, technical_specs) 
@@ -85,6 +121,11 @@ function addEquipment($data) {
     ]);
 }
 
+// ========== INTERVENTIONS ==========
+
+/**
+ * Create a new intervention record.
+ */
 function addIntervention($data) {
     global $pdo;
     $sql = "INSERT INTO interventions (equipment_id, type, priority, title, description, reported_by) 
@@ -100,33 +141,48 @@ function addIntervention($data) {
     ]);
 }
 
+// ========== DASHBOARD & ANALYTICS ==========
+
+/**
+ * Calculate various statistics for the dashboard display.
+ */
 function getDashboardStats() {
     global $pdo;
     
     $stats = [];
     
+    // Total number of equipment items
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM equipment");
     $stats['total_equipment'] = $stmt->fetch()['total'];
     
+    // Count of currently active (pending or in-progress) interventions
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM interventions WHERE status IN ('pending', 'in_progress')");
     $stats['active_interventions'] = $stmt->fetch()['total'];
     
+    // Number of interventions completed during the current month
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM interventions 
                          WHERE status = 'completed' 
                          AND MONTH(created_at) = MONTH(CURRENT_DATE()) 
                          AND YEAR(created_at) = YEAR(CURRENT_DATE())");
     $stats['completed_interventions'] = $stmt->fetch()['total'];
     
+    // Average duration of completed interventions in hours
     $stmt = $pdo->query("SELECT AVG(TIMESTAMPDIFF(HOUR, start_date, end_date)) as avg_duration 
                          FROM interventions WHERE status = 'completed' AND end_date IS NOT NULL");
     $stats['avg_intervention_duration'] = round($stmt->fetch()['avg_duration'] ?? 0, 1);
     
+    // Count of spare parts with quantity at or below minimum threshold
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM spare_parts WHERE quantity <= min_quantity");
     $stats['critical_stock'] = $stmt->fetch()['total'];
     
     return $stats;
 }
 
+// ========== ALERTS & NOTIFICATIONS ==========
+
+/**
+ * Find preventive maintenance tasks that are due or overdue.
+ */
 function updatePreventiveSchedule() {
     global $pdo;
     $stmt = $pdo->query("SELECT pm.*, e.name as equipment_name 
@@ -136,14 +192,19 @@ function updatePreventiveSchedule() {
     return $stmt->fetchAll();
 }
 
+/**
+ * Compile a list of all active alerts (overdue maintenance, low stock, expiring warranties).
+ */
 function getAlerts() {
     $alerts = [];
     
+    // 1. Overdue maintenance tasks
     $overdue = updatePreventiveSchedule();
     foreach($overdue as $task) {
         $alerts[] = "⚠️ " . t('maintenance_overdue') . " : " . htmlspecialchars($task['equipment_name']);
     }
     
+    // 2. Low stock items
     global $pdo;
     $stmt = $pdo->query("SELECT name, quantity, min_quantity FROM spare_parts WHERE quantity <= min_quantity");
     $lowStock = $stmt->fetchAll();
@@ -151,6 +212,7 @@ function getAlerts() {
         $alerts[] = "📦 " . t('low_stock_title') . " : {$part['name']} ({$part['quantity']} " . t('remaining') . ", min: {$part['min_quantity']})";
     }
     
+    // 3. Expiring or expired warranties (within 30 days)
     $stmt = $pdo->query("SELECT name, warranty_end FROM equipment 
                          WHERE warranty_end <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) 
                          AND warranty_end IS NOT NULL");
@@ -167,6 +229,9 @@ function getAlerts() {
     return $alerts;
 }
 
+/**
+ * Fetch the most recent interventions across all equipment.
+ */
 function getRecentInterventions($limit = 5) {
     global $pdo;
     $limit = intval($limit);
@@ -181,12 +246,20 @@ function getRecentInterventions($limit = 5) {
 }
 
 // ========== QR CODE FUNCTIONS ==========
+
+/**
+ * Generate a QR code URL for a specific equipment's detail page.
+ * Uses an external API for generation.
+ */
 function generateQRCode($equipment_id, $code) {
     $url = "http://" . $_SERVER['HTTP_HOST'] . "/gmao_GEMINI/index.php?page=equipment_detail&id=" . $equipment_id;
     $qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($url);
     return $qr_url;
 }
 
+/**
+ * Get the last 10 interventions for a specific equipment item.
+ */
 function getMaintenanceHistory($equipment_id) {
     global $pdo;
     $stmt = $pdo->prepare("
@@ -199,6 +272,9 @@ function getMaintenanceHistory($equipment_id) {
     return $stmt->fetchAll();
 }
 
+/**
+ * Alias for getEquipment with a specific ID.
+ */
 function getEquipmentDetails($id) {
     global $pdo;
     $stmt = $pdo->prepare("SELECT * FROM equipment WHERE id = ?");
@@ -206,7 +282,10 @@ function getEquipmentDetails($id) {
     return $stmt->fetch();
 }
 
-// Format date in US style (m/d/Y) with optional time
+/**
+ * Format a database datetime string into a US-style date (MM/DD/YYYY).
+ * Optionally includes the time (HH:MM).
+ */
 function format_date_us($datetime, $withTime = true) {
     if(empty($datetime) || in_array($datetime, ['0000-00-00', '0000-00-00 00:00:00'])) return t('not_specified');
     $ts = strtotime($datetime);
@@ -215,6 +294,11 @@ function format_date_us($datetime, $withTime = true) {
 }
 
 // ========== EMAIL FUNCTIONS ==========
+
+/**
+ * Send an email using the built-in PHP mail() function with custom headers.
+ * Supports single or multiple recipients.
+ */
 function sendEmail($to, $subject, $message, $isHTML = true) {
     $headers = [];
     $headers[] = "MIME-Version: 1.0";
@@ -237,6 +321,9 @@ function sendEmail($to, $subject, $message, $isHTML = true) {
     }
 }
 
+/**
+ * Compose and send an email alert for due preventive maintenance.
+ */
 function sendPreventiveAlert($maintenance) {
     $subject = t('preventive_alert_subject') . " - {$maintenance['equipment_name']}";
     
@@ -274,6 +361,9 @@ function sendPreventiveAlert($maintenance) {
     return sendEmail($to, $subject, $message, true);
 }
 
+/**
+ * Compose and send an email alert for low stock levels.
+ */
 function sendStockAlert($part) {
     $subject = t('stock_alert_subject') . ": {$part['name']}";
     
@@ -311,6 +401,9 @@ function sendStockAlert($part) {
     return sendEmail($to, $subject, $message, true);
 }
 
+/**
+ * Compose and send an urgent email alert for new critical interventions.
+ */
 function sendCriticalInterventionAlert($intervention, $equipment) {
     $subject = t('critical_intervention_subject') . ": {$intervention['title']}";
     
@@ -347,9 +440,14 @@ function sendCriticalInterventionAlert($intervention, $equipment) {
     return sendEmail($to, $subject, $message, true);
 }
 
+/**
+ * Generate and send a weekly activity report to all alert recipients.
+ * Includes stats on interventions and new equipment.
+ */
 function sendWeeklyReport() {
     global $pdo;
     
+    // Intervention statistics for the last 7 days
     $stmt = $pdo->query("
         SELECT 
             COUNT(*) as total_interventions,
@@ -360,6 +458,7 @@ function sendWeeklyReport() {
     ");
     $stats = $stmt->fetch();
     
+    // Count new equipment added in the last 7 days
     $stmt = $pdo->query("
         SELECT COUNT(*) as new_equipment
         FROM equipment 
@@ -412,8 +511,11 @@ function sendWeeklyReport() {
     }
 }
 
-// ========== TECHNICIAN MANAGEMENT FUNCTIONS ==========
+// ========== TECHNICIAN MANAGEMENT ==========
 
+/**
+ * Fetch technicians, optionally filtered by status.
+ */
 function getAllTechnicians($status = null) {
     global $pdo;
     if($status) {
@@ -425,6 +527,9 @@ function getAllTechnicians($status = null) {
     return $stmt->fetchAll();
 }
 
+/**
+ * Fetch a single technician by ID.
+ */
 function getTechnician($id) {
     global $pdo;
     $stmt = $pdo->prepare("SELECT * FROM technicians WHERE id = ?");
@@ -432,6 +537,9 @@ function getTechnician($id) {
     return $stmt->fetch();
 }
 
+/**
+ * Insert a new technician record.
+ */
 function addTechnician($data) {
     global $pdo;
     $sql = "INSERT INTO technicians (employee_id, firstname, lastname, phone, email, specialty, hire_date, status) 
@@ -449,6 +557,9 @@ function addTechnician($data) {
     ]);
 }
 
+/**
+ * Update an existing technician record.
+ */
 function updateTechnician($id, $data) {
     global $pdo;
     $sql = "UPDATE technicians SET employee_id=?, firstname=?, lastname=?, phone=?, email=?, specialty=?, status=? WHERE id=?";
@@ -465,22 +576,28 @@ function updateTechnician($id, $data) {
     ]);
 }
 
+/**
+ * Delete a technician record.
+ */
 function deleteTechnician($id) {
     global $pdo;
     $stmt = $pdo->prepare("DELETE FROM technicians WHERE id = ?");
     return $stmt->execute([$id]);
 }
 
+/**
+ * Assign an intervention to a technician and update the work schedule.
+ */
 function assignInterventionToTechnician($intervention_id, $technician_id, $scheduled_date, $scheduled_time) {
     global $pdo;
     try {
         $pdo->beginTransaction();
         
-        // Update intervention
+        // Update the intervention with technician and timing info
         $stmt = $pdo->prepare("UPDATE interventions SET technician_id = ?, scheduled_date = ?, scheduled_time = ? WHERE id = ?");
         $stmt->execute([$technician_id, $scheduled_date, $scheduled_time, $intervention_id]);
         
-        // Add to schedule
+        // Create a record in the work schedule table
         $stmt = $pdo->prepare("
             INSERT INTO work_schedule (technician_id, intervention_id, scheduled_start) 
             VALUES (?, ?, ?)
@@ -496,6 +613,9 @@ function assignInterventionToTechnician($intervention_id, $technician_id, $sched
     }
 }
 
+/**
+ * Fetch interventions assigned to a specific technician.
+ */
 function getTechnicianInterventions($technician_id, $limit = 10) {
     global $pdo;
     $stmt = $pdo->prepare("
@@ -510,6 +630,9 @@ function getTechnicianInterventions($technician_id, $limit = 10) {
     return $stmt->fetchAll();
 }
 
+/**
+ * Find active technicians who have no scheduled interventions for a specific date.
+ */
 function getAvailableTechnicians($date, $equipment_type = null) {
     global $pdo;
     $sql = "
@@ -527,6 +650,9 @@ function getAvailableTechnicians($date, $equipment_type = null) {
     return $stmt->fetchAll();
 }
 
+/**
+ * Count the number of active assignments for a technician within a date range.
+ */
 function getTechnicianWorkload($technician_id, $start_date, $end_date) {
     global $pdo;
     $stmt = $pdo->prepare("
@@ -540,12 +666,17 @@ function getTechnicianWorkload($technician_id, $start_date, $end_date) {
     return $stmt->fetch()['count'];
 }
 
-// ========== MTBF / MTTR FUNCTIONS ==========
+// ========== PERFORMANCE METRICS (MTBF / MTTR) ==========
 
+/**
+ * Calculate Mean Time Between Failures (MTBF) for an equipment item.
+ * MTBF = (Total uptime) / (Number of failures).
+ * Here simplified as the average time between corrective interventions.
+ */
 function calculateMTBF($equipment_id) {
     global $pdo;
     
-    // Get failure dates
+    // Get dates of completed corrective interventions
     $stmt = $pdo->prepare("
         SELECT created_at FROM interventions 
         WHERE equipment_id = ? 
@@ -557,10 +688,10 @@ function calculateMTBF($equipment_id) {
     $failures = $stmt->fetchAll();
     
     if(count($failures) < 2) {
-        return 0; // Not enough data
+        return 0; // Insufficient data to calculate intervals
     }
     
-    // Calculate mean time between failures
+    // Calculate sum of intervals between consecutive failures
     $total_interval = 0;
     for($i = 1; $i < count($failures); $i++) {
         $date1 = strtotime($failures[$i-1]['created_at']);
@@ -572,10 +703,14 @@ function calculateMTBF($equipment_id) {
     return round($total_interval / (count($failures) - 1), 1);
 }
 
+/**
+ * Calculate Mean Time To Repair (MTTR) for an equipment item.
+ * MTTR = (Total maintenance time) / (Number of repairs).
+ */
 function calculateMTTR($equipment_id) {
     global $pdo;
     
-    // Get repair durations
+    // Get durations of completed corrective repairs
     $stmt = $pdo->prepare("
         SELECT duration_hours FROM interventions 
         WHERE equipment_id = ? 
@@ -598,10 +733,14 @@ function calculateMTTR($equipment_id) {
     return round($total_duration / count($repairs), 1);
 }
 
+/**
+ * Calculate the availability percentage of an equipment item over a specific period.
+ * Availability = ((Total time - Downtime) / Total time) * 100.
+ */
 function calculateAvailability($equipment_id, $days = 30) {
     global $pdo;
     
-    // Get downtime
+    // Sum the duration of all repairs within the period
     $stmt = $pdo->prepare("
         SELECT SUM(duration_hours) as total_downtime
         FROM interventions 
@@ -619,6 +758,9 @@ function calculateAvailability($equipment_id, $days = 30) {
     return round($availability, 1);
 }
 
+/**
+ * Retrieve comprehensive performance data for a specific equipment item.
+ */
 function getEquipmentPerformance($equipment_id) {
     global $pdo;
     
@@ -642,6 +784,9 @@ function getEquipmentPerformance($equipment_id) {
     return $data;
 }
 
+/**
+ * Calculate performance metrics for all equipment in the database.
+ */
 function getAllEquipmentPerformance() {
     global $pdo;
     
@@ -654,7 +799,7 @@ function getAllEquipmentPerformance() {
         $mttr = calculateMTTR($eq['id']);
         $availability = calculateAvailability($eq['id']);
         
-        // Count failures
+        // Count total failures for this equipment
         $stmt2 = $pdo->prepare("SELECT COUNT(*) FROM interventions WHERE equipment_id = ? AND type = 'corrective'");
         $stmt2->execute([$eq['id']]);
         $failure_count = $stmt2->fetchColumn();
@@ -674,6 +819,9 @@ function getAllEquipmentPerformance() {
     return $results;
 }
 
+/**
+ * Fetch monthly failure count and average repair time trend for the last N months.
+ */
 function getPerformanceTrend($equipment_id, $months = 6) {
     global $pdo;
     
@@ -694,16 +842,19 @@ function getPerformanceTrend($equipment_id, $months = 6) {
     return $stmt->fetchAll();
 }
 
+/**
+ * Calculate global performance indicators across all active equipment.
+ */
 function getGlobalPerformanceIndicators() {
     global $pdo;
     
     $indicators = [];
     
-    // Get all active equipment
+    // Fetch all active equipment IDs
     $stmt = $pdo->query("SELECT id FROM equipment WHERE status = 'active'");
     $equipments = $stmt->fetchAll();
     
-    // Global MTBF calculation
+    // 1. Global MTBF calculation (average of individual MTBFs)
     $total_mtbf = 0;
     $mtbf_count = 0;
     foreach($equipments as $eq) {
@@ -715,7 +866,7 @@ function getGlobalPerformanceIndicators() {
     }
     $indicators['global_mtbf'] = $mtbf_count > 0 ? round($total_mtbf / $mtbf_count, 1) : 0;
     
-    // Global MTTR calculation
+    // 2. Global MTTR calculation (overall average repair duration)
     $stmt = $pdo->query("
         SELECT AVG(duration_hours) as global_mttr 
         FROM interventions 
@@ -724,7 +875,7 @@ function getGlobalPerformanceIndicators() {
     $result = $stmt->fetch();
     $indicators['global_mttr'] = round($result['global_mttr'] ?? 0, 1);
     
-    // Failure rate by equipment type
+    // 3. Failure distribution by equipment type
     $stmt = $pdo->query("
         SELECT e.type, COUNT(i.id) as failures_count
         FROM equipment e
@@ -734,7 +885,7 @@ function getGlobalPerformanceIndicators() {
     ");
     $indicators['failures_by_type'] = $stmt->fetchAll();
     
-    // Top 5 most problematic equipment
+    // 4. Top 5 most problematic equipment (highest failure count)
     $stmt = $pdo->query("
         SELECT e.name, COUNT(i.id) as failures
         FROM equipment e
@@ -749,14 +900,20 @@ function getGlobalPerformanceIndicators() {
     return $indicators;
 }
 
-// ========== ADVANCED USER MANAGEMENT FUNCTIONS ==========
+// ========== USER MANAGEMENT ==========
 
+/**
+ * Fetch all users from the database.
+ */
 function getAllUsers() {
     global $pdo;
     $stmt = $pdo->query("SELECT id, username, fullname, role, email, is_active, last_login, created_at FROM users ORDER BY role, username");
     return $stmt->fetchAll();
 }
 
+/**
+ * Fetch a single user by ID.
+ */
 function getUser($id) {
     global $pdo;
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
@@ -764,28 +921,31 @@ function getUser($id) {
     return $stmt->fetch();
 }
 
+/**
+ * Create a new user and automatically create a technician entry if the role matches.
+ * Uses a transaction to ensure atomic operations.
+ */
 function createUser($username, $password, $fullname, $role, $email) {
     global $pdo;
     $hashed = password_hash($password, PASSWORD_DEFAULT);
     
-    // Start transaction
     $pdo->beginTransaction();
     
     try {
-        // 1. Create user
+        // 1. Insert into users table
         $stmt = $pdo->prepare("INSERT INTO users (username, password, fullname, role, email, is_active) VALUES (?, ?, ?, ?, ?, 1)");
         $result = $stmt->execute([$username, $hashed, $fullname, $role, $email]);
         
         if($result && $role == 'technician') {
-            // 2. If technician role, also create a technician entry
+            // 2. Create technician entry if role is technician
             $user_id = $pdo->lastInsertId();
             
-            // Split full name into first and last name
+            // Basic name parsing for first/last name fields
             $name_parts = explode(' ', trim($fullname), 2);
             $firstname = $name_parts[0];
             $lastname = isset($name_parts[1]) ? $name_parts[1] : '';
             
-            // Generate unique employee ID
+            // Generate a default employee ID
             $employee_id = 'TECH-' . str_pad($user_id, 4, '0', STR_PAD_LEFT);
             
             $stmt2 = $pdo->prepare("
@@ -804,12 +964,18 @@ function createUser($username, $password, $fullname, $role, $email) {
     }
 }
 
+/**
+ * Update user details.
+ */
 function updateUser($id, $fullname, $role, $email, $is_active) {
     global $pdo;
     $stmt = $pdo->prepare("UPDATE users SET fullname = ?, role = ?, email = ?, is_active = ? WHERE id = ?");
     return $stmt->execute([$fullname, $role, $email, $is_active, $id]);
 }
 
+/**
+ * Update a user's password with hashing.
+ */
 function updateUserPassword($id, $new_password) {
     global $pdo;
     $hashed = password_hash($new_password, PASSWORD_DEFAULT);
@@ -817,9 +983,12 @@ function updateUserPassword($id, $new_password) {
     return $stmt->execute([$hashed, $id]);
 }
 
+/**
+ * Delete a user. Prevents deletion of the 'admin' account.
+ */
 function deleteUser($id) {
     global $pdo;
-    // Do not delete main admin
+    // Protect the primary admin account
     $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
     $stmt->execute([$id]);
     $user = $stmt->fetch();
@@ -830,7 +999,9 @@ function deleteUser($id) {
     return $stmt2->execute([$id]);
 }
 
-// Log user actions
+/**
+ * Log a user action for audit purposes.
+ */
 function logUserAction($user_id, $action, $details = null) {
     global $pdo;
     $ip = $_SERVER['REMOTE_ADDR'] ?? null;
@@ -840,6 +1011,9 @@ function logUserAction($user_id, $action, $details = null) {
     return $stmt->execute([$user_id, $action, $details, $ip, $user_agent]);
 }
 
+/**
+ * Fetch user logs, optionally filtered by user ID.
+ */
 function getUserLogs($user_id = null, $limit = 100) {
     global $pdo;
     $limit = (int)$limit;
@@ -868,6 +1042,9 @@ function getUserLogs($user_id = null, $limit = 100) {
     return $logs;
 }
 
+/**
+ * Update the last login timestamp and IP for a user.
+ */
 function updateLastLogin($user_id) {
     global $pdo;
     $ip = $_SERVER['REMOTE_ADDR'] ?? null;
@@ -875,6 +1052,9 @@ function updateLastLogin($user_id) {
     return $stmt->execute([$ip, $user_id]);
 }
 
+/**
+ * Generate a password reset token valid for 1 hour.
+ */
 function generateResetToken($email) {
     global $pdo;
     $token = bin2hex(random_bytes(32));
@@ -886,6 +1066,9 @@ function generateResetToken($email) {
     return false;
 }
 
+/**
+ * Verify if a password reset token is valid and not expired.
+ */
 function verifyResetToken($token) {
     global $pdo;
     $stmt = $pdo->prepare("SELECT id FROM users WHERE reset_token = ? AND reset_expires > NOW() AND is_active = 1");
@@ -893,6 +1076,9 @@ function verifyResetToken($token) {
     return $stmt->fetch();
 }
 
+/**
+ * Reset a user's password using a valid token.
+ */
 function resetPassword($token, $new_password) {
     global $pdo;
     $user = verifyResetToken($token);
@@ -904,11 +1090,15 @@ function resetPassword($token, $new_password) {
     return false;
 }
 
+/**
+ * Check if the current user has the required role or higher.
+ */
 function hasPermission($required_role) {
     if(!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
         return false;
     }
     
+    // Numerical hierarchy for roles
     $role_levels = [
         'admin' => 4,
         'supervisor' => 3,
@@ -922,6 +1112,9 @@ function hasPermission($required_role) {
     return $user_level >= $required_level;
 }
 
+/**
+ * Require a specific role to access a page. Redirects to dashboard if unauthorized.
+ */
 function requireRole($role) {
     if(!hasPermission($role)) {
         header('Location: index.php?page=dashboard&error=unauthorized');
@@ -929,23 +1122,28 @@ function requireRole($role) {
     }
 }
 
-// Generate unique task number
+// ========== TASK SEQUENCE & STATUS ==========
+
+/**
+ * Generate a unique task number (e.g., TASK-260031) using an atomic sequence.
+ */
 function generateTaskNumber() {
     global $pdo;
     
     try {
         $pdo->beginTransaction();
         
-        // Get and increment last number
+        // Fetch the last used number with a lock for update to prevent duplicates
         $stmt = $pdo->query("SELECT last_number FROM task_sequence FOR UPDATE");
         $last_number = $stmt->fetchColumn();
         
         if(!$last_number) {
-            $last_number = 260031;
+            $last_number = 260031; // Default starting number
         }
         
         $new_number = $last_number + 1;
         
+        // Update the sequence table
         $update = $pdo->prepare("UPDATE task_sequence SET last_number = ?");
         $update->execute([$new_number]);
         
@@ -955,12 +1153,14 @@ function generateTaskNumber() {
         
     } catch(PDOException $e) {
         $pdo->rollBack();
-        // Fallback to timestamp-based number
+        // Fallback to timestamp-based ID if database sequence fails
         return "TASK-" . date('YmdHis');
     }
 }
 
-// Get next task number (preview)
+/**
+ * Preview the next task number without incrementing the sequence.
+ */
 function getNextTaskNumber() {
     global $pdo;
     $stmt = $pdo->query("SELECT last_number + 1 as next FROM task_sequence");
@@ -968,21 +1168,27 @@ function getNextTaskNumber() {
     return "TASK-" . ($next ?: 260032);
 }
 
-// Get all intervenants (technicians) for select
+/**
+ * Fetch all active technicians for selection lists.
+ */
 function getAllIntervenants() {
     global $pdo;
     $stmt = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname ASC");
     return $stmt->fetchAll();
 }
 
-// Update intervention status
+/**
+ * Update the status of an intervention task.
+ */
 function updateInterventionStatus($id, $status) {
     global $pdo;
     $stmt = $pdo->prepare("UPDATE interventions SET task_status = ? WHERE id = ?");
     return $stmt->execute([$status, $id]);
 }
 
-// Complete intervention with report
+/**
+ * Mark an intervention as completed, add a report, and log the duration.
+ */
 function completeIntervention($id, $completion_report, $duration_hours = null) {
     global $pdo;
     $stmt = $pdo->prepare("

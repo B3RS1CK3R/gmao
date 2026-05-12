@@ -1,4 +1,5 @@
 <?php
+// VERSION MODIFIEE - 09 MAI 2026 - COPY PATH BUTTON
 // pages/equipment.php - Full equipment management (CRUD)
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
@@ -38,6 +39,11 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
 
 // Edit equipment
 if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Get equipment details before update for logging
+    $stmtOld = $pdo->prepare("SELECT code, name FROM equipment WHERE id = ?");
+    $stmtOld->execute([$_GET['id']]);
+    $oldEquipment = $stmtOld->fetch();
+    
     $sql = "UPDATE equipment SET 
             code = ?, 
             name = ?, 
@@ -56,15 +62,16 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
         $_POST['type'],
         $_POST['location'],
         $_POST['supplier'],
-        $_POST['purchase_date'],
-        $_POST['warranty_end'],
+        !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null,
+        !empty($_POST['warranty_end']) ? $_POST['warranty_end'] : null,
         $_POST['technical_specs'],
         $_POST['status'],
         $_GET['id']
     ]);
     
     if($result) {
-        logUserAction($_SESSION['user_id'], 'equipment_updated', "Equipment ID: {$_GET['id']} updated");
+        // Detailed log with equipment code
+        logUserAction($_SESSION['user_id'], 'equipment_updated', "[{$oldEquipment['code']}] {$oldEquipment['name']} - Equipment information updated");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=equipment'>";
     } else {
@@ -121,14 +128,15 @@ try {
 // Fetch modifications history for each equipment
 $history = [];
 foreach($equipments as $eq) {
+    // Search by both old format (ID) and new format (code)
     $stmt = $pdo->prepare("
         SELECT * FROM user_logs 
         WHERE action IN ('equipment_created', 'equipment_updated', 'equipment_deleted', 'equipment_restored')
-        AND details LIKE ?
+        AND (details LIKE ? OR details LIKE ?)
         ORDER BY created_at DESC
         LIMIT 3
     ");
-    $stmt->execute(["%ID: {$eq['id']}%"]);
+    $stmt->execute(["%ID: {$eq['id']}%", "%[{$eq['code']}]%"]);
     $history[$eq['id']] = $stmt->fetchAll();
 }
 
@@ -180,12 +188,25 @@ if($action == 'add'):
     .btn-secondary:hover {
         background: #5a6268;
     }
+    .info-message {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 12px 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
 </style>
 <div class="form-card">
     <div class="form-card-header">
         <i class="fas fa-plus-circle"></i> <?php echo t('add_equipment'); ?>
     </div>
     <div class="card-body p-4">
+        <div class="info-message">
+            <i class="fas fa-info-circle"></i> 
+            <?php echo t('add_equipment_info'); ?>
+            <small class="d-block mt-1 text-muted"><?php echo t('save_before_adding_documents'); ?></small>
+        </div>
+        
         <form method="POST">
             <div class="row">
                 <div class="col-md-6 mb-3">
@@ -210,11 +231,11 @@ if($action == 'add'):
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('purchase_date'); ?></label>
-                    <input type="date" name="purchase_date" class="form-control">
+                    <input type="date" name="purchase_date" class="form-control" value="<?php echo $eq['purchase_date']; ?>">
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('warranty_end'); ?></label>
-                    <input type="date" name="warranty_end" class="form-control">
+                    <input type="date" name="warranty_end" class="form-control" value="<?php echo $eq['warranty_end']; ?>">
                 </div>
                 <div class="col-md-12 mb-3">
                     <label class="form-label"><?php echo t('technical_specs'); ?></label>
@@ -229,92 +250,19 @@ if($action == 'add'):
     </div>
 </div>
 
-
-<!-- Attachments management for this equipment (upload + list) -->
-<?php
-    // fetch attachments for this equipment
-    $stmt = $pdo->prepare("SELECT * FROM attachments WHERE parent_type = 'equipment' AND parent_id = ? ORDER BY created_at DESC");
-    $stmt->execute([$_GET['id']]);
-    $eq_attachments = $stmt->fetchAll();
-    $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
-?>
-<div class="info-card">
-    <div class="card-header-custom">
+<!-- Documents section for ADD mode - No attachments possible yet -->
+<div class="info-card mt-3">
+    <div class="card-header-custom" style="background: linear-gradient(135deg, #6c757d, #5a6268);">
         <i class="fas fa-paperclip"></i> <?php echo t('documents'); ?>
     </div>
     <div class="card-body p-3">
-        <?php if(empty($eq_attachments)): ?>
-            <div class="text-muted"><?php echo t('no_documents'); ?></div>
-        <?php else: ?>
-            <div class="d-flex flex-wrap gap-2">
-                <?php foreach($eq_attachments as $att): ?>
-                    <div style="width:220px; text-align:left; border:1px solid #f0f0f0; padding:8px; border-radius:8px;">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <strong><?php echo htmlspecialchars($att['original_name'] ?: ($att['external_path'] ?: $att['filename'])); ?></strong>
-                                <div class="small text-muted"><?php echo htmlspecialchars($att['mime'] === 'link' ? 'link' : $att['mime']); ?></div>
-                            </div>
-                            <div>
-                                <?php if(!empty($att['external_path'])): ?>
-                                    <a href="<?php echo htmlspecialchars($att['external_path']); ?>" target="_blank" class="btn btn-sm btn-info" title="<?php echo t('open_document'); ?>">
-                                        <i class="fas fa-external-link-alt"></i>
-                                    </a>
-                                <?php else: ?>
-                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-sm btn-secondary" title="<?php echo t('view'); ?>">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" download class="btn btn-sm btn-info" title="<?php echo t('download'); ?>">
-                                        <i class="fas fa-download"></i>
-                                    </a>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <div class="mt-2 small text-truncate" style="max-width:200px;"><?php echo htmlspecialchars($att['external_path'] ?? ''); ?></div>
-                        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor' || $_SESSION['user_id'] == $att['created_by']): ?>
-                            <div class="mt-2">
-                                <form action="api/delete_attachment.php" method="post" style="display:inline-block;" onsubmit="return confirm('<?php echo t('delete_confirm'); ?>');">
-                                    <input type="hidden" name="id" value="<?php echo $att['id']; ?>">
-                                    <?php echo csrf_input(); ?>
-                                    <button class="btn btn-sm btn-danger" type="submit"><?php echo t('delete'); ?></button>
-                                </form>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-
-        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-            <hr>
-            <form id="equip-upload-form" action="api/upload_attachment.php" method="post" enctype="multipart/form-data">
-                <input type="hidden" name="parent_type" value="equipment">
-                <input type="hidden" name="parent_id" value="<?php echo $_GET['id']; ?>">
-                <?php echo csrf_input(); ?>
-                <div class="mb-2">
-                    <input id="equip-file-input" type="file" name="file" required>
-                </div>
-                <button class="btn btn-sm btn-primary" type="submit"><?php echo t('upload'); ?></button>
-            </form>
-            <script>
-            (function(){
-                var form = document.getElementById('equip-upload-form');
-                if(!form) return;
-                var input = document.getElementById('equip-file-input');
-                var maxBytes = 10 * 1024 * 1024; // 10MB
-                form.addEventListener('submit', function(e){
-                    if(input.files && input.files[0]){
-                        if(input.files[0].size > maxBytes){
-                            e.preventDefault();
-                            alert('Le fichier est trop volumineux (max 10 MB).');
-                            return false;
-                        }
-                    }
-                });
-            })();
-            </script>
-        <?php endif; ?>
+        <div class="alert alert-info mb-0">
+            <i class="fas fa-info-circle"></i> 
+            <?php echo t('save_before_adding_documents'); ?>
+        </div>
     </div>
 </div>
+
 <?php
 return;
 endif;
@@ -402,6 +350,7 @@ if($action == 'edit' && isset($_GET['id'])):
         </form>
     </div>
 </div>
+
 <!-- Documents / Attachments (on edit page) -->
 <div class="info-card mt-3">
     <div class="form-card-header">
@@ -420,18 +369,31 @@ if($action == 'edit' && isset($_GET['id'])):
         <?php else: ?>
             <div class="d-flex flex-wrap gap-2">
                 <?php foreach($attachments_edit as $att): ?>
-                    <div style="width:220px; text-align:left; border:1px solid #f0f0f0; padding:8px; border-radius:8px;">
+                    <div style="width:260px; text-align:left; border:1px solid #f0f0f0; padding:8px; border-radius:8px;">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <strong><?php echo htmlspecialchars($att['original_name'] ?: ($att['external_path'] ?: $att['filename'])); ?></strong>
                                 <div class="small text-muted"><?php echo htmlspecialchars($att['mime'] === 'link' ? 'link' : $att['mime']); ?></div>
                             </div>
-                            <div>
+                            <div class="btn-group btn-group-sm" role="group">
                                 <?php if(!empty($att['external_path'])): ?>
-                                    <a href="<?php echo htmlspecialchars($att['external_path']); ?>" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-external-link-alt"></i></a>
+                                    <!-- External link: Open link button -->
+                                    <a href="<?php echo htmlspecialchars($att['external_path']); ?>" target="_blank" class="btn btn-info" title="<?php echo t('open_document'); ?>">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                    <!-- Copy path button for external link -->
+                                    <button type="button" class="btn btn-secondary" title="Copy link to clipboard" onclick="copyToClipboard('<?php echo htmlspecialchars($att['external_path']); ?>')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
                                 <?php else: ?>
-                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-sm btn-secondary"><i class="fas fa-eye"></i></a>
-                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" download class="btn btn-sm btn-info"><i class="fas fa-download"></i></a>
+                                    <!-- Local file: View button -->
+                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-secondary" title="<?php echo t('view'); ?>">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <!-- Copy folder path button (replaces Download) -->
+                                    <button type="button" class="btn btn-info" title="Copy folder path to clipboard" onclick="copyToClipboard('<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -441,7 +403,7 @@ if($action == 'edit' && isset($_GET['id'])):
                                 <form action="api/delete_attachment.php" method="post" style="display:inline-block;" onsubmit="return confirm('<?php echo t('delete_confirm'); ?>');">
                                     <input type="hidden" name="id" value="<?php echo $att['id']; ?>">
                                     <?php echo csrf_input(); ?>
-                                    <button class="btn btn-sm btn-danger" type="submit"><?php echo t('delete'); ?></button>
+                                    <button class="btn btn-sm btn-danger" type="submit"><i class="fas fa-trash"></i> <?php echo t('delete'); ?></button>
                                 </form>
                             </div>
                         <?php endif; ?>
@@ -459,7 +421,7 @@ if($action == 'edit' && isset($_GET['id'])):
                 <div class="mb-2">
                     <input id="equip-edit-file-input" type="file" name="file" required>
                 </div>
-                <button class="btn btn-sm btn-primary" type="submit"><?php echo t('upload'); ?></button>
+                <button class="btn btn-sm btn-primary" type="submit"><i class="fas fa-upload"></i> <?php echo t('upload'); ?></button>
             </form>
             <script>
             (function(){
@@ -471,7 +433,7 @@ if($action == 'edit' && isset($_GET['id'])):
                     if(input.files && input.files[0]){
                         if(input.files[0].size > maxBytes){
                             e.preventDefault();
-                            alert('Le fichier est trop volumineux (max 10 MB).');
+                            alert('File is too large (max 10 MB).');
                             return false;
                         }
                     }
@@ -558,23 +520,9 @@ endif;
     .history-item:last-child {
         border-bottom: none;
     }
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-primary:hover {
-        filter: brightness(0.95);
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary:hover {
-        background: #5a6268;
+    .btn-group-sm .btn {
+        padding: 4px 8px;
+        font-size: 12px;
     }
 </style>
 
@@ -638,7 +586,7 @@ endif;
                                 echo $status_labels[$eq['status']] ?? $eq['status'];
                                 ?>
                             </span>
-                        </td>
+                        </span>
                         <td style="max-width: 200px;">
                             <?php if(!empty($history[$eq['id']])):
                                 $h = $history[$eq['id']][0]; ?>
@@ -648,14 +596,14 @@ endif;
                             <?php else: ?>
                                 <small class="text-muted">-</small>
                             <?php endif; ?>
-                        </td>
+                        </span>
                         <td class="text-center action-buttons" onclick="event.stopPropagation()">
                             <?php if($eq['status'] != 'retired'): ?>
                                 <a href="?page=equipment_attachments&equipment_id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-light" title="<?php echo t('attachments'); ?>">
                                     <i class="fas fa-paperclip"></i>
-                                    <?php if(!empty($attachmentCounts[$eq['id']])): ?>
-                                        <span class="badge bg-secondary ms-1"><?php echo $attachmentCounts[$eq['id']]; ?></span>
-                                    <?php endif; ?>
+                                    <span class="badge bg-secondary ms-1">
+                                        <?php echo !empty($attachmentCounts[$eq['id']]) ? $attachmentCounts[$eq['id']] : 0; ?>
+                                    </span>
                                 </a>
                                 <a href="?page=equipment_qr&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('qr_code'); ?>">
                                     <i class="fas fa-qrcode"></i>
@@ -665,7 +613,6 @@ endif;
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <a href="?page=equipment&action=delete&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('delete'); ?>" onclick="return confirm('<?php echo t('delete_confirm'); ?>')">
-
                                     <i class="fas fa-trash"></i>
                                 </a>
                                 <?php endif; ?>
@@ -679,11 +626,11 @@ endif;
                                 </a>
                                 <?php endif; ?>
                             <?php endif; ?>
-                        </td>
+                        </div>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
-            </table>
+             </div>
         </div>
     </div>
 </div>
@@ -703,3 +650,22 @@ endif;
         </div>
     </div>
 </div>
+
+<script>
+function copyToClipboard(text) {
+    // Create a temporary textarea element
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    
+    // Select and copy
+    textarea.select();
+    document.execCommand('copy');
+    
+    // Remove temporary element
+    document.body.removeChild(textarea);
+    
+    // Show notification
+    alert('📁 Folder path copied to clipboard:\n' + text + '\n\nYou can now paste this path into File Explorer to open the folder.');
+}
+</script>
