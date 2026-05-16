@@ -140,8 +140,10 @@ function t($key) {
         'maintenance_description' => 'Currently under maintenance',
         'broken_description' => 'Equipment is broken',
         'retired_description' => 'Equipment is retired',
+        'no_history' => 'No history recorded',
         
         // ========== INTERVENTIONS ==========
+        'total_interventions' => 'Total Interventions',
         'task_number' => 'Task Number',
         'title' => 'Title',
         'description' => 'Description',
@@ -199,6 +201,8 @@ function t($key) {
         'hours' => 'hours',
         'not_planned' => 'Not planned',
         'intervention_created' => 'Intervention created',
+        'intervention_view' => 'Intervention View',
+        'upcoming_interventions' => 'Upcoming Interventions',
         
         // ========== TECHNICIANS ==========
         'employee_id' => 'Employee ID',
@@ -680,6 +684,36 @@ function t($key) {
         'maintenance_preventive' => 'Preventive Maintenance',
         'controle' => 'Inspection',
         'autre' => 'Other',
+
+        // ========== CRITICALITY MATRIX ==========
+        'criticality_matrix' => 'Criticality Matrix',
+        'criticality_heatmap' => 'Criticality Matrix',
+        'legend' => 'Legend',
+        'probability_scale' => 'Probability scale',
+        'severity_scale' => 'Severity scale',
+        'very_low' => 'Very low',
+        'low' => 'Low',
+        'medium' => 'Medium',
+        'high' => 'High',
+        'very_high' => 'Very high',
+        'negligible' => 'Negligible',
+        'minor' => 'Minor',
+        'moderate' => 'Moderate',
+        'seriou' => 'Serious',
+        'critical' => 'Critical',
+        'criticality_levels' => 'Criticality levels',
+        'low_criticality' => 'Low criticality (score 1-4)',
+        'medium_criticality' => 'Medium criticality (score 5-9)',
+        'high_criticality' => 'High criticality (score 10-15)',
+        'very_high_criticality' => 'Very high criticality (score 16-25)',
+        'tooltip_instruction' => 'Hover over a cell to see the list of equipment.',
+        'equipment_list_with_scores' => 'Equipment list with scores',
+        'code' => 'Code',
+        'name' => 'Name',
+        'probability' => 'Probability',
+        'severity' => 'Severity',
+        'criticality' => 'Criticality',
+        'no_equipment' => 'No equipment',
     ];
     
     return $translations[$key] ?? $key;

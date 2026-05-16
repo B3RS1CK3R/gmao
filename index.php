@@ -36,8 +36,8 @@ if ($page !== 'login' && !isset($_SESSION['user_id'])) {
 $pages_with_sidebar = [
     'dashboard', 'performance', 'equipment', 'equipment_detail', 'interventions', 
     'intervention_add', 'intervention_view', 'preventive', 'stock', 'technicians', 'alerts',
-     'planning', 'mail_settings', 'users', 'export_center', 'profile', 'technician_detail', 
-    'admin_migrations', 'equipment_attachments'
+    'planning', 'mail_settings', 'users', 'export_center', 'profile', 'technician_detail', 
+    'admin_migrations', 'equipment_attachments', 'criticality_matrix', 'permissions'
 ];
 
 // Lightweight pages or modal contents without the main sidebar
@@ -60,6 +60,13 @@ $mobile_pages = [
 // 1. Handle pages without sidebar (lightweight views)
 if (in_array($page, $pages_without_sidebar)) {
     require_once ROOT_PATH . '/includes/functions.php';
+    // Permission check (except for these pages, you may skip if needed)
+    if($page != 'login' && $page != 'logout' && !in_array($page, $mobile_pages)) {
+        if(!hasPagePermission($page, $_SESSION['role'])) {
+            echo "<div class='alert alert-danger'>Access denied for this page.</div>";
+            exit();
+        }
+    }
     include ROOT_PATH . '/pages/' . $page . '.php';
 } 
 // 2. Handle mobile-specific pages
@@ -69,6 +76,13 @@ elseif (in_array($page, $mobile_pages)) {
 // 3. Handle standard pages with full sidebar layout
 elseif (in_array($page, $pages_with_sidebar)) {
     require_once ROOT_PATH . '/includes/functions.php';
+    // Check permissions before showing page
+    if($page != 'login' && $page != 'logout' && !in_array($page, $mobile_pages)) {
+        if(!hasPagePermission($page, $_SESSION['role'])) {
+            echo "<div class='alert alert-danger'>Access denied for this page.</div>";
+            exit();
+        }
+    }
     ?>
     <!DOCTYPE html>
     <html lang="<?php echo getCurrentLanguage(); ?>">
@@ -83,7 +97,7 @@ elseif (in_array($page, $pages_with_sidebar)) {
         <link rel="stylesheet" href="/gmao_GEMINI/assets/css/toast.css">
         
         <!-- Conditional loading for Chart.js (only on analytics pages) -->
-        <?php if($page == 'performance' || $page == 'dashboard'): ?>
+        <?php if($page == 'performance' || $page == 'dashboard' || $page == 'criticality_matrix'): ?>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <?php endif; ?>
         
@@ -162,6 +176,8 @@ elseif (in_array($page, $pages_with_sidebar)) {
                             <a class="nav-link <?php echo $page == 'mail_settings' ? 'active' : ''; ?>" href="?page=mail_settings"><i class="fas fa-envelope"></i> <?php echo t('email_config'); ?></a>
                             <a class="nav-link <?php echo $page == 'users' ? 'active' : ''; ?>" href="?page=users"><i class="fas fa-users-cog"></i> <?php echo t('users'); ?></a>
                             <a class="nav-link <?php echo $page == 'export_center' ? 'active' : ''; ?>" href="?page=export_center"><i class="fas fa-download"></i> <?php echo t('export'); ?>/<?php echo t('import'); ?></a>
+                            <a class="nav-link <?php echo $page == 'criticality_matrix' ? 'active' : ''; ?>" href="?page=criticality_matrix"><i class="fas fa-chart-line"></i> Matrice de criticité</a>
+                            <a class="nav-link <?php echo $page == 'permissions' ? 'active' : ''; ?>" href="?page=permissions"><i class="fas fa-lock"></i> Gestion des accès</a>
                             <?php endif; ?>
                             
                             <a class="nav-link <?php echo $page == 'profile' ? 'active' : ''; ?>" href="?page=profile"><i class="fas fa-user-circle"></i> <?php echo t('profile'); ?></a>

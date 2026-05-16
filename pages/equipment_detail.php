@@ -39,8 +39,15 @@ $interventions = getMaintenanceHistory($id);
 
 // --- Load Change Log (User Logs) ---
 // Get all changes made to this equipment: creation, updates, deletion, restoration
-$stmt = $pdo->prepare("SELECT ul.*, u.username FROM user_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ul.action IN ('equipment_created','equipment_updated','equipment_deleted','equipment_restored') AND ul.details LIKE ? ORDER BY ul.created_at DESC");
-$stmt->execute(["%ID: {$id}%"]);  // Partial match on details field using LIKE with wildcards
+$stmt = $pdo->prepare("
+    SELECT ul.*, u.username 
+    FROM user_logs ul 
+    LEFT JOIN users u ON u.id = ul.user_id 
+    WHERE ul.action IN ('equipment_created','equipment_updated','equipment_deleted','equipment_restored') 
+    AND (ul.details LIKE ? OR ul.details LIKE ?)
+    ORDER BY ul.created_at DESC
+");
+$stmt->execute(["%ID: {$id}%", "%[{$equipment['code']}]%"]);
 $history = $stmt->fetchAll();
 
 // --- Load Preventive Maintenance Schedule ---

@@ -60,6 +60,9 @@ $stmt = $pdo->prepare("SELECT * FROM attachments WHERE parent_type = 'interventi
 $stmt->execute([$id]);
 $attachments = $stmt->fetchAll();
 $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+
+// Génération du QR Code pour l'équipement
+$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode("http://" . $_SERVER['HTTP_HOST'] . "/gmao_GEMINI/index.php?page=equipment_detail&id=" . $intervention['equipment_id']);
 ?>
 
 <style>
@@ -155,6 +158,17 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
     }
     .w-100 { width: 100%; }
     .table-borderless td, .table-borderless th { border: none; }
+    .qr-code {
+        text-align: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+    }
+    .qr-code img {
+        max-width: 150px;
+        height: auto;
+        margin-bottom: 10px;
+    }
 </style>
 
 <div class="container-fluid">
@@ -226,7 +240,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                                 </span>
                             </td>
                         </tr>
-                    </table>
+                    </div>
                 </div>
             </div>
             
@@ -266,6 +280,26 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                         <a href="?page=equipment_detail&id=<?php echo $intervention['equipment_id']; ?>" class="btn btn-primary w-100">
                             <i class="fas fa-eye"></i> View Equipment
                         </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card: QR Code -->
+            <div class="info-card">
+                <div class="card-header-custom info">
+                    <i class="fas fa-qrcode"></i> QR Code
+                </div>
+                <div class="card-body p-4">
+                    <div class="qr-code">
+                        <img src="<?php echo $qrUrl; ?>" alt="QR Code for <?php echo htmlspecialchars($intervention['equipment_name']); ?>">
+                        <p class="mb-0 small text-muted">
+                            Scan this QR code to view equipment details
+                        </p>
+                        <div class="mt-2">
+                            <button onclick="copyQrUrl()" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-copy"></i> Copy URL
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -353,16 +387,16 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                         <?php if($intervention['duration_hours']): ?>
                         <tr>
                             <td><strong>Actual Duration</strong></td>
-                            <td><?php echo $intervention['duration_hours']; ?> hours</td>
+                            <td><?php echo $intervention['duration_hours']; ?> hours<\/td>
                         </tr>
                         <?php endif; ?>
                         <?php if($intervention['completed_date']): ?>
                         <tr>
                             <td><strong>Completion Date</strong></td>
-                            <td><?php echo format_date_us($intervention['completed_date'], true); ?></td>
+                            <td><?php echo format_date_us($intervention['completed_date'], true); ?><\/td>
                         </tr>
                         <?php endif; ?>
-                    </table>
+                    </div>
                 </div>
             </div>
             
@@ -413,16 +447,16 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                                     <td><?php echo htmlspecialchars($part['part_number']); ?></td>
                                     <td><?php echo htmlspecialchars($part['name']); ?></td>
                                     <td><?php echo $part['quantity']; ?></td>
-                                    <td><?php echo number_format($part['unit_price'], 2); ?> €</td>
-                                    <td><?php echo number_format($subtotal, 2); ?> €</td>
+                                    <td><?php echo number_format($part['unit_price'], 2); ?> €</span>
+                                    <td><?php echo number_format($subtotal, 2); ?> €</span>
                                 </tr>
                                 <?php endforeach; ?>
                                 <tr class="table-active">
-                                    <td colspan="4" class="text-end"><strong>Total</strong></td>
-                                    <td><strong><?php echo number_format($total_cost, 2); ?> €</strong></td>
+                                    <td colspan="4" class="text-end"><strong>Total</strong></span>
+                                    <td><strong><?php echo number_format($total_cost, 2); ?> €</strong></span>
                                 </tr>
                             </tbody>
-                        </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -515,5 +549,14 @@ function confirmCancel() {
             form.submit();
         }
     }
+}
+
+function copyQrUrl() {
+    const url = '<?php echo "http://" . $_SERVER['HTTP_HOST'] . "/gmao_GEMINI/index.php?page=equipment_detail&id=" . $intervention['equipment_id']; ?>';
+    navigator.clipboard.writeText(url).then(function() {
+        alert('Equipment URL copied to clipboard!');
+    }, function() {
+        alert('Failed to copy URL');
+    });
 }
 </script>

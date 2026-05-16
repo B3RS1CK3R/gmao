@@ -33,4 +33,7 @@ try {
  * Avoid starting sessions here to prevent "Headers already sent" errors.
  */
 // session_start(); // DO NOT UNCOMMENT THIS LINE
+
+// Optionnel : définir le fuseau horaire
+$pdo->exec("SET time_zone = '+00:00'");
 ?>

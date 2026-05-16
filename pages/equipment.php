@@ -1,5 +1,4 @@
 <?php
-// VERSION MODIFIEE - 09 MAI 2026 - COPY PATH BUTTON
 // pages/equipment.php - Full equipment management (CRUD)
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
@@ -14,8 +13,11 @@ $error = '';
 
 // Add equipment
 if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $sql = "INSERT INTO equipment (code, name, type, location, supplier, purchase_date, warranty_end, technical_specs) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    $purchase_date = !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null;
+    $warranty_end = !empty($_POST['warranty_end']) ? $_POST['warranty_end'] : null;
+    
+    $sql = "INSERT INTO equipment (code, name, type, location, supplier, purchase_date, warranty_end, technical_specs, probability_score, severity_score) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $pdo->prepare($sql);
     $result = $stmt->execute([
         $_POST['code'],
@@ -23,15 +25,18 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $_POST['type'],
         $_POST['location'],
         $_POST['supplier'],
-        $_POST['purchase_date'],
-        $_POST['warranty_end'],
-        $_POST['technical_specs']
+        $purchase_date,
+        $warranty_end,
+        $_POST['technical_specs'],
+        $_POST['probability_score'],
+        $_POST['severity_score']
     ]);
     
     if($result) {
         logUserAction($_SESSION['user_id'], 'equipment_created', "Equipment created: {$_POST['code']}");
         $message = "✅ " . t('save_success');
-        echo "<meta http-equiv='refresh' content='1;url=?page=equipment'>";
+        $timestamp = time();
+        echo "<meta http-equiv='refresh' content='1;url=?page=equipment&_t=$timestamp'>";
     } else {
         $error = "❌ " . t('save_error');
     }
@@ -39,10 +44,12 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
 
 // Edit equipment
 if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Get equipment details before update for logging
     $stmtOld = $pdo->prepare("SELECT code, name FROM equipment WHERE id = ?");
     $stmtOld->execute([$_GET['id']]);
     $oldEquipment = $stmtOld->fetch();
+    
+    $purchase_date = !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null;
+    $warranty_end = !empty($_POST['warranty_end']) ? $_POST['warranty_end'] : null;
     
     $sql = "UPDATE equipment SET 
             code = ?, 
@@ -53,6 +60,8 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
             purchase_date = ?, 
             warranty_end = ?, 
             technical_specs = ?,
+            probability_score = ?,
+            severity_score = ?,
             status = ? 
             WHERE id = ?";
     $stmt = $pdo->prepare($sql);
@@ -62,24 +71,26 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
         $_POST['type'],
         $_POST['location'],
         $_POST['supplier'],
-        !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null,
-        !empty($_POST['warranty_end']) ? $_POST['warranty_end'] : null,
+        $purchase_date,
+        $warranty_end,
         $_POST['technical_specs'],
+        $_POST['probability_score'],
+        $_POST['severity_score'],
         $_POST['status'],
         $_GET['id']
     ]);
     
     if($result) {
-        // Detailed log with equipment code
-        logUserAction($_SESSION['user_id'], 'equipment_updated', "[{$oldEquipment['code']}] {$oldEquipment['name']} - Equipment information updated");
+        logUserAction($_SESSION['user_id'], 'equipment_updated', "Equipment ID: {$_GET['id']} updated");
         $message = "✅ " . t('save_success');
-        echo "<meta http-equiv='refresh' content='1;url=?page=equipment'>";
+        $timestamp = time();
+        echo "<meta http-equiv='refresh' content='1;url=?page=equipment&_t=$timestamp'>";
     } else {
         $error = "❌ " . t('save_error');
     }
 }
 
-// Delete (soft delete - deactivation) with password validation
+// Delete (soft delete - deactivation)
 if($action == 'delete' && isset($_GET['id'])) {
     if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor') {
         if(isset($_POST['confirm_password'])) {
@@ -91,7 +102,8 @@ if($action == 'delete' && isset($_GET['id'])) {
                 $stmt2->execute([$_GET['id']]);
                 logUserAction($_SESSION['user_id'], 'equipment_deleted', "Equipment ID: {$_GET['id']} deactivated");
                 $message = "✅ " . t('save_success');
-                echo "<meta http-equiv='refresh' content='1;url=?page=equipment'>";
+                $timestamp = time();
+                echo "<meta http-equiv='refresh' content='1;url=?page=equipment&_t=$timestamp'>";
             } else {
                 $error = "❌ " . t('password_error');
             }
@@ -105,7 +117,8 @@ if($action == 'restore' && isset($_GET['id']) && $_SESSION['role'] == 'admin') {
     $stmt->execute([$_GET['id']]);
     logUserAction($_SESSION['user_id'], 'equipment_restored', "Equipment ID: {$_GET['id']} reactivated");
     $message = "✅ " . t('save_success');
-    echo "<meta http-equiv='refresh' content='1;url=?page=equipment'>";
+    $timestamp = time();
+    echo "<meta http-equiv='refresh' content='1;url=?page=equipment&_t=$timestamp'>";
 }
 
 // Fetch equipment (including retired for admin)
@@ -115,28 +128,26 @@ if($_SESSION['role'] == 'admin') {
     $equipments = $pdo->query("SELECT * FROM equipment WHERE status != 'retired' ORDER BY name")->fetchAll();
 }
 
-// Count attachments per equipment (simple cache)
+// Count attachments per equipment
 $attachmentCounts = [];
 try {
     $stmt = $pdo->query("SELECT parent_id, COUNT(*) as c FROM attachments WHERE parent_type='equipment' GROUP BY parent_id");
     foreach($stmt->fetchAll() as $r) { $attachmentCounts[$r['parent_id']] = $r['c']; }
 } catch (PDOException $e) {
-    // attachments table may not exist yet (migration not run) — ignore and continue
     $attachmentCounts = [];
 }
 
 // Fetch modifications history for each equipment
 $history = [];
 foreach($equipments as $eq) {
-    // Search by both old format (ID) and new format (code)
     $stmt = $pdo->prepare("
         SELECT * FROM user_logs 
         WHERE action IN ('equipment_created', 'equipment_updated', 'equipment_deleted', 'equipment_restored')
-        AND (details LIKE ? OR details LIKE ?)
+        AND details LIKE ?
         ORDER BY created_at DESC
         LIMIT 3
     ");
-    $stmt->execute(["%ID: {$eq['id']}%", "%[{$eq['code']}]%"]);
+    $stmt->execute(["%ID: {$eq['id']}%"]);
     $history[$eq['id']] = $stmt->fetchAll();
 }
 
@@ -231,15 +242,39 @@ if($action == 'add'):
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('purchase_date'); ?></label>
-                    <input type="date" name="purchase_date" class="form-control" value="<?php echo $eq['purchase_date']; ?>">
+                    <input type="date" name="purchase_date" class="form-control">
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('warranty_end'); ?></label>
-                    <input type="date" name="warranty_end" class="form-control" value="<?php echo $eq['warranty_end']; ?>">
+                    <input type="date" name="warranty_end" class="form-control">
                 </div>
                 <div class="col-md-12 mb-3">
                     <label class="form-label"><?php echo t('technical_specs'); ?></label>
                     <textarea name="technical_specs" class="form-control" rows="3" placeholder="Technical specifications, power, dimensions..."></textarea>
+                </div>
+                
+                <!-- Criticality scores -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label"><?php echo t('probability_score'); ?></label>
+                    <select name="probability_score" class="form-select">
+                        <option value="1">1 - <?php echo t('very_low'); ?></option>
+                        <option value="2">2 - <?php echo t('low'); ?></option>
+                        <option value="3">3 - <?php echo t('medium'); ?></option>
+                        <option value="4">4 - <?php echo t('high'); ?></option>
+                        <option value="5">5 - <?php echo t('very_high'); ?></option>
+                    </select>
+                    <small class="text-muted"><?php echo t('probability_help'); ?></small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label"><?php echo t('severity_score'); ?></label>
+                    <select name="severity_score" class="form-select">
+                        <option value="1">1 - <?php echo t('negligible'); ?></option>
+                        <option value="2">2 - <?php echo t('minor'); ?></option>
+                        <option value="3">3 - <?php echo t('moderate'); ?></option>
+                        <option value="4">4 - <?php echo t('serious'); ?></option>
+                        <option value="5">5 - <?php echo t('critical'); ?></option>
+                    </select>
+                    <small class="text-muted"><?php echo t('severity_help'); ?></small>
                 </div>
             </div>
             <div class="mt-3">
@@ -342,6 +377,28 @@ if($action == 'edit' && isset($_GET['id'])):
                     <label class="form-label"><?php echo t('technical_specs'); ?></label>
                     <textarea name="technical_specs" class="form-control" rows="3"><?php echo htmlspecialchars($eq['technical_specs']); ?></textarea>
                 </div>
+                
+                <!-- Criticality scores -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label"><?php echo t('probability_score'); ?></label>
+                    <select name="probability_score" class="form-select">
+                        <option value="1" <?php if(($eq['probability_score'] ?? 1) == 1) echo 'selected'; ?>>1 - <?php echo t('very_low'); ?></option>
+                        <option value="2" <?php if(($eq['probability_score'] ?? 1) == 2) echo 'selected'; ?>>2 - <?php echo t('low'); ?></option>
+                        <option value="3" <?php if(($eq['probability_score'] ?? 1) == 3) echo 'selected'; ?>>3 - <?php echo t('medium'); ?></option>
+                        <option value="4" <?php if(($eq['probability_score'] ?? 1) == 4) echo 'selected'; ?>>4 - <?php echo t('high'); ?></option>
+                        <option value="5" <?php if(($eq['probability_score'] ?? 1) == 5) echo 'selected'; ?>>5 - <?php echo t('very_high'); ?></option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label"><?php echo t('severity_score'); ?></label>
+                    <select name="severity_score" class="form-select">
+                        <option value="1" <?php if(($eq['severity_score'] ?? 1) == 1) echo 'selected'; ?>>1 - <?php echo t('negligible'); ?></option>
+                        <option value="2" <?php if(($eq['severity_score'] ?? 1) == 2) echo 'selected'; ?>>2 - <?php echo t('minor'); ?></option>
+                        <option value="3" <?php if(($eq['severity_score'] ?? 1) == 3) echo 'selected'; ?>>3 - <?php echo t('moderate'); ?></option>
+                        <option value="4" <?php if(($eq['severity_score'] ?? 1) == 4) echo 'selected'; ?>>4 - <?php echo t('serious'); ?></option>
+                        <option value="5" <?php if(($eq['severity_score'] ?? 1) == 5) echo 'selected'; ?>>5 - <?php echo t('critical'); ?></option>
+                    </select>
+                </div>
             </div>
             <div class="mt-3">
                 <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> <?php echo t('update'); ?></button>
@@ -377,20 +434,16 @@ if($action == 'edit' && isset($_GET['id'])):
                             </div>
                             <div class="btn-group btn-group-sm" role="group">
                                 <?php if(!empty($att['external_path'])): ?>
-                                    <!-- External link: Open link button -->
                                     <a href="<?php echo htmlspecialchars($att['external_path']); ?>" target="_blank" class="btn btn-info" title="<?php echo t('open_document'); ?>">
                                         <i class="fas fa-external-link-alt"></i>
                                     </a>
-                                    <!-- Copy path button for external link -->
                                     <button type="button" class="btn btn-secondary" title="Copy link to clipboard" onclick="copyToClipboard('<?php echo htmlspecialchars($att['external_path']); ?>')">
                                         <i class="fas fa-copy"></i>
                                     </button>
                                 <?php else: ?>
-                                    <!-- Local file: View button -->
                                     <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-secondary" title="<?php echo t('view'); ?>">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <!-- Copy folder path button (replaces Download) -->
                                     <button type="button" class="btn btn-info" title="Copy folder path to clipboard" onclick="copyToClipboard('<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/')">
                                         <i class="fas fa-copy"></i>
                                     </button>
@@ -524,6 +577,11 @@ endif;
         padding: 4px 8px;
         font-size: 12px;
     }
+    /* Custom badge color for orange */
+    .badge.bg-orange {
+        background-color: #fd7e14 !important;
+        color: white;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -563,12 +621,25 @@ endif;
                         <th><?php echo t('type'); ?></th>
                         <th><?php echo t('location'); ?></th>
                         <th><?php echo t('status'); ?></th>
+                        <th><?php echo t('criticality'); ?></th>
                         <th><?php echo t('last_modifications'); ?></th>
                         <th class="text-center"><?php echo t('actions'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach($equipments as $eq): ?>
+                    <?php foreach($equipments as $eq): 
+                        $criticality = (($eq['probability_score'] ?? 1) * ($eq['severity_score'] ?? 1));
+                        // 4 couleurs : vert, jaune, orange, rouge
+                        if ($criticality >= 20) {
+                            $criticalityClass = 'danger';
+                        } elseif ($criticality >= 12) {
+                            $criticalityClass = 'orange';
+                        } elseif ($criticality >= 6) {
+                            $criticalityClass = 'warning';
+                        } else {
+                            $criticalityClass = 'success';
+                        }
+                    ?>
                     <tr class="table-row-clickable" onclick="window.location.href='?page=equipment_detail&id=<?php echo $eq['id']; ?>'">
                         <td><strong><?php echo htmlspecialchars($eq['code']); ?></strong></td>
                         <td><?php echo htmlspecialchars($eq['name']); ?></td>
@@ -586,6 +657,9 @@ endif;
                                 echo $status_labels[$eq['status']] ?? $eq['status'];
                                 ?>
                             </span>
+                        </span>
+                        <td class="text-center">
+                            <span class="badge bg-<?php echo $criticalityClass; ?>"><?php echo $criticality; ?></span>
                         </span>
                         <td style="max-width: 200px;">
                             <?php if(!empty($history[$eq['id']])):
@@ -626,11 +700,11 @@ endif;
                                 </a>
                                 <?php endif; ?>
                             <?php endif; ?>
-                        </div>
+                        </span>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
-             </div>
+            </table>
         </div>
     </div>
 </div>
@@ -646,6 +720,12 @@ endif;
                     <div><span class="status-badge status-broken">🔴 <?php echo t('broken'); ?></span> <small><?php echo t('broken_description'); ?></small></div>
                     <div><span class="status-badge status-retired">⚫ <?php echo t('retired'); ?></span> <small><?php echo t('retired_description'); ?></small></div>
                 </div>
+                <div class="d-flex justify-content-center gap-4 mt-2">
+                    <div><span class="badge bg-success">1-5</span> <small>Low criticality</small></div>
+                    <div><span class="badge bg-warning">6-10</span> <small>Medium-low criticality</small></div>
+                    <div><span class="badge bg-orange">11-15</span> <small>Medium-high criticality</small></div>
+                    <div><span class="badge bg-danger">16-25</span> <small>High criticality</small></div>
+                </div>
             </div>
         </div>
     </div>
@@ -653,19 +733,12 @@ endif;
 
 <script>
 function copyToClipboard(text) {
-    // Create a temporary textarea element
     const textarea = document.createElement('textarea');
     textarea.value = text;
     document.body.appendChild(textarea);
-    
-    // Select and copy
     textarea.select();
     document.execCommand('copy');
-    
-    // Remove temporary element
     document.body.removeChild(textarea);
-    
-    // Show notification
     alert('📁 Folder path copied to clipboard:\n' + text + '\n\nYou can now paste this path into File Explorer to open the folder.');
 }
 </script>

@@ -903,6 +903,29 @@ function getGlobalPerformanceIndicators() {
 // ========== USER MANAGEMENT ==========
 
 /**
+ * Check if user has permission to access a page
+ */
+function hasPagePermission($page, $role) {
+    // Admin a toujours accès à tout
+    if($role == 'admin') return true;
+    
+    // Charger les permissions depuis le fichier JSON
+    $permissionsFile = __DIR__ . '/../permissions.json';
+    if(!file_exists($permissionsFile)) {
+        return true; // Par défaut, tout est autorisé
+    }
+    
+    $content = file_get_contents($permissionsFile);
+    $permissions = json_decode($content, true);
+    
+    // Si le rôle n'existe pas, tout est autorisé
+    if(!isset($permissions[$role])) return true;
+    
+    // Si la page est dans la liste autorisée, on autorise
+    return in_array($page, $permissions[$role]);
+}
+
+/**
  * Fetch all users from the database.
  */
 function getAllUsers() {
@@ -1009,6 +1032,48 @@ function logUserAction($user_id, $action, $details = null) {
     
     $stmt = $pdo->prepare("INSERT INTO user_logs (user_id, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)");
     return $stmt->execute([$user_id, $action, $details, $ip, $user_agent]);
+}
+
+/**
+ * Log detailed technician changes with field-level information
+ * 
+ * @param int $userId ID of the user performing the action
+ * @param int $technicianId ID of the technician being modified
+ * @param string $technicianName Full name of the technician
+ * @param array $oldData Old technician data before update
+ * @param array $newData New technician data after update
+ * @return bool
+ */
+function logTechnicianUpdate($userId, $technicianId, $technicianName, $oldData, $newData) {
+    global $pdo;
+    
+    $changes = [];
+    $fields = [
+        'firstname' => 'First Name',
+        'lastname' => 'Last Name',
+        'phone' => 'Phone',
+        'email' => 'Email',
+        'specialty' => 'Specialty',
+        'hire_date' => 'Hire Date',
+        'status' => 'Status',
+        'employee_id' => 'Employee ID'
+    ];
+    
+    foreach($fields as $field => $label) {
+        if(isset($oldData[$field]) && isset($newData[$field]) && $oldData[$field] != $newData[$field]) {
+            $oldValue = !empty($oldData[$field]) ? $oldData[$field] : '[empty]';
+            $newValue = !empty($newData[$field]) ? $newData[$field] : '[empty]';
+            $changes[] = "{$label}: '{$oldValue}' → '{$newValue}'";
+        }
+    }
+    
+    if(empty($changes)) {
+        $details = "[{$technicianName}] - No changes recorded";
+    } else {
+        $details = "[{$technicianName}] - " . implode(', ', $changes);
+    }
+    
+    return logUserAction($userId, 'technician_updated', $details);
 }
 
 /**
