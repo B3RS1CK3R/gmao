@@ -1,4 +1,9 @@
 <?php
+// Debug - à supprimer après
+if (headers_sent($fichier, $ligne)) {
+    die("ERREUR: Les headers sont déjà envoyés par $fichier à la ligne $ligne");
+}
+
 // ====================== DEBUG MODE ======================
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -68,18 +73,22 @@ if ($page === 'login') {
 
             <div class="container-fluid">
                 <?php
-                switch($page) {
-                    case 'dashboard':
-                        require_once 'pages/dashboard.php';
-                        break;
-                        
-                    case 'technician_detail':
-                        require_once 'pages/technician_detail.php';
-                        break;
-                        
-                    default:
-                        echo '<div class="alert alert-info">Page <strong>' . htmlspecialchars($page) . '</strong></div>';
-                        break;
+                // Dossier où se trouvent les pages
+                $pagesDir = 'pages/';
+                
+                // On vérifie si le fichier existe physiquement
+                $filePath = $pagesDir . $page . '.php';
+                
+                if (file_exists($filePath)) {
+                    require_once $filePath;
+                } else {
+                    // Page par défaut ou erreur 404
+                    echo '
+                    <div class="alert alert-warning mt-4">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Page non trouvée</h4>
+                        <p>La page <strong>' . htmlspecialchars($page) . '</strong> n\'existe pas encore ou est en cours de développement.</p>
+                        <a href="index.php?page=dashboard" class="btn btn-primary">Retour au tableau de bord</a>
+                    </div>';
                 }
                 ?>
             </div>

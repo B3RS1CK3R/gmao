@@ -188,7 +188,6 @@ $recentInterventions = getRecentInterventions(5);
                     <h5><i class="fas fa-chart-line"></i> <?php echo t('advanced_analysis'); ?></h5>
                 </div>
                 <div class="card-body text-center">
-                    <p><?php echo t('view_performance'); ?></p>
                     <a href="?page=performance" class="btn btn-outline-primary">
                         <i class="fas fa-chart-bar"></i> <?php echo t('view_performance'); ?>
                     </a>
