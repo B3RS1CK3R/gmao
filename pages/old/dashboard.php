@@ -1,50 +1,11 @@
 <?php
-// pages/dashboard.php - Version restaurée à partir de ton ancien code
-
-// ====================== FONCTIONS TEMPORAIRES (obligatoires) ======================
-if (!function_exists('getDashboardStats')) {
-    function getDashboardStats() {
-        return [
-            'total_equipment'            => 248,
-            'active_interventions'       => 17,
-            'avg_intervention_duration'  => 4.8,
-            'critical_stock'             => 9
-        ];
-    }
+// pages/dashboard.php - Full version with translations
+if(isset($_GET['debug_lang'])) {
+    echo "<div class='alert alert-info'>";
+    echo "Langue actuelle: " . getCurrentLanguage() . "<br>";
+    echo "Session: " . print_r($_SESSION, true);
+    echo "</div>";
 }
-
-if (!function_exists('getAlerts')) {
-    function getAlerts() {
-        return [
-            "3 équipements en maintenance critique",
-            "2 interventions en retard ce jour"
-        ];
-    }
-}
-
-if (!function_exists('getRecentInterventions')) {
-    function getRecentInterventions($limit = 5) {
-        return [
-            [
-                'id' => 45,
-                'equipment_name' => 'Pressoir Hydraulique P-045',
-                'title' => 'Remplacement joint hydraulique',
-                'priority' => 'high',
-                'status' => 'in_progress',
-                'created_at' => '2026-05-22'
-            ],
-            [
-                'id' => 44,
-                'equipment_name' => 'Convoyeur CV-12',
-                'title' => 'Maintenance préventive mensuelle',
-                'priority' => 'medium',
-                'status' => 'completed',
-                'created_at' => '2026-05-21'
-            ]
-        ];
-    }
-}
-// =====================================================================
 
 $stats = getDashboardStats();
 $alerts = getAlerts();
@@ -65,7 +26,6 @@ $recentInterventions = getRecentInterventions(5);
                     <li><?php echo htmlspecialchars($alert); ?></li>
                 <?php endforeach; ?>
             </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
     
@@ -197,11 +157,3 @@ $recentInterventions = getRecentInterventions(5);
         </div>
     </div>
 </div>
-
-<style>
-.stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-    transition: all 0.3s ease;
-}
-</style>
