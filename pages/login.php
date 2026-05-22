@@ -105,6 +105,19 @@ if(isset($_POST['login'])) {
     </style>
 </head>
 <body>
+    <!-- Language Selector -->
+    <div class="position-fixed top-0 end-0 p-3">
+        <div class="btn-group">
+            <button type="button" class="btn btn-light btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-globe"></i> <?php echo getCurrentLanguage() == 'fr' ? 'Français' : 'English'; ?>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item <?php echo getCurrentLanguage() == 'en' ? 'active' : ''; ?>" href="?<?php echo http_build_query(array_merge($_GET, ['lang' => 'en'])); ?>">English</a></li>
+                <li><a class="dropdown-item <?php echo getCurrentLanguage() == 'fr' ? 'active' : ''; ?>" href="?<?php echo http_build_query(array_merge($_GET, ['lang' => 'fr'])); ?>">Français</a></li>
+            </ul>
+        </div>
+    </div>
+
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-5">

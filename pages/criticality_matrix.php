@@ -196,21 +196,21 @@ $sevLabels = [
                 <div class="col-md-6">
                     <strong><?php echo t('probability_scale'); ?></strong>
                     <ul>
-                        <li><?php echo t('very_high'); ?> (5) – >10 failures/year</li>
-                        <li><?php echo t('high'); ?> (4) – 7-10 failures/year</li>
-                        <li><?php echo t('medium'); ?> (3) – 4-6 failures/year</li>
-                        <li><?php echo t('low'); ?> (2) – 2-3 failures/year</li>
-                        <li><?php echo t('very_low'); ?> (1) – ≤1 failure/year</li>
+                        <li><?php echo t('very_high'); ?> (5) – <?php echo t('very_high_desc'); ?></li>
+                        <li><?php echo t('high'); ?> (4) – <?php echo t('high_desc'); ?></li>
+                        <li><?php echo t('medium'); ?> (3) – <?php echo t('medium_desc'); ?></li>
+                        <li><?php echo t('low'); ?> (2) – <?php echo t('low_desc'); ?></li>
+                        <li><?php echo t('very_low'); ?> (1) – <?php echo t('very_low_desc'); ?></li>
                     </ul>
                 </div>
                 <div class="col-md-6">
                     <strong><?php echo t('severity_scale'); ?></strong>
                     <ul>
-                        <li><?php echo t('critical'); ?> (5) – cost > €10000, downtime >24h</li>
-                        <li><?php echo t('serious'); ?> (4) – €2000-10000, downtime 4-24h</li>
-                        <li><?php echo t('moderate'); ?> (3) – €500-2000, downtime 1-4h</li>
-                        <li><?php echo t('minor'); ?> (2) – €100-500, downtime <1h</li>
-                        <li><?php echo t('negligible'); ?> (1) – cost < €100, no downtime</li>
+                        <li><?php echo t('critical'); ?> (5) – <?php echo t('critical_desc_long'); ?></li>
+                        <li><?php echo t('serious'); ?> (4) – <?php echo t('serious_desc_long'); ?></li>
+                        <li><?php echo t('moderate'); ?> (3) – <?php echo t('moderate_desc_long'); ?></li>
+                        <li><?php echo t('minor'); ?> (2) – <?php echo t('minor_desc_long'); ?></li>
+                        <li><?php echo t('negligible'); ?> (1) – <?php echo t('negligible_desc_long'); ?></li>
                     </ul>
                 </div>
             </div>

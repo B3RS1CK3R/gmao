@@ -13,8 +13,22 @@ if (session_status() === PHP_SESSION_NONE) {
 // Define the root path of the project for reliable includes
 define('ROOT_PATH', __DIR__);
 
-// Load localization helper (English version)
+// Load localization helper
 require_once ROOT_PATH . '/includes/lang.php';
+
+// Handle language switching
+if (isset($_GET['lang'])) {
+    setLanguage($_GET['lang']);
+    // Remove lang param from URL to prevent refresh loops
+    $new_url = strtok($_SERVER['REQUEST_URI'], '?');
+    $params = $_GET;
+    unset($params['lang']);
+    if (!empty($params)) {
+        $new_url .= '?' . http_build_query($params);
+    }
+    header('Location: ' . $new_url);
+    exit();
+}
 
 // Get current page and action from URL (defaults to 'login' and 'list')
 $page = $_GET['page'] ?? 'login';
@@ -202,8 +216,24 @@ elseif (in_array($page, $pages_with_sidebar)) {
                                 </h5>
                             </div>
                             <div class="col-md-6 text-end">
+                                <!-- Language Selector -->
+                                <div class="btn-group me-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-globe"></i> <?php echo getCurrentLanguage() == 'fr' ? 'Français' : 'English'; ?>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item <?php echo getCurrentLanguage() == 'en' ? 'active' : ''; ?>" href="?<?php echo http_build_query(array_merge($_GET, ['lang' => 'en'])); ?>">English</a></li>
+                                        <li><a class="dropdown-item <?php echo getCurrentLanguage() == 'fr' ? 'active' : ''; ?>" href="?<?php echo http_build_query(array_merge($_GET, ['lang' => 'fr'])); ?>">Français</a></li>
+                                    </ul>
+                                </div>
                                 <span class="badge bg-info p-2"><i class="fas fa-user"></i> <?php echo $_SESSION['username'] ?? 'Technician'; ?></span>
-                                <span class="badge bg-secondary p-2 ms-2"><i class="fas fa-calendar"></i> <?php echo date('m/d/Y'); ?></span>
+                                <span class="badge bg-secondary p-2 ms-2"><i class="fas fa-calendar"></i> <?php 
+                                    if (getCurrentLanguage() == 'fr') {
+                                        echo date('d/m/Y');
+                                    } else {
+                                        echo date('m/d/Y');
+                                    }
+                                ?></span>
                             </div>
                         </div>
                     </div>

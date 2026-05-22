@@ -23,6 +23,32 @@ self.addEventListener('install', event => {
 
 // Interception des requêtes
 self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  
+  // Stratégie "Network First" pour les pages HTML et les requêtes avec paramètres (comme ?lang=...)
+  // Cela permet de s'assurer que les changements de langue sont bien pris en compte.
+  if (event.request.mode === 'navigate' || url.search.includes('page=')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Si on a une réponse valide, on la met en cache et on la retourne
+          if (response && response.status === 200 && response.type === 'basic') {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // En cas d'erreur réseau (offline), on essaie le cache
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Stratégie "Cache First" pour les autres ressources (CSS, JS, images, polices)
   event.respondWith(
     caches.match(event.request)
       .then(response => {

@@ -721,10 +721,10 @@ endif;
                     <div><span class="status-badge status-retired">⚫ <?php echo t('retired'); ?></span> <small><?php echo t('retired_description'); ?></small></div>
                 </div>
                 <div class="d-flex justify-content-center gap-4 mt-2">
-                    <div><span class="badge bg-success">1-5</span> <small>Low criticality</small></div>
-                    <div><span class="badge bg-warning">6-10</span> <small>Medium-low criticality</small></div>
-                    <div><span class="badge bg-orange">11-15</span> <small>Medium-high criticality</small></div>
-                    <div><span class="badge bg-danger">16-25</span> <small>High criticality</small></div>
+                    <div><span class="badge bg-success">1-5</span> <small><?php echo t('low_criticality'); ?></small></div>
+                    <div><span class="badge bg-warning">6-10</span> <small><?php echo t('medium_criticality'); ?></small></div>
+                    <div><span class="badge bg-orange">11-15</span> <small><?php echo t('high_criticality'); ?></small></div>
+                    <div><span class="badge bg-danger">16-25</span> <small><?php echo t('very_high_criticality'); ?></small></div>
                 </div>
             </div>
         </div>
