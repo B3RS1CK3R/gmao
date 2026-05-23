@@ -165,6 +165,8 @@ return [
     'save_before_adding_documents' => 'Please save the equipment before adding documents',
     'active_description'        => 'The equipment is active and operational.',
     'maintenance_description'   => 'The equipment is currently under maintenance.',
+    'broken'                    => 'Broken',
+    'retired'                   => 'Retired',
     'broken_description'        => 'The equipment is broken and not operational.',
     'retired_description'       => 'The equipment is retired and no longer in use.',
 
@@ -204,6 +206,9 @@ return [
     'previous_day'              => 'Previous Day',
     'next_day'                  => 'Next Day',
     'today'                     => 'Today',
+    'total_today'               => 'Total Today',
+    'pending'                   => 'Pending',
+    'interventions_for'         => 'Interventions for',
 
     // ==================== MISC ====================
     'technicians'               => 'Technicians',

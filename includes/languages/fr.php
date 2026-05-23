@@ -65,7 +65,6 @@ return [
     'email'                     => 'Email',
     'hire_date'                 => 'Date d\'embauche',
     'seniority'                 => 'Ancienneté',
-    'status'                    => 'Statut',
     'active'                    => 'Actif',
     'inactive'                  => 'Inactif',
     'on_leave'                  => 'En congé',
@@ -165,6 +164,8 @@ return [
     'save_before_adding_documents' => 'Veuillez enregistrer l\'équipement avant d\'ajouter des documents',
     'active_description'        => 'L\'équipement est actif et opérationnel.',
     'maintenance_description'   => 'L\'équipement est actuellement en maintenance.',
+    'broken'                    => 'Cassé',
+    'retired'                   => 'Retiré',
     'broken_description'        => 'L\'équipement est cassé et non opérationnel.',
     'retired_description'       => 'L\'équipement est retiré et n\'est plus en usage.',
 
