@@ -1,4 +1,18 @@
 <?php
+/**
+ * index.php - Point d'entrée principal GMAO
+ * Version finale - Routage corrigé
+ */
+
+// ====================== DEBUG MODE ======================
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+// =======================================================
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // ====================== GESTION LANGUE ======================
 if (isset($_GET['setlang'])) {
@@ -12,28 +26,17 @@ require_once 'includes/lang.php';
 // ===========================================================
 
 require_once 'config/database.php';
+require_once 'includes/functions.php';   // Fonctions globales
 
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
 
-// Protection d'accès globale
-if (!isset($_SESSION['user_id']) && $page !== 'login') {
-    header("Location: index.php?page=login");
+// Page Login traitée en premier
+if ($page === 'login') {
+    require_once 'pages/login.php';
     exit();
 }
-
-// ====================== PAGE LOGIN SPÉCIALE ======================
-// On traite la page login AVANT d'envoyer tout HTML
-if ($page === 'login') {
-    if (file_exists('pages/login.php')) {
-        require_once 'pages/login.php';
-    } else {
-        echo '<h3>Fichier login.php introuvable</h3>';
-    }
-    exit(); // Important : on arrête ici pour éviter d'afficher le layout
-}
-
-// ====================== LAYOUT NORMAL (pour les autres pages) ======================
 ?>
+
 <!DOCTYPE html>
 <html lang="<?php echo getCurrentLanguage(); ?>">
 <head>
@@ -63,25 +66,91 @@ if ($page === 'login') {
             <!-- Topbar -->
             <?php require_once 'includes/topbar.php'; ?>
 
-            <div class="container-fluid">
+            <div class="container-fluid mt-3">
                 <?php
-                // Dossier où se trouvent les pages
-                $pagesDir = 'pages/';
                 
-                // On vérifie si le fichier existe physiquement
-                $filePath = $pagesDir . $page . '.php';
-                
-                if (file_exists($filePath)) {
-                    require_once $filePath;
-                } else {
-                    // Page par défaut ou erreur 404
-                    echo '
-                    <div class="alert alert-warning mt-4">
-                        <h4><i class="fas fa-exclamation-triangle"></i> Page non trouvée</h4>
-                        <p>La page <strong>' . htmlspecialchars($page) . '</strong> n\'existe pas encore ou est en cours de développement.</p>
-                        <a href="index.php?page=dashboard" class="btn btn-primary">Retour au tableau de bord</a>
-                    </div>';
+                switch($page) {
+                    
+                    case 'dashboard':
+                        require_once 'pages/dashboard.php';
+                        break;
+                        
+                    case 'technicians':
+                        require_once 'pages/technicians.php';
+                        break;
+                        
+                    case 'technician_detail':
+                        require_once 'pages/technician_detail.php';
+                        break;
+                        
+                    case 'alerts':
+                        require_once 'pages/alerts.php';
+                        break;
+                        
+                    case 'users':
+                        require_once 'pages/users.php';
+                        break;
+                        
+                    case 'profile':
+                        require_once 'pages/profile.php';
+                        break;
+                    
+                    case 'criticality':
+                        require_once 'pages/criticality_matrix.php';
+                        break;
+                    
+                    case 'export':
+                        require_once 'pages/export_center.php';
+                        break;
+                    
+                    case 'email_config':
+                        require_once 'pages/mail_settings.php';
+                        break;
+                    
+                    case 'migrations':
+                        require_once 'pages/admin_migrations.php';
+                        break;
+                    
+                    case 'performance':
+                        require_once 'pages/performance.php';
+                        break;
+                    
+                    case 'preventive':
+                        require_once 'pages/preventive.php';
+                        break;
+                        
+                        if (file_exists("pages/{$page}.php")) {
+                            require_once "pages/{$page}.php";
+                        } else {
+                            echo "<div class='alert alert-info'>La page <strong>" . ucfirst(str_replace('_', ' ', $page)) . "</strong> est en cours de développement.</div>";
+                        }
+                        break;
+                        
+                    // Autres pages existantes
+                    case 'equipment':
+                    case 'interventions':
+                    case 'planning':
+                    case 'stock':
+                    case 'reports':
+                    case 'permissions':
+                        if (file_exists("pages/{$page}.php")) {
+                            require_once "pages/{$page}.php";
+                        } else {
+                            echo "<div class='alert alert-info'>La page <strong>" . ucfirst($page) . "</strong> est en cours de développement.</div>";
+                        }
+                        break;
+                        
+                    case 'logout':
+                        session_destroy();
+                        header('Location: index.php?page=login');
+                        exit();
+                        break;
+                        
+                    default:
+                        echo "<div class='alert alert-warning mt-4'>Page <strong>" . htmlspecialchars($page) . "</strong> non trouvée ou en cours de développement.</div>";
+                        break;
                 }
+                
                 ?>
             </div>
         </main>

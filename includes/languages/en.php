@@ -118,6 +118,10 @@ return [
     'severity_score'            => 'Severity Score',
     'probability_help'          => 'Likelihood of occurrence (1-5)',
     'severity_help'             => 'Impact severity (1-5)',
+    'low_criticality'           => 'Low Criticality',
+    'medium_criticality'        => 'Medium Criticality',
+    'high_criticality'          => 'High Criticality',
+    'very_high_criticality'     => 'Very High Criticality',
 
     // Days
     'monday'                    => 'Monday',
@@ -160,6 +164,10 @@ return [
     'technical_specs_help'      => 'E.g. Flow rate: 500L/min, Power: 15kW, Dimensions: 2m x 1m x 1.5m...',
     'add_equipment_info'        => 'Add new equipment to the system',
     'save_before_adding_documents' => 'Please save the equipment before adding documents',
+    'active_description'        => 'The equipment is active and operational.',
+    'maintenance_description'   => 'The equipment is currently under maintenance.',
+    'broken_description'        => 'The equipment is broken and not operational.',
+    'retired_description'       => 'The equipment is retired and no longer in use.',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'New Intervention',
@@ -188,8 +196,10 @@ return [
     'version'                   => 'Version',
 
     // ==================== PLANNING ====================
-    'planning'                  => 'Planning',
+    'planning_title'            => 'Planning',
     'calendar_view'             => 'Calendar View',
+    'previous_day'              => 'Previous Day',
+    'next_day'                  => 'Next Day',
     'today'                     => 'Today',
 
     // ==================== MISC ====================

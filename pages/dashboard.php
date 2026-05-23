@@ -1,7 +1,7 @@
 <?php
-// pages/dashboard.php - Version finale avec chemin corrigé
+// pages/dashboard.php - Version dynamique finale
 
-// Chemin absolu fiable vers functions.php
+// Chemin absolu fiable
 require_once __DIR__ . '/../includes/functions.php';
 
 $stats = getDashboardStats();

@@ -97,6 +97,7 @@ return [
     'view_planning'             => 'Voir le planning',
     'deactivate_technician'     => 'Désactiver le technicien',
     'deactivate_technician_confirm' => 'Êtes-vous sûr de vouloir désactiver ce technicien ?',
+    'all_technicians'            => 'Tous les techniciens',
 
     // Priorities & Status
     'critical'                  => 'Critique',
@@ -117,6 +118,10 @@ return [
     'severity_score'            => 'Score de gravité',
     'probability_help'          => 'Probabilité d\'occurrence (1-5)',
     'severity_help'             => 'Gravité de l\'impact (1-5)',
+    'low_criticality'           => 'Basse Criticité',
+    'medium_criticality'        => 'Criticité Moyenne',
+    'high_criticality'          => 'Haute Criticité',
+    'very_high_criticality'     => 'Très Haute Criticité',
 
     // Days
     'monday'                    => 'Lundi',
@@ -158,6 +163,10 @@ return [
     'type_help'                 => 'Ex. Machine à fraiser, Presse, Convoyeur..."',
     'location_help'             => 'Ex. Atelier A, Bâtiment B..."',
     'save_before_adding_documents' => 'Veuillez enregistrer l\'équipement avant d\'ajouter des documents',
+    'active_description'        => 'L\'équipement est actif et opérationnel.',
+    'maintenance_description'   => 'L\'équipement est actuellement en maintenance.',
+    'broken_description'        => 'L\'équipement est cassé et non opérationnel.',
+    'retired_description'       => 'L\'équipement est retiré et n\'est plus en usage.',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'Nouvelle Intervention',
@@ -168,6 +177,7 @@ return [
     'plan_maintenance'             => 'Planifier la maintenance',
     'preventive_maintenance_list'  => 'Liste des maintenances préventives',
     'per_intervention'             => 'Par intervention',
+    'no_interventions_planned'  => 'Aucune intervention planifiée',
 
     // ==================== STOCK ====================
     'part_number'               => 'Numéro de pièce',
@@ -186,9 +196,14 @@ return [
     'version'                   => 'Version',
 
     // ==================== PLANNING ====================
-    'planning'                  => 'Planning',
-    'calendar_view'             => 'Calendar View',
-    'today'                     => 'Today',
+    'planning_title'            => 'Planning',
+    'calendar_view'             => 'Calendrier',
+    'previous_day'              => 'Jour précédent',
+    'next_day'                  => 'Jour suivant',
+    'today'                     => 'Aujourd\'hui',
+    'total_today'               => 'Total du jour',
+    'pending'                   => 'En attente',
+    'interventions_for'         => 'Interventions pour',
 
     // ==================== OTHER ====================
     'profile'                   => 'Mon Profil',
