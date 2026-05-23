@@ -11,6 +11,7 @@ return [
     'welcome'                   => 'Bienvenue',
     'logout'                    => 'Déconnexion',
     'login'                     => 'Connexion',
+    'create'                    => 'Créer',
     'save'                      => 'Enregistrer',
     'cancel'                    => 'Annuler',
     'edit'                      => 'Modifier',
@@ -99,13 +100,23 @@ return [
 
     // Priorities & Status
     'critical'                  => 'Critique',
+    'serious'                   => 'Sérieuse',
+    'moderate'                  => 'Modérée',
+    'minor'                     => 'Mineure',
+    'negligible'                => 'Négligeable',
+    'very_high'                 => 'Très élevée',
     'high'                      => 'Haute',
     'medium'                    => 'Moyenne',
     'low'                       => 'Basse',
+    'very_low'                  => 'Très basse',
     'to_do'                     => 'À faire',
     'in_progress'               => 'En cours',
     'completed'                 => 'Terminé',
     'closed'                    => 'Clôturé',
+    'probability_score'         => 'Score de probabilité',
+    'severity_score'            => 'Score de gravité',
+    'probability_help'          => 'Probabilité d\'occurrence (1-5)',
+    'severity_help'             => 'Gravité de l\'impact (1-5)',
 
     // Days
     'monday'                    => 'Lundi',
@@ -141,6 +152,12 @@ return [
     'qr_code'                   => 'Code QR',
     'add_equipment'             => 'Ajouter un équipement',
     'equipment_list'            => 'Liste des équipements',
+    'technical_specs'           => 'Spécifications techniques',
+    'technical_specs_help'      => 'Ex. Débit: 500L/min, Puissance: 15kW, Dimensions: 2m x 1m x 1.5m...',
+    'add_equipment_info'        => 'Ajouter un nouvel équipement au système',
+    'type_help'                 => 'Ex. Machine à fraiser, Presse, Convoyeur..."',
+    'location_help'             => 'Ex. Atelier A, Bâtiment B..."',
+    'save_before_adding_documents' => 'Veuillez enregistrer l\'équipement avant d\'ajouter des documents',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'Nouvelle Intervention',

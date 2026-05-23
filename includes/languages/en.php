@@ -12,6 +12,7 @@ return [
     'welcome'                   => 'Welcome',
     'logout'                    => 'Logout',
     'login'                     => 'Login',
+    'create'                    => 'Create',
     'save'                      => 'Save',
     'cancel'                    => 'Cancel',
     'edit'                      => 'Edit',
@@ -100,13 +101,23 @@ return [
 
     // Priorities & Status
     'critical'                  => 'Critical',
+    'serious'                   => 'Serious',
+    'moderate'                  => 'Moderate',
+    'minor'                     => 'Minor',
+    'negligible'                => 'Negligible',
+    'very_high'                 => 'Very High',
     'high'                      => 'High',
     'medium'                    => 'Medium',
     'low'                       => 'Low',
+    'very_low'                  => 'Very Low',
     'to_do'                     => 'To Do',
     'in_progress'               => 'In Progress',
     'completed'                 => 'Completed',
     'closed'                    => 'Closed',
+    'probability_score'         => 'Probability Score',
+    'severity_score'            => 'Severity Score',
+    'probability_help'          => 'Likelihood of occurrence (1-5)',
+    'severity_help'             => 'Impact severity (1-5)',
 
     // Days
     'monday'                    => 'Monday',
@@ -143,6 +154,12 @@ return [
     'scan_qr'                   => 'Scan QR Code',
     'add_equipment'             => 'Add Equipment',
     'equipment_list'            => 'Equipment List',
+    'technical_specs'           => 'Technical Specifications',
+    'type_help'                 => 'E.g. Milling machine, Press, Conveyor..."',
+    'location_help'             => 'E.g. Workshop A, Building B..."',
+    'technical_specs_help'      => 'E.g. Flow rate: 500L/min, Power: 15kW, Dimensions: 2m x 1m x 1.5m...',
+    'add_equipment_info'        => 'Add new equipment to the system',
+    'save_before_adding_documents' => 'Please save the equipment before adding documents',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'New Intervention',

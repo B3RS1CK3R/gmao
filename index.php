@@ -1,18 +1,4 @@
 <?php
-// Debug - à supprimer après
-if (headers_sent($fichier, $ligne)) {
-    die("ERREUR: Les headers sont déjà envoyés par $fichier à la ligne $ligne");
-}
-
-// ====================== DEBUG MODE ======================
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-// =======================================================
-
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 
 // ====================== GESTION LANGUE ======================
 if (isset($_GET['setlang'])) {
@@ -28,6 +14,12 @@ require_once 'includes/lang.php';
 require_once 'config/database.php';
 
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
+
+// Protection d'accès globale
+if (!isset($_SESSION['user_id']) && $page !== 'login') {
+    header("Location: index.php?page=login");
+    exit();
+}
 
 // ====================== PAGE LOGIN SPÉCIALE ======================
 // On traite la page login AVANT d'envoyer tout HTML

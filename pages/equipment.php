@@ -1,9 +1,10 @@
 <?php
+
 // pages/equipment.php - Full equipment management (CRUD)
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+// if(!isset($_SESSION['user_id'])) {
+//     header('Location: index.php?page=login');
+//     exit();
+// }
 
 $action = $_GET['action'] ?? 'list';
 $message = '';
@@ -230,11 +231,11 @@ if($action == 'add'):
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('type'); ?></label>
-                    <input type="text" name="type" class="form-control" placeholder="Ex: Milling machine, Press, Conveyor...">
+                    <input type="text" name="type" class="form-control" placeholder="<?php echo t('type_help'); ?>">
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('location'); ?></label>
-                    <input type="text" name="location" class="form-control" placeholder="Ex: Workshop A, Building B...">
+                    <input type="text" name="location" class="form-control" placeholder="<?php echo t('location_help'); ?>">
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('supplier'); ?></label>
@@ -250,7 +251,7 @@ if($action == 'add'):
                 </div>
                 <div class="col-md-12 mb-3">
                     <label class="form-label"><?php echo t('technical_specs'); ?></label>
-                    <textarea name="technical_specs" class="form-control" rows="3" placeholder="Technical specifications, power, dimensions..."></textarea>
+                    <textarea name="technical_specs" class="form-control" rows="3" placeholder="<?php echo t('technical_specs_help'); ?>"></textarea>
                 </div>
                 
                 <!-- Criticality scores -->
