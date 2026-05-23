@@ -186,6 +186,13 @@ return [
     'max_quantity'              => 'Quantité Max',
     'stock_list'                => 'Liste du Stock',
     'references'                => 'Références',
+    'add_part'                  => 'Ajouter une pièce',
+    'critical_stock'            => 'Stock critique',
+    'to_monitor'                => 'À surveiller',
+    'sufficient'                => 'Suffisant',
+    'inactive'                  => 'Inactif',
+    'stock_in'                  => 'Entrée en stock',
+    'stock_out'                 => 'Sortie de stock',
 
     // ==================== USERS & LANGUAGE ====================
     'profile'                   => 'Mon Profil',

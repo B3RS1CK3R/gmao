@@ -53,7 +53,6 @@ return [
     'recent_interventions'      => 'Recent Interventions',
     'quick_actions'             => 'Quick Actions',
     'advanced_analysis'         => 'Advanced Analysis',
-    'critical_stock'            => 'Critical Stock',
     'no_alerts'                 => 'No alerts to report',
     'no_interventions'          => 'No interventions',
 
@@ -177,7 +176,7 @@ return [
     'intervention_list'         => 'Interventions List',
     'plan_maintenance'             => 'Plan Maintenance',
     'preventive_maintenance_list'  => 'Preventive Maintenance List',
-    'per_intervention'              => 'Per intervention',
+    'per_intervention'             => 'Per intervention',
 
     // ==================== STOCK ====================
     'part_number'               => 'Part Number',
@@ -186,6 +185,10 @@ return [
     'max_quantity'              => 'Max Quantity',
     'stock_list'                => 'Stock List',
     'references'                => 'References',
+    'add_part'                  => 'Add Part',
+    'critical_stock'            => 'Critical Stock',
+    'stock_in'                  => 'Stock In',
+    'stock_out'                 => 'Stock Out',
 
     // ==================== USERS & LANGUAGE ====================
     'profile'                   => 'My Profile',

@@ -656,19 +656,19 @@ endif;
                             
                             if($part['quantity'] < 0) {
                                 $status_class = 'status-inactive';
-                                $status_text = '⚫ ' . t('inactive');
+                                $status_text = '⚫ ';
                                 $bg_class = '';
                             } elseif($part['quantity'] <= $part['min_quantity']) {
                                 $status_class = 'status-critical';
-                                $status_text = '🔴 ' . t('critical_stock');
+                                $status_text = '🔴 ';
                                 $bg_class = 'table-danger';
                             } elseif($part['quantity'] <= $part['min_quantity'] * 2) {
                                 $status_class = 'status-warning';
-                                $status_text = '🟡 ' . t('to_monitor');
+                                $status_text = '🟡 ';
                                 $bg_class = 'table-warning';
                             } else {
                                 $status_class = 'status-ok';
-                                $status_text = '🟢 ' . t('sufficient');
+                                $status_text = '🟢 ';
                                 $bg_class = '';
                             }
                         ?>
@@ -811,8 +811,8 @@ endif;
     </div>
     
     <!-- Legend -->
-    <div class="row mt-3">
-        <div class="col-md-12">
+    <div class="row mb-4">
+        <div class="col-12">
             <div class="stock-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-center gap-4 flex-wrap">
