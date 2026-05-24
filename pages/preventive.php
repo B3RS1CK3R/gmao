@@ -39,7 +39,7 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
 
 // Edit preventive maintenance
 if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $next_due = date('Y-m-d', strtotime($_POST['last_done'] . ' + ' . $_POST['frequency_days'] . ' days'));
+    $next_due = date('Y-m-d', strtotime($_POST['last_done'] . ' + ' . $_POST['frequency_days'] . ' ' . t('days_s')));
     
     $sql = "UPDATE preventive_maintenance SET 
             equipment_id = ?, 
@@ -98,7 +98,7 @@ if($action == 'complete' && isset($_GET['id'])) {
     $pm = $stmt->fetch();
     
     if($pm) {
-        $next_due = date('Y-m-d', strtotime($today . ' + ' . $pm['frequency_days'] . ' days'));
+        $next_due = date('Y-m-d', strtotime($today . ' + ' . $pm['frequency_days'] . ' ' . t('days_s')));
         
         $stmt2 = $pdo->prepare("UPDATE preventive_maintenance SET last_done = ?, next_due = ? WHERE id = ?");
         $stmt2->execute([$today, $next_due, $_GET['id']]);
@@ -179,7 +179,7 @@ if($action == 'add'):
                     <label class="form-label"><?php echo t('frequency_days'); ?> <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <input type="number" name="frequency_days" class="form-control" min="1" required>
-                        <span class="input-group-text"><?php echo t('days'); ?></span>
+                        <span class="input-group-text"><?php echo t('days_s'); ?></span>
                     </div>
                     <small class="text-muted"><?php echo t('frequency_help'); ?></small>
                 </div>
@@ -254,7 +254,7 @@ if($action == 'edit' && isset($_GET['id'])):
                     <label class="form-label"><?php echo t('frequency_days'); ?> <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <input type="number" name="frequency_days" class="form-control" min="1" value="<?php echo $pm['frequency_days']; ?>" required>
-                        <span class="input-group-text"><?php echo t('days'); ?></span>
+                        <span class="input-group-text"><?php echo t('days_s'); ?></span>
                     </div>
                 </div>
                 <div class="col-md-6 mb-3">
@@ -264,7 +264,7 @@ if($action == 'edit' && isset($_GET['id'])):
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('next_due'); ?></label>
                     <input type="date" name="next_due" class="form-control" value="<?php echo $pm['next_due']; ?>" readonly>
-                    <small class="text-muted">Calculated automatically</small>
+                    <small class="text-muted"><?php echo t('calculated_automatically'); ?></small>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label"><?php echo t('assigned_team'); ?></label>
@@ -402,7 +402,7 @@ endif;
                     }
                     echo $upcoming_count;
                 ?></h3>
-                <p class="text-muted mb-0"><?php echo t('upcoming'); ?> (30 <?php echo t('days'); ?>)</p>
+                <p class="text-muted mb-0"><?php echo t('upcoming'); ?> (30 <?php echo t('days_s'); ?>)</p>
             </div>
         </div>
     </div>
@@ -417,7 +417,7 @@ endif;
                     }
                     echo $ok_count;
                 ?></h3>
-                <p class="text-muted mb-0">Maintenances OK</p>
+                <p class="text-muted mb-0"><?php echo t('maintenance_ok'); ?></p>
             </div>
         </div>
     </div>
@@ -463,8 +463,8 @@ endif;
                     <tr>
                         <td><strong><?php echo htmlspecialchars($pm['equipment_name']); ?></strong></td>
                         <td><?php echo htmlspecialchars($pm['equipment_code']); ?></td>
-                        <td><?php echo t('every'); ?> <?php echo $pm['frequency_days']; ?> <?php echo t('days'); ?><br>
-                            <small class="text-muted">(<?php echo round($pm['frequency_days'] / 30, 1); ?> <?php echo t('months'); ?>)</small>
+                        <td><?php echo t('every'); ?> <?php echo $pm['frequency_days']; ?> <?php echo t('days_s'); ?><br>
+                            <small class="text-muted">(<?php echo round($pm['frequency_days'] / 30, 1); ?> <?php echo t('month_s'); ?>)</small>
                         </td>
                         <td><?php echo $pm['last_done'] ? date('m/d/Y', strtotime($pm['last_done'])) : t('never'); ?></td>
                         <td>
@@ -472,7 +472,7 @@ endif;
                             <?php if(strtotime($pm['next_due']) < time()): ?>
                                 <br><small class="text-danger"><?php echo t('overdue_by'); ?> <?php echo abs(round($days_diff)); ?> <?php echo t('days'); ?></small>
                             <?php elseif($days_diff <= 30): ?>
-                                <br><small class="text-warning"><?php echo t('in'); ?> <?php echo round($days_diff); ?> <?php echo t('days'); ?></small>
+                                <br><small class="text-warning"><?php echo t('in'); ?> <?php echo round($days_diff); ?> <?php echo t('days_s'); ?></small>
                             <?php endif; ?>
                         </td>
                         <td><span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span></td>
@@ -504,9 +504,9 @@ endif;
         <div class="info-card">
             <div class="card-body">
                 <div class="d-flex justify-content-center gap-4">
-                    <div><span class="status-badge status-overdue">🔴 <?php echo t('overdue'); ?></span> <small>Maintenance to perform immediately</small></div>
-                    <div><span class="status-badge status-upcoming">🟡 <?php echo t('upcoming'); ?> (< 30d)</span> <small>Maintenance to schedule soon</small></div>
-                    <div><span class="status-badge status-ok">🟢 OK</span> <small>Maintenance on schedule</small></div>
+                    <div><span class="status-badge status-overdue">🔴 <?php echo t('overdue'); ?></span> <small><?php echo t('maintenance_overdue'); ?></small></div>
+                    <div><span class="status-badge status-upcoming">🟡 <?php echo t('upcoming'); ?> (< 30d)</span> <small><?php echo t('maintenance_upcoming'); ?></small></div>
+                    <div><span class="status-badge status-ok">🟢 OK</span> <small><?php echo t('maintenance_ok'); ?></small></div>
                 </div>
             </div>
         </div>

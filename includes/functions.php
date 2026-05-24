@@ -95,7 +95,7 @@ function getEquipment($id = null) {
         return $stmt->fetch();
     } else {
         $stmt = $pdo->query("SELECT e.*, 
-                             (SELECT COUNT(*) FROM interventions WHERE equipment_id = e.id AND status = 'pending') as pending_interventions
+                             (SELECT COUNT(*) FROM interventions WHERE equipment_id = e.id AND task_status = 'pending') as pending_interventions
                              FROM equipment e ORDER BY e.name");
         return $stmt->fetchAll();
     }
@@ -156,19 +156,19 @@ function getDashboardStats() {
     $stats['total_equipment'] = $stmt->fetch()['total'];
     
     // Count of currently active (pending or in-progress) interventions
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM interventions WHERE status IN ('pending', 'in_progress')");
+    $stmt = $pdo->query("SELECT COUNT(*) as total FROM interventions WHERE task_status IN ('pending', 'in_progress')");
     $stats['active_interventions'] = $stmt->fetch()['total'];
     
     // Number of interventions completed during the current month
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM interventions 
-                         WHERE status = 'completed' 
+                         WHERE task_status IN ('completed', 'closed') 
                          AND MONTH(created_at) = MONTH(CURRENT_DATE()) 
                          AND YEAR(created_at) = YEAR(CURRENT_DATE())");
     $stats['completed_interventions'] = $stmt->fetch()['total'];
     
     // Average duration of completed interventions in hours
-    $stmt = $pdo->query("SELECT AVG(TIMESTAMPDIFF(HOUR, start_date, end_date)) as avg_duration 
-                         FROM interventions WHERE status = 'completed' AND end_date IS NOT NULL");
+    $stmt = $pdo->query("SELECT AVG(duration_hours) as avg_duration 
+                         FROM interventions WHERE task_status IN ('completed', 'closed') AND duration_hours IS NOT NULL");
     $stats['avg_intervention_duration'] = round($stmt->fetch()['avg_duration'] ?? 0, 1);
     
     // Count of spare parts with quantity at or below minimum threshold
@@ -681,7 +681,7 @@ function calculateMTBF($equipment_id) {
         SELECT created_at FROM interventions 
         WHERE equipment_id = ? 
         AND type = 'corrective'
-        AND status = 'completed'
+        AND task_status IN ('completed', 'closed')
         ORDER BY created_at ASC
     ");
     $stmt->execute([$equipment_id]);
@@ -715,7 +715,7 @@ function calculateMTTR($equipment_id) {
         SELECT duration_hours FROM interventions 
         WHERE equipment_id = ? 
         AND type = 'corrective'
-        AND status = 'completed'
+        AND task_status IN ('completed', 'closed')
         AND duration_hours IS NOT NULL
     ");
     $stmt->execute([$equipment_id]);
@@ -745,7 +745,7 @@ function calculateAvailability($equipment_id, $days = 30) {
         SELECT SUM(duration_hours) as total_downtime
         FROM interventions 
         WHERE equipment_id = ? 
-        AND status = 'completed'
+        AND task_status IN ('completed', 'closed')
         AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
     ");
     $stmt->execute([$equipment_id, $days]);

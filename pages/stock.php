@@ -680,11 +680,11 @@ endif;
                                 <?php if($part['quantity'] >= 0): ?>
                                 <div class="progress" style="height: 6px;">
                                     <div class="progress-bar <?php echo $stock_percent <= 30 ? 'bg-danger' : ($stock_percent <= 60 ? 'bg-warning' : 'bg-success'); ?>" 
-                                         style="width: <?php echo $stock_percent; ?>%"></div>
+                                        style="width: <?php echo $stock_percent; ?>%"></div>
                                 </div>
                                 <small><?php echo $part['quantity']; ?> / <?php echo $part['min_quantity']; ?></small>
                                 <?php endif; ?>
-                             </td>
+                            </td>
                             <td><span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span></td>
                             <td><?php echo htmlspecialchars($part['location'] ?: '-'); ?></td>
                             <td><?php echo number_format($part['unit_price'], 2); ?> €</td>
