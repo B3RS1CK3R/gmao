@@ -243,6 +243,10 @@ return [
     'delete_confirm'            => 'Are you sure you want to delete this item? This action cannot be undone.',
     'delete_warning'            => 'Deleting this item will remove it from the system permanently.',
     'delete_part_confirm'       => 'Are you sure you want to delete this part? This action cannot be undone.',
+    'critical_desc'             => 'Critical stock level - immediate action required',
+    'monitor_desc'              => 'Stock level to monitor - consider replenishment soon',
+    'sufficient_desc'           => 'Sufficient stock level - no immediate action needed',
+    'inactive_desc'             => 'Inactive stock level - review and take necessary action',
 
     // ==================== USERS & LANGUAGE ====================
     'profile'                   => 'My Profile',

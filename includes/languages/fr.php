@@ -243,6 +243,10 @@ return [
     'delete_part'               => 'Supprimer la pièce',
     'delete_part_confirm'       => 'Êtes-vous sûr de vouloir supprimer cette pièce ? Cette action est irréversible.',
     'delete_warning'            => 'Supprimer cet élément le supprimera définitivement du système.',
+    'critical_desc'             => 'Niveau de stock critique - action immédiate requise',
+    'monitor_desc'              => 'Niveau de stock à surveiller - envisager un approvisionnement bientôt',
+    'sufficient_desc'           => 'Niveau de stock suffisant - aucune action immédiate nécessaire',
+    'inactive_desc'             => 'Niveau de stock inactif - réviser et prendre les mesures nécessaires',
 
     // ==================== USERS & LANGUAGE ====================
     'profile'                   => 'Mon Profil',
