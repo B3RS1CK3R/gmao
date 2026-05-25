@@ -824,7 +824,7 @@ endif;
                             </td>
                             <td style="max-width: 150px;">
                                 <?php if(!empty($history[$inv['id']])): ?>
-                                    <?php foreach(array_slice($history[$inv['id']], 0, 2) as $h): ?>
+                                    <?php foreach(array_slice($history[$inv['id']], 0, 1) as $h): ?>
                                     <div class="history-item">
                                         <?php
                                         $action_icons = [

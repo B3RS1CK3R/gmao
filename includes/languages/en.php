@@ -28,6 +28,7 @@ return [
     'status'                    => 'Status',
     'date'                      => 'Date',
     'created_at'                => 'Created at',
+    'created_by'                => 'Created by',
     'updated_at'                => 'Updated at',
     'yes'                       => 'Yes',
     'no'                        => 'No',
@@ -146,7 +147,8 @@ return [
     'last_done'                 => 'Last Done',
     'next_due'                  => 'Next Due',
     'team'                      => 'Team',
-
+    'low_stock_title'           => 'Low Stock',
+    'remaining'                 => 'remaining',
     // Days
     'monday'                    => 'Monday',
     'tuesday'                   => 'Tuesday',
@@ -198,6 +200,7 @@ return [
     'save_before_adding_documents' => 'Please save the equipment before adding documents',
     'active_description'        => 'The equipment is active and operational.',
     'maintenance_description'   => 'The equipment is currently under maintenance.',
+    'maintenance'               => 'Under Maintenance',
     'broken'                    => 'Broken',
     'retired'                   => 'Retired',
     'broken_description'        => 'The equipment is broken and not operational.',
@@ -250,12 +253,14 @@ return [
     'edit_intervention'         => 'Edit Intervention',
     'auto_increment'            => 'Auto-incremented',
     'back_to_list'              => 'Back to List',
+    'intervention_updated'      => 'Intervention updated',
 
     // ==================== PREVENTIVE MAINTENANCE ====================
     'frequency_days'            => 'Frequency (days)',
     'calculated_automatically'  => 'Calculated automatically',
     'assigned_team'             => 'Assigned Team',
     'instructions'              => 'Instructions',
+    'every'                     => 'Every',
 
     // ==================== STOCK ====================
     'part_number'               => 'Part Number',

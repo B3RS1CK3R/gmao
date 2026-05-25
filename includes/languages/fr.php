@@ -27,6 +27,7 @@ return [
     'status'                    => 'Statut',
     'date'                      => 'Date',
     'created_at'                => 'Créé le',
+    'created_by'                => 'Créé par',
     'updated_at'                => 'Modifié le',
     'yes'                       => 'Oui',
     'no'                        => 'Non',
@@ -56,7 +57,7 @@ return [
     'recent_interventions'      => 'Interventions Récentes',
     'quick_actions'             => 'Actions Rapides',
     'advanced_analysis'         => 'Analyse Avancée',
-    'critical_stock'            => 'Stock Critique',
+    'critical_stock'            => 'Critique',
     'no_alerts'                 => 'Aucune alerte à signaler',
     'no_interventions'          => 'Aucune intervention',
 
@@ -145,6 +146,8 @@ return [
     'last_done'                 => 'Dernière inter.',
     'next_due'                  => 'Prochaine inter.',
     'team'                      => 'Équipe',
+    'low_stock_title'           => 'Stock Faible',
+    'remaining'                 => 'restants',
 
     // Days
     'monday'                    => 'Lundi',
@@ -196,7 +199,8 @@ return [
     'save_before_adding_documents' => 'Veuillez enregistrer l\'équipement avant d\'ajouter des documents',
     'active_description'        => 'L\'équipement est actif et opérationnel.',
     'maintenance_description'   => 'L\'équipement est actuellement en maintenance.',
-    'broken'                    => 'Cassé',
+    'maintenance'               => 'En maintenance',
+    'broken'                    => 'Innactif',
     'retired'                   => 'Retiré',
     'broken_description'        => 'L\'équipement est cassé et non opérationnel.',
     'retired_description'       => 'L\'équipement est retiré et n\'est plus en usage.',
@@ -249,12 +253,16 @@ return [
     'edit_intervention'         => 'Modifier l\'intervention',
     'auto_increment'            => 'Auto-incrémenté',
     'back_to_list'              => 'Retour à la liste',
+    'Task Number'               => 'N° de tâche',
+    'Intervention Type'         => 'Type d\'intervention',
+    'intervention_updated'      => 'Intervention mise à jour',
 
     // ==================== PREVENTIVE MAINTENANCE ====================
     'frequency_days'            => 'Fréquence (jours)',
     'calculated_automatically'  => 'Calculé automatiquement',
     'assigned_team'             => 'Équipe assignée',
     'instructions'              => 'Instructions',
+    'every'                     => 'Tous les',
 
     // ==================== STOCK ====================
     'part_number'               => 'N° pièce',
@@ -266,7 +274,7 @@ return [
     'stock_list'                => 'Liste du Stock',
     'references'                => 'Références',
     'add_part'                  => 'Ajouter une pièce',
-    'critical_stock'            => 'Stock critique',
+    'critical_stock'            => 'Critique',
     'to_monitor'                => 'À surveiller',
     'sufficient'                => 'Suffisant',
     'inactive'                  => 'Inactif',

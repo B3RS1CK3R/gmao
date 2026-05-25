@@ -191,27 +191,27 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                 <div class="card-body p-4">
                     <table class="table table-sm table-borderless mb-0">
                         <tr>
-                            <td style="width: 40%;"><strong>Task Number</strong></td>
+                            <td style="width: 40%;"><strong><?php echo t('task_number'); ?></strong></td>
                             <td><?php echo htmlspecialchars($intervention['task_number'] ?? 'N/A'); ?></td>
                         </tr>
                         <tr>
-                            <td><strong>Title</strong></td>
+                            <td><strong><?php echo t('title'); ?></strong></td>
                             <td><?php echo htmlspecialchars($intervention['title']); ?></td>
                         </tr>
                         <tr>
-                            <td><strong>Created At</strong></td>
+                            <td><strong><?php echo t('created_at'); ?></strong></td>
                             <td><?php echo format_date_us($intervention['created_at'], true); ?></td>
                         </tr>
                         <tr>
-                            <td><strong>Created By</strong></td>
+                            <td><strong><?php echo t('created_by'); ?></strong></td>
                             <td><?php echo htmlspecialchars($intervention['created_by_name'] ?? $intervention['reported_by']); ?></td>
                         </tr>
                         <tr>
-                            <td><strong>Priority</strong></td>
+                            <td><strong><?php echo t('priority'); ?></strong></td>
                             <td><span class="priority-badge priority-<?php echo $intervention['priority']; ?>"><?php echo ucfirst($intervention['priority']); ?></span></td>
                         </tr>
                         <tr>
-                            <td><strong>Status</strong></td>
+                            <td><strong><?php echo t('status'); ?></strong></td>
                             <td>
                                 <span class="status-badge status-<?php echo $intervention['task_status']; ?>">
                                 <?php 
@@ -233,31 +233,31 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <!-- Card: Equipment -->
             <div class="info-card">
                 <div class="card-header-custom">
-                    <i class="fas fa-microchip"></i> Equipment
+                    <i class="fas fa-microchip"></i> <?php echo t('Equipment'); ?>
                 </div>
                 <div class="card-body p-4">
                     <table class="table table-sm table-borderless mb-0">
                         <tr>
-                            <td style="width: 40%;"><strong>Name</strong></td>
+                            <td style="width: 40%;"><strong><?php echo t('name'); ?></strong></td>
                             <td><?php echo htmlspecialchars($intervention['equipment_name']); ?></td>
                         </tr>
                         <tr>
-                            <td><strong>Code</strong></td>
+                            <td><strong><?php echo t('code'); ?></strong></td>
                             <td><?php echo htmlspecialchars($intervention['equipment_code']); ?></td>
                         </tr>
                         <tr>
-                            <td><strong>Location</strong></td>
+                            <td><strong><?php echo t('location'); ?></strong></td>
                             <td><?php echo htmlspecialchars($intervention['equipment_location'] ?: 'Not specified'); ?></td>
                         </tr>
                         <?php if($intervention['zone']): ?>
                         <tr>
-                            <td><strong>Zone</strong></td>
+                            <td><strong><?php echo t('zone'); ?></strong></td>
                             <td><?php echo htmlspecialchars($intervention['zone']); ?></td>
                         </tr>
                         <?php endif; ?>
                         <?php if($intervention['localisation']): ?>
                         <tr>
-                            <td><strong>Localisation</strong></td>
+                            <td><strong><?php echo t('localisation'); ?></strong></td>
                             <td><?php echo htmlspecialchars($intervention['localisation']); ?></td>
                         </tr>
                         <?php endif; ?>
@@ -279,15 +279,15 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                     <?php if($intervention['firstname']): ?>
                         <table class="table table-sm table-borderless mb-0">
                             <tr>
-                                <td style="width: 40%;"><strong>Name</strong></td>
+                                <td style="width: 40%;"><strong><?php echo t('name'); ?></strong></td>
                                 <td><?php echo htmlspecialchars($intervention['firstname'] . ' ' . $intervention['lastname']); ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Specialty</strong></td>
+                                <td><strong><?php echo t('specialty'); ?></strong></td>
                                 <td><?php echo htmlspecialchars($intervention['specialty']); ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Phone</strong></td>
+                                <td><strong><?php echo t('phone'); ?></strong></td>
                                 <td><?php echo htmlspecialchars($intervention['technician_phone'] ?: 'Not provided'); ?></td>
                             </tr>
                         </table>
@@ -318,7 +318,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                 <div class="card-body p-4">
                     <table class="table table-sm table-borderless mb-0">
                         <tr>
-                            <td style="width: 40%;"><strong>Task Type</strong></td>
+                            <td style="width: 40%;"><strong><?php echo t('task_type'); ?></strong></td>
                             <td>
                                 <?php 
                                 $type_labels = [
@@ -338,7 +338,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Planned Date</strong></td>
+                            <td><strong><?php echo t('planned_date'); ?></strong></td>
                             <td>
                                 <?php echo $intervention['intervention_date'] ? format_date_us($intervention['intervention_date'], false) : 'Not planned'; ?>
                                 <?php if(strtotime($intervention['intervention_date']) < time() && $intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee'): ?>
@@ -347,18 +347,18 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Planned Duration</strong></td>
+                            <td><strong><?php echo t('planned_duration'); ?></strong></td>
                             <td><?php echo htmlspecialchars($intervention['planned_duration'] ?? 'Not specified'); ?></td>
                         </tr>
                         <?php if($intervention['duration_hours']): ?>
                         <tr>
-                            <td><strong>Actual Duration</strong></td>
+                            <td><strong><?php echo t('actual_duration'); ?></strong></td>
                             <td><?php echo $intervention['duration_hours']; ?> hours</td>
                         </tr>
                         <?php endif; ?>
                         <?php if($intervention['completed_date']): ?>
                         <tr>
-                            <td><strong>Completion Date</strong></td>
+                            <td><strong><?php echo t('completion_date'); ?></strong></td>
                             <td><?php echo format_date_us($intervention['completed_date'], true); ?></td>
                         </tr>
                         <?php endif; ?>
@@ -368,7 +368,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             
             <!-- Card: Description -->
             <div class="info-card">
-                < class="card-header-custom">
+                <div class="card-header-custom">
                     <i class="fas fa-clipboard-list"></i> <?php echo t('description'); ?>
                 </div>
                 <div class="card-body p-4">

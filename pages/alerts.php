@@ -151,7 +151,7 @@ foreach($warrantyExpiring as $eq) {
 // 6. Unassigned interventions older than 3 days
 $stmt = $pdo->query("
     SELECT i.*, e.name as equipment_name, e.code as equipment_code,
-           DATEDIFF(NOW(), i.created_at) as days_old
+        DATEDIFF(NOW(), i.created_at) as days_old
     FROM interventions i
     JOIN equipment e ON i.equipment_id = e.id
     WHERE i.intervenant_id IS NULL 
