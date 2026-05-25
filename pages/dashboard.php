@@ -33,7 +33,7 @@ $recentInterventions = getRecentInterventions(5);
         <div class="col-md-3">
             <div class="card text-white bg-primary stat-card" onclick="window.location.href='?page=equipment'" style="cursor: pointer;">
                 <div class="card-body">
-                    <h5 class="card-title"><?php echo t('equipment'); ?></h5>
+                    <h5 class="card-title"><?php echo t('equipments'); ?></h5>
                     <h2><?php echo $stats['total_equipment'] ?? 0; ?></h2>
                     <p class="mb-0"><?php echo t('active'); ?></p>
                 </div>

@@ -308,9 +308,9 @@ if(!$logs) $logs = [];
                         <label class="form-label"><?php echo t('role'); ?> <span class="text-danger">*</span></label>
                         <select name="role" id="role" class="form-select" required>
                             <option value="viewer">👁️ <?php echo t('viewer'); ?></option>
-                            <option value="technician">🔧 <?php echo t('technician_role'); ?></option>
+                            <option value="technician">🔧 <?php echo t('technician'); ?></option>
                             <option value="supervisor">📋 <?php echo t('supervisor'); ?></option>
-                            <option value="admin">👑 <?php echo t('admin'); ?></option>
+                            <option value="admin">👑 <?php echo t('administrator'); ?></option>
                         </select>
                     </div>
                     <div class="col-md-6 mb-3">
@@ -367,9 +367,9 @@ if(!$logs) $logs = [];
                         <label class="form-label"><?php echo t('role'); ?></label>
                         <select name="role" class="form-select">
                             <option value="viewer" <?php if($user['role'] == 'viewer') echo 'selected'; ?>><?php echo t('viewer'); ?></option>
-                            <option value="technician" <?php if($user['role'] == 'technician') echo 'selected'; ?>><?php echo t('technician_role'); ?></option>
+                            <option value="technician" <?php if($user['role'] == 'technician') echo 'selected'; ?>><?php echo t('technician'); ?></option>
                             <option value="supervisor" <?php if($user['role'] == 'supervisor') echo 'selected'; ?>><?php echo t('supervisor'); ?></option>
-                            <option value="admin" <?php if($user['role'] == 'admin') echo 'selected'; ?>><?php echo t('admin'); ?></option>
+                            <option value="admin" <?php if($user['role'] == 'admin') echo 'selected'; ?>><?php echo t('administrator'); ?></option>
                         </select>
                     </div>
                     <div class="col-md-6 mb-3">
@@ -466,7 +466,7 @@ if(!$logs) $logs = [];
                                     <?php 
                                     if($user['role'] == 'admin') echo '👑 ' . t('admin');
                                     elseif($user['role'] == 'supervisor') echo '📋 ' . t('supervisor');
-                                    elseif($user['role'] == 'technician') echo '🔧 ' . t('technician_role');
+                                    elseif($user['role'] == 'technician') echo '🔧 ' . t('technician');
                                     else echo '👁️ ' . t('viewer');
                                     ?>
                                 </span>
@@ -516,7 +516,7 @@ if(!$logs) $logs = [];
     <!-- Journal des actions - IMPROVED VERSION with clearer messages -->
     <div class="card mt-4">
         <div class="card-header bg-secondary text-white">
-            <h5 class="mb-0"><i class="fas fa-history"></i> <?php echo t('action_log'); ?> - Detailed Activity History</h5>
+            <h5 class="mb-0"><i class="fas fa-history"></i> <?php echo t('action_log'); ?></h5>
         </div>
         <div class="card-body p-0">
             <div class="log-table-container">

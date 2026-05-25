@@ -421,7 +421,7 @@ $best_performers = array_slice($equipments_perf, 0, 5);
                         <td>
                             <div class="progress" style="height: 20px;">
                                 <div class="progress-bar bg-<?php echo $eq['availability'] >= 95 ? 'success' : ($eq['availability'] >= 85 ? 'warning' : 'danger'); ?>" 
-                                     style="width: <?php echo $eq['availability']; ?>%">
+                                    style="width: <?php echo $eq['availability']; ?>%">
                                     <?php echo $eq['availability']; ?>%
                                 </div>
                             </div>
