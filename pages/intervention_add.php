@@ -168,7 +168,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         <?php endif; ?>
         
-        <a href="?page=interventions" class="back-link">
+        <a href="?page=interventions" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> <?php echo t('back_to_list'); ?>
         </a>
         

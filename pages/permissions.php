@@ -93,7 +93,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-lock"></i> Role Access Management</h2>
+        <h2><i class="fas fa-lock"></i> <?php echo t('role_access_management'); ?></h2>
     </div>
 
     <?php if(isset($message)): ?>
@@ -102,25 +102,24 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     <div class="alert alert-info">
         <i class="fas fa-info-circle"></i> 
-        <strong>Admin</strong> has access to all pages by default (cannot be changed).
-        Uncheck a page to restrict access for a specific role.
+        <strong>Admin</strong> <?php echo t('admin_desc'); ?>
     </div>
 
     <form method="POST">
         <div class="info-card permissions-table">
             <div class="card-header-custom primary">
-                <i class="fas fa-table"></i> Page access by role
+                <i class="fas fa-table"></i> <?php echo t('page_access_by_role'); ?>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-bordered mb-0">
                         <thead>
                             <tr>
-                                <th>Page</th>
-                                <th>Admin</th>
-                                <th>Supervisor</th>
-                                <th>Technician</th>
-                                <th>Viewer</th>
+                                <th><?php echo t('page'); ?></th>
+                                <th><?php echo t('administrator'); ?></th>
+                                <th><?php echo t('supervisor'); ?></th>
+                                <th><?php echo t('technician'); ?></th>
+                                <th><?php echo t('viewer'); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -152,8 +151,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
         <div class="mt-3">
-            <button type="submit" class="btn btn-primary">Save changes</button>
-            <a href="?page=dashboard" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary"> <?php echo t('save_changes'); ?> </button>
+            <a href="?page=dashboard" class="btn btn-secondary"> <?php echo t('cancel'); ?> </a>
         </div>
     </form>
 </div>

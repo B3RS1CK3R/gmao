@@ -342,7 +342,7 @@ $status_labels = [
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-warning text-dark">
-                <i class="fas fa-calendar-check"></i> <?php echo t('preventive_maintenances'); ?>
+                <i class="fas fa-calendar-check"></i> <?php echo t('preventive_maintenance'); ?>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">

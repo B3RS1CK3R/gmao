@@ -8,7 +8,7 @@ if(!isset($_SESSION['user_id'])) {
 // Récupérer toutes les interventions avec date
 $stmt = $pdo->query("
     SELECT i.*, e.name as equipment_name, e.code as equipment_code,
-           t.firstname, t.lastname, t.specialty
+        t.firstname, t.lastname, t.specialty
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
     LEFT JOIN technicians t ON i.intervenant_id = t.id
@@ -79,6 +79,8 @@ $unassigned_text = t('unassigned');
         .modal-header-low { background: #28a745; color: white; }
         .filter-bar { background: white; border-radius: 12px; padding: 12px 20px; margin-bottom: 20px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .view-buttons .btn { border-radius: 20px; padding: 5px 15px; font-size: 13px; }
+        .view-btn .active { background-color: #0d6efd !important; color: #0d6efd !important; color: white !important;}
+        .view-btn:not(.active) { background-color: transparent; color: #0d6efd; border: 1px solid #0d6efd; }
         .btn-export { background: #28a745; color: white; border: none; border-radius: 20px; padding: 5px 15px; font-size: 13px; }
         .btn-export:hover { background: #1e7e34; color: white; }
         .fc-daygrid-day { cursor: pointer; }
@@ -121,9 +123,9 @@ $unassigned_text = t('unassigned');
     <div class="filter-bar">
         <div class="view-buttons">
             <span class="me-2 text-muted"><?php echo t('view'); ?> :</span>
-            <button class="btn btn-sm btn-outline-primary" onclick="changeView('dayGridMonth')"><?php echo t('month_view'); ?></button>
-            <button class="btn btn-sm btn-outline-primary" onclick="changeView('timeGridWeek')"><?php echo t('week_view'); ?></button>
-            <button class="btn btn-sm btn-outline-primary" onclick="changeView('timeGridDay')"><?php echo t('day_view'); ?></button>
+            <button class="btn btn-sm btn-outline-primary view-btn active" onclick="changeView('dayGridMonth', this)"><?php echo t('month_view'); ?></button>
+            <button class="btn btn-sm btn-outline-primary view-btn" onclick="changeView('timeGridWeek', this)"><?php echo t('week_view'); ?></button>
+            <button class="btn btn-sm btn-outline-primary view-btn" onclick="changeView('timeGridDay', this)"><?php echo t('day_view'); ?></button>
         </div>
         <div>
             <select id="technicianFilter" class="form-select form-select-sm" style="width: 200px; display: inline-block; margin-right: 10px;">
@@ -289,10 +291,23 @@ document.getElementById('technicianFilter').addEventListener('change', function(
     }
 });
 
+function changeView(viewName, button) {
+    // Retirer la classe 'active' de TOUS les boutons
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Ajouter la classe 'active' uniquement au bouton cliqué
+    button.classList.add('active');
+    
+    // Changer la vue du calendrier
+    calendar.changeView(viewName);
+}
+
 setInterval(function() { location.reload(); }, 300000);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-</html>pt>
+</html>
 </body>
 </html>

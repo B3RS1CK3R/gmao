@@ -118,7 +118,39 @@ if ($page === 'login') {
                     case 'preventive':
                         require_once 'pages/preventive.php';
                         break;
-                        
+                    
+                    case 'intervention_detail':
+                        require_once 'pages/intervention_detail.php';
+                        break;
+                    
+                    case 'intervention_view':
+                        require_once 'pages/intervention_view.php';
+                        break;
+                    
+                    case 'intervention_add':
+                        require_once 'pages/intervention_add.php';
+                        break;
+                    
+                    case 'equipment_detail':
+                        require_once 'pages/equipment_detail.php';
+                        break;
+                    
+                    case 'equipment_view':
+                        require_once 'pages/equipment_view.php';
+                        break;
+                    
+                    case 'equipment_qr':
+                        require_once 'pages/equipment_qr.php';
+                        break;
+                    
+                    case 'stock_detail':
+                        require_once 'pages/stock_detail.php';
+                        break;
+                    
+                    case 'calendar':
+                        require_once 'pages/calendar.php';
+                        break;
+
                         if (file_exists("pages/{$page}.php")) {
                             require_once "pages/{$page}.php";
                         } else {

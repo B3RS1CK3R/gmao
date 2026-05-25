@@ -33,7 +33,7 @@
 
             <!-- 3. Interventions -->
             <li class="nav-item">
-                <a href="index.php?page=interventions" class="nav-link <?php echo ($page ?? '') === 'interventions' ? 'active' : ''; ?>">
+                <a href="index.php?page=interventions" class="nav-link <?php echo in_array(($page ?? ''), ['interventions', 'intervention_add', 'intervention_edit']) ? 'active' : ''; ?>">
                     <i class="fas fa-wrench me-2"></i> <?php echo t('interventions'); ?>
                 </a>
             </li>

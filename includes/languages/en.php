@@ -14,7 +14,9 @@ return [
     'login'                     => 'Login',
     'create'                    => 'Create',
     'save'                      => 'Save',
+    'save_changes'              => 'Save Changes',
     'cancel'                    => 'Cancel',
+    'complete'                  => 'Complete',
     'edit'                      => 'Edit',
     'delete'                    => 'Delete',
     'restore'                   => 'Restore',
@@ -47,6 +49,7 @@ return [
     'by'                        => 'By',
     'unknown'                   => 'Unknown',
     'admin_migrations'          => 'Admin Migrations',
+    'run_migrations'            => 'Run Migrations',
 
     // ==================== DASHBOARD ====================
     'view_performance'          => 'View Performance Analysis',
@@ -104,6 +107,8 @@ return [
     'view_planning'             => 'View Planning',
     'deactivate_technician'     => 'Deactivate Technician',
     'deactivate_technician_confirm' => 'Are you sure you want to deactivate this technician?',
+    'all_technicians'            => 'All Technicians',
+    'technician_updated'         => 'Technician updated successfully',
 
     // Priorities & Status
     'critical'                  => 'Critical',
@@ -157,7 +162,10 @@ return [
     'and'                       => 'and',
     'interv_short'              => 'interv.',
     'week_navigation'           => 'Navigate by week',
-
+    'current_datetime'          => 'Current Date and Time',
+    'month_view'                => 'Month View',
+    'week_view'                 => 'Week View',
+    'day_view'                  => 'Day View',
 
     // ==================== COMMON MODULES ====================
     'technicians'               => 'Technicians',
@@ -177,6 +185,8 @@ return [
     'purchase_date'             => 'Purchase Date',
     'warranty_end'              => 'Warranty End',
     'qr_code'                   => 'QR Code',
+    'qr_code_for'               => 'QR Code for',
+    'scan_qr_instruction'       => 'Scan this QR code to quickly access the details of this equipment.',
     'scan_qr'                   => 'Scan QR Code',
     'add_equipment'             => 'Add Equipment',
     'equipment_list'            => 'Equipment List',
@@ -193,6 +203,22 @@ return [
     'broken_description'        => 'The equipment is broken and not operational.',
     'retired_description'       => 'The equipment is retired and no longer in use.',
     'last_modifications'        => 'Last Modification',
+    'general_info'              => 'General Information',
+    'document_label'            => 'Document',
+    'document_path'             => 'Document Path',
+    'add_link'                  => 'Add Link',
+    'print_label'               => 'Print Label',
+    'edit_equipment'            => 'Edit Equipment',
+    'update'                    => 'Update',
+    'upload'                    => 'Upload',
+    'documents'                 => 'Documents',
+    'view_equipment'            => 'View Equipment',
+    'assign_technician'         => 'Assign Technician',
+    'select_equipment'          => 'Select Equipment',
+    'zone_placeholder'          => 'E.g. Production Area, Storage Area, etc.',
+    'localisation_placeholder'  => 'E.g. Workshop A, Building B, etc.',
+    'description_placeholder'   => 'E.g. Flow rate: 500L/min, Power: 15kW, Dimensions: 2m x 1m x 1.5m...',
+    'intervention_type'         => 'E.g. Preventive, Corrective, Emergency...',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'New Intervention',
@@ -208,6 +234,22 @@ return [
     'corrective'                => 'Corrective',
     'emergency'                 => 'Emergency',
     'interventions'             => 'Interventions',
+    'last_interventions'        => 'Last Interventions',
+    'intervention_history'      => 'Intervention History',
+    'complete_intervention'     => 'Complete Intervention',
+    'duration_hours'            => 'Duration (hours)',
+    'completion_report'         => 'Completion Report',
+    'report_placeholder'        => 'Describe the work done, parts replaced, and any important details about the intervention.',
+    'assign'                    => 'Assign',
+    'description'               => 'Description',
+    'task_type'                 => 'Task Type',
+    'planned_duration'          => 'Planned Duration',
+    'zone'                      => 'Zone',
+    'localisation'              => 'Localisation',
+    'create_intervention'       => 'Create Intervention',
+    'edit_intervention'         => 'Edit Intervention',
+    'auto_increment'            => 'Auto-incremented',
+    'back_to_list'              => 'Back to List',
 
     // ==================== PREVENTIVE MAINTENANCE ====================
     'frequency_days'            => 'Frequency (days)',
@@ -250,6 +292,8 @@ return [
     'monitor_desc'              => 'Stock level to monitor - consider replenishment soon',
     'sufficient_desc'           => 'Sufficient stock level - no immediate action needed',
     'inactive_desc'             => 'Inactive stock level - review and take necessary action',
+    'edit_part'                 => 'Edit Part',
+    'last_restock'              => 'Last Restock',
 
     // ==================== USERS & LANGUAGE ====================
     'profile'                   => 'My Profile',
@@ -276,6 +320,9 @@ return [
     'password_match'            => 'The password and confirmation match',
     'password_mismatch'         => 'The password and confirmation do not match',
     'user_created'              => 'User created successfully',
+    'page_access_by_role'       => 'Page access by role',
+    'admin_desc'                => 'has access to all pages by default (cannot be changed). Uncheck a page to restrict access for a specific role.',
+    'role_access_management'    => 'Role Access Management',
 
     // ==================== PLANNING ====================
     'planning_title'            => 'Planning',
@@ -286,6 +333,7 @@ return [
     'total_today'               => 'Total Today',
     'pending'                   => 'Pending',
     'interventions_for'         => 'Interventions for',
+    'click_event_details'       => 'Click on an intervention to view details',
 
     // ==================== IMPORT/EXPORT ====================
     'export_center'                 => 'Export Center',
@@ -373,7 +421,7 @@ return [
     'mttr_trend'                => 'MTTR Trend',
     'failures_by_type'          => 'Failures by Type',
     'top_problematic'           => 'Top Problematic',
-    'failure_count'             => 'Failure Count',
+    'failures_count'             => 'Failure Count',
     'best_performers'           => 'Best Performers',
     'critical_equipment'        => 'Critical Equipment',
     'detailed_performance'      => 'Detailed Performance',
@@ -419,4 +467,5 @@ return [
     'severity'                  => 'Severity',
     'criticality'               => 'Criticality',
     'no_equipment'              => 'No equipment found with criticality scores.',
+    
 ];

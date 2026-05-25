@@ -13,7 +13,9 @@ return [
     'login'                     => 'Connexion',
     'create'                    => 'Créer',
     'save'                      => 'Enregistrer',
+    'save_changes'              => 'Enregistrer les modifications',
     'cancel'                    => 'Annuler',
+    'complete'                  => 'Terminer',
     'edit'                      => 'Modifier',
     'delete'                    => 'Supprimer',
     'restore'                   => 'Restaurer',
@@ -46,6 +48,7 @@ return [
     'by'                        => 'Par',
     'unknown'                   => 'Inconnu',
     'admin_migrations'          => 'Migrations Admin',
+    'run_migrations'            => 'Exécuter les migrations',
 
     // ==================== DASHBOARD ====================
     'view_performance'          => 'Voir l\'Analyse de Performance',
@@ -104,6 +107,7 @@ return [
     'deactivate_technician'     => 'Désactiver le technicien',
     'deactivate_technician_confirm' => 'Êtes-vous sûr de vouloir désactiver ce technicien ?',
     'all_technicians'            => 'Tous les techniciens',
+    'technician_updated'         => 'Technicien mis à jour avec succès',
 
     // Priorities & Status
     'critical'                  => 'Critique',
@@ -157,6 +161,10 @@ return [
     'and'                       => 'et',
     'interv_short'              => 'interv.',
     'week_navigation'           => 'Navigation par semaine',
+    'current_datetime'          => 'Date et heure actuelles',
+    'month_view'                => 'Vue mensuelle',
+    'week_view'                 => 'Vue hebdomadaire',
+    'day_view'                  => 'Vue quotidienne',
 
     // ==================== COMMON MODULES ====================
     'technicians'               => 'Techniciens',
@@ -176,6 +184,8 @@ return [
     'purchase_date'             => 'Date d\'achat',
     'warranty_end'              => 'Fin de garantie',
     'qr_code'                   => 'Code QR',
+    'qr_code_for'               => 'QR Code pour',
+    'scan_qr_instruction'       => 'Scannez ce code QR pour accéder rapidement aux détails de cet équipement.',
     'add_equipment'             => 'Ajouter un équipement',
     'equipment_list'            => 'Liste des équipements',
     'technical_specs'           => 'Spécifications techniques',
@@ -191,6 +201,22 @@ return [
     'broken_description'        => 'L\'équipement est cassé et non opérationnel.',
     'retired_description'       => 'L\'équipement est retiré et n\'est plus en usage.',
     'last_modifications'        => 'Dernière modification',
+    'general_info'              => 'Informations générales',
+    'document_label'            => 'Document',
+    'document_path'             => 'Chemin du document',
+    'add_link'                  => 'Ajouter un lien',
+    'print_label'               => 'Imprimer l\'étiquette',
+    'edit_equipment'            => 'Modifier l\'équipement',
+    'update'                    => 'Mettre à jour',
+    'upload'                    => 'Télécharger',
+    'documents'                 => 'Documents',
+    'view_equipment'            => 'Voir l\'équipement',
+    'assign_technician'         => 'Assigner un technicien',
+    'select_equipment'          => 'Sélectionner un équipement',
+    'zone_placeholder'          => 'Ex. Zone de production, Zone de stockage, etc.',
+    'localisation_placeholder'  => 'Ex. Atelier A, Bâtiment B, etc.',
+    'description_placeholder'   => 'Ex. Débit: 500L/min, Puissance: 15kW, Dimensions: 2m x 1m x 1.5m...',
+    'intervention_type'         => 'Ex. Préventive, Corrective, Urgence...',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'Nouvelle Intervention',
@@ -207,6 +233,22 @@ return [
     'corrective'                => 'Corrective',
     'emergency'                 => 'Urgence',
     'interventions'             => 'Interventions',
+    'last_interventions'        => 'Dernières interventions',
+    'intervention_history'      => 'Historique des interventions',
+    'complete_intervention'     => 'Terminer l\'intervention',
+    'duration_hours'            => 'Durée (heures)',
+    'completion_report'         => 'Rapport de finalisation',
+    'report_placeholder'        => 'Décrivez le travail effectué, les pièces remplacées, et tout détail important concernant l\'intervention.',
+    'assign'                    => 'Assigner',
+    'description'               => 'Description',
+    'task_type'                 => 'Type de tâche',
+    'planned_duration'          => 'Durée prévue',
+    'zone'                      => 'Zone',
+    'localisation'              => 'Localisation',
+    'create_intervention'       => 'Créer l\'intervention',
+    'edit_intervention'         => 'Modifier l\'intervention',
+    'auto_increment'            => 'Auto-incrémenté',
+    'back_to_list'              => 'Retour à la liste',
 
     // ==================== PREVENTIVE MAINTENANCE ====================
     'frequency_days'            => 'Fréquence (jours)',
@@ -249,6 +291,8 @@ return [
     'monitor_desc'              => 'Niveau de stock à surveiller - envisager un approvisionnement bientôt',
     'sufficient_desc'           => 'Niveau de stock suffisant - aucune action immédiate nécessaire',
     'inactive_desc'             => 'Niveau de stock inactif - réviser et prendre les mesures nécessaires',
+    'edit_part'                 => 'Modifier la pièce',
+    'last_restock'              => 'Dernier réapprovisionnement',
 
     // ==================== USERS & LANGUAGE ====================
     'profile'                   => 'Mon Profil',
@@ -275,6 +319,9 @@ return [
     'password_match'            => 'Le mot de passe et sa confirmation correspondent',
     'password_mismatch'         => 'Le mot de passe et sa confirmation ne correspondent pas',
     'user_created'              => 'Utilisateur créé avec succès',
+    'page_access_by_role'       => 'Accès aux pages par rôle',
+    'admin_desc'                => 'a accès à toutes les pages par défaut (ne peut pas être modifié). Décochez une page pour restreindre l\'accès pour un rôle spécifique.',
+    'role_access_management'    => 'Gestion des accès par rôle',
 
     // ==================== PLANNING ====================
     'planning_title'            => 'Planning',
@@ -285,6 +332,7 @@ return [
     'total_today'               => 'Total du jour',
     'pending'                   => 'En attente',
     'interventions_for'         => 'Interventions pour',
+    'click_event_details'       => 'Cliquez sur une intervention pour voir les détails',
 
     // ==================== IMPORT/EXPORT ====================
     'export_center'                 => 'Centre d\'exportation',
@@ -372,7 +420,7 @@ return [
     'mttr_trend'                => 'Tendance du MTTR',
     'failures_by_type'          => 'Défaillances par type',
     'top_problematic'           => 'Les plus problématiques',
-    'failure_count'             => 'Nombre de défaillances',
+    'failures_count'             => 'Nombre de défaillances',
     'best_performers'           => 'Meilleurs opérateurs',
     'critical_equipment'        => 'Équipement critique',
     'detailed_performance'      => 'Performance détaillée',
@@ -417,6 +465,6 @@ return [
     'probability'               => 'Probabilité',
     'severity'                  => 'Gravité',
     'criticality'               => 'Criticité',
-    'no_equipment'              => 'Aucun équipement trouvé avec des scores de criticité.',
+    'no_equipment'              => 'Aucun équipement trouvé avec des scores de criticité.'
 
 ];

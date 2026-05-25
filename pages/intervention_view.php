@@ -167,11 +167,11 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
         </h2>
         <div>
             <a href="?page=interventions" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back
+                <i class="fas fa-arrow-left"></i> <?php echo t('back'); ?>
             </a>
             <?php if($intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee' && ($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor')): ?>
                 <a href="?page=interventions&action=edit&id=<?php echo $intervention['id']; ?>" class="btn btn-warning">
-                    <i class="fas fa-edit"></i> Edit
+                    <i class="fas fa-edit"></i> <?php echo t('edit'); ?>
                 </a>
             <?php endif; ?>
         </div>
@@ -264,7 +264,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                     </table>
                     <div class="mt-3">
                         <a href="?page=equipment_detail&id=<?php echo $intervention['equipment_id']; ?>" class="btn btn-primary w-100">
-                            <i class="fas fa-eye"></i> View Equipment
+                            <i class="fas fa-eye"></i> <?php echo t('view_equipment'); ?>
                         </a>
                     </div>
                 </div>
@@ -273,7 +273,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <!-- Card: Technician -->
             <div class="info-card">
                 <div class="card-header-custom <?php echo $intervention['intervenant_id'] ? 'success' : 'warning'; ?>">
-                    <i class="fas fa-user-cog"></i> Technician
+                    <i class="fas fa-user-cog"></i> <?php echo t('technician'); ?>
                 </div>
                 <div class="card-body p-4">
                     <?php if($intervention['firstname']): ?>
@@ -298,7 +298,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                     <?php if($intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee' && ($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor')): ?>
                         <div class="mt-3">
                             <button type="button" class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#assignModal">
-                                <i class="fas fa-user-plus"></i> Assign Technician
+                                <i class="fas fa-user-plus"></i> <?php echo t('assign_technician'); ?>
                             </button>
                         </div>
                     <?php endif; ?>
@@ -313,7 +313,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <!-- Card: Planning -->
             <div class="info-card">
                 <div class="card-header-custom info">
-                    <i class="fas fa-calendar-alt"></i> Planning
+                    <i class="fas fa-calendar-alt"></i> <?php echo t('planning'); ?>
                 </div>
                 <div class="card-body p-4">
                     <table class="table table-sm table-borderless mb-0">
@@ -368,8 +368,8 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             
             <!-- Card: Description -->
             <div class="info-card">
-                <div class="card-header-custom">
-                    <i class="fas fa-clipboard-list"></i> Description
+                < class="card-header-custom">
+                    <i class="fas fa-clipboard-list"></i> <?php echo t('description'); ?>
                 </div>
                 <div class="card-body p-4">
                     <p class="mb-0"><?php echo nl2br(htmlspecialchars($intervention['description'] ?: 'No description')); ?></p>
@@ -452,11 +452,11 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <?php if($intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee'): ?>
             <div class="action-buttons">
                 <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor' || $_SESSION['role'] == 'technician'): ?>
-                    <a href="?page=interventions&action=complete&id=<?php echo $intervention['id']; ?>" class="btn btn-success">Complete</a>
+                    <a href="?page=interventions&action=complete&id=<?php echo $intervention['id']; ?>" class="btn btn-success"><?php echo t('complete'); ?></a>
                 <?php endif; ?>
                 <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                    <a href="?page=interventions&action=edit&id=<?php echo $intervention['id']; ?>" class="btn btn-warning">Edit</a>
-                    <button type="button" class="btn btn-danger" onclick="confirmCancel()">Cancel</button>
+                    <a href="?page=interventions&action=edit&id=<?php echo $intervention['id']; ?>" class="btn btn-warning"><?php echo t('edit'); ?></a>
+                    <button type="button" class="btn btn-danger" onclick="confirmCancel()"><?php echo t('cancel'); ?> </button>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
