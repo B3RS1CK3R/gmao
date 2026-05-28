@@ -162,7 +162,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>
             <i class="fas fa-tools"></i> 
-            Intervention Details : <?php echo htmlspecialchars($intervention['title']); ?>
+            <?php echo t('intervention_details'); ?> : <?php echo htmlspecialchars($intervention['title']); ?>
             <small class="text-muted">(<?php echo htmlspecialchars($intervention['task_number'] ?? 'N/A'); ?>)</small>
         </h2>
         <div>
@@ -170,9 +170,6 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                 <i class="fas fa-arrow-left"></i> <?php echo t('back'); ?>
             </a>
             <?php if($intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee' && ($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor')): ?>
-                <a href="?page=interventions&action=edit&id=<?php echo $intervention['id']; ?>" class="btn btn-warning">
-                    <i class="fas fa-edit"></i> <?php echo t('edit'); ?>
-                </a>
             <?php endif; ?>
         </div>
     </div>
@@ -186,7 +183,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <!-- Card: Identification -->
             <div class="info-card">
                 <div class="card-header-custom">
-                    <i class="fas fa-info-circle"></i> Identification
+                    <i class="fas fa-info-circle"></i> <?php echo t('identification'); ?>
                 </div>
                 <div class="card-body p-4">
                     <table class="table table-sm table-borderless mb-0">
@@ -233,7 +230,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <!-- Card: Equipment -->
             <div class="info-card">
                 <div class="card-header-custom">
-                    <i class="fas fa-microchip"></i> <?php echo t('Equipment'); ?>
+                    <i class="fas fa-microchip"></i> <?php echo t('equipment'); ?>
                 </div>
                 <div class="card-body p-4">
                     <table class="table table-sm table-borderless mb-0">
@@ -342,7 +339,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                             <td>
                                 <?php echo $intervention['intervention_date'] ? format_date_us($intervention['intervention_date'], false) : 'Not planned'; ?>
                                 <?php if(strtotime($intervention['intervention_date']) < time() && $intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee'): ?>
-                                    <span class="badge bg-danger ms-2">Overdue</span>
+                                    <span class="badge bg-danger ms-2"><?php echo t('overdue'); ?></span>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -380,7 +377,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <?php if($intervention['completion_report']): ?>
             <div class="info-card">
                 <div class="card-header-custom success">
-                    <i class="fas fa-file-alt"></i> Completion Report
+                    <i class="fas fa-file-alt"></i> <?php echo t('completion_report'); ?>
                 </div>
                 <div class="card-body p-4">
                     <?php echo nl2br(htmlspecialchars($intervention['completion_report'])); ?>
@@ -392,7 +389,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <?php if(!empty($used_parts)): ?>
             <div class="info-card">
                 <div class="card-header-custom info">
-                    <i class="fas fa-boxes"></i> Parts Used
+                    <i class="fas fa-boxes"></i> <?php echo t('parts_used'); ?>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -432,7 +429,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <?php if(!empty($history)): ?>
             <div class="info-card">
                 <div class="card-header-custom">
-                    <i class="fas fa-history"></i> Modifications History
+                    <i class="fas fa-history"></i> <?php echo t('modification_history'); ?>
                 </div>
                 <div class="card-body p-3">
                     <?php foreach($history as $h): ?>

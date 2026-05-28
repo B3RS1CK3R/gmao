@@ -50,6 +50,9 @@ return [
     'unknown'                   => 'Inconnu',
     'admin_migrations'          => 'Migrations Admin',
     'run_migrations'            => 'Exécuter les migrations',
+    'permissions'               => 'Permissions',
+    'download'                  => 'Télécharger',
+    'view_all'                  => 'Voir tout',
 
     // ==================== DASHBOARD ====================
     'view_performance'          => 'Voir l\'Analyse de Performance',
@@ -148,6 +151,7 @@ return [
     'team'                      => 'Équipe',
     'low_stock_title'           => 'Stock Faible',
     'remaining'                 => 'restants',
+    'modification_history'      => 'Historique des Modifications',
 
     // Days
     'monday'                    => 'Lundi',
@@ -221,6 +225,7 @@ return [
     'localisation_placeholder'  => 'Ex. Atelier A, Bâtiment B, etc.',
     'description_placeholder'   => 'Ex. Débit: 500L/min, Puissance: 15kW, Dimensions: 2m x 1m x 1.5m...',
     'intervention_type'         => 'Ex. Préventive, Corrective, Urgence...',
+    'equipment_attachments'     => 'Pièces jointes de l\'équipement',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'Nouvelle Intervention',
@@ -256,6 +261,9 @@ return [
     'Task Number'               => 'N° de tâche',
     'Intervention Type'         => 'Type d\'intervention',
     'intervention_updated'      => 'Intervention mise à jour',
+    'equipment_and_location'    => 'Équipement et localisation',
+    'planning_and_organisation' => 'Planification et Organisation',
+    'identification'            => 'Identification',
 
     // ==================== PREVENTIVE MAINTENANCE ====================
     'frequency_days'            => 'Fréquence (jours)',
@@ -263,6 +271,7 @@ return [
     'assigned_team'             => 'Équipe assignée',
     'instructions'              => 'Instructions',
     'every'                     => 'Tous les',
+    'add_maintenance'           => 'Ajouter une maintenance préventive',
 
     // ==================== STOCK ====================
     'part_number'               => 'N° pièce',
@@ -407,9 +416,11 @@ return [
     'alerts_description'        => 'Description des alertes',
     'Maintenance to perform immediately' => 'Maintenance à effectuer immédiatement',
     'Critical Stock'            => 'Stock critique',
-    'critical_intervention'    => 'Intervention critique',
+    'critical_intervention'     => 'Intervention critique',
     'weekly_reports'            => 'Rapports hebdomadaires',
     'alerts_check_hourly'       => 'Le système vérifie les conditions d\'alerte toutes les heures et envoie des notifications aux destinataires spécifiés lorsque nécessaire.',
+    'smtp_host_help'            => 'Entrez l\'adresse du serveur SMTP (par exemple, smtp.gmail.com).',
+    'smtp_port_help'            => 'Entrez le port du serveur SMTP (par exemple, 587 pour TLS ou 465 pour SSL).',
 
     // ==================== PERFORMANCE ====================
     'performance_analysis'      => 'Analyse de la performance',
@@ -451,6 +462,17 @@ return [
     'warranty_expired_title'    => 'Garantie Expirée',
     'warranty_expired'          => 'Garantie expirée',
     'overdue_by'                => 'En retard de',
+    'count_days'                => 'jours',
+    'stock_critical_title'      => 'Alerte Stock Critique',
+    'only'                      => 'seulement',
+    'units'                     => 'unités',
+    'on'                        => 'sur',
+    'hours'                     => 'heures',
+    'days_ago'                  => 'jours',
+    'warranty_upcoming_title'   => 'Garantie expire bientôt',
+    'days_left'                 => 'jours restants',
+    'unassigned_intervention_title' => 'Intervention non assignée',
+    'waiting_assignment'        => 'en attente d\'assignation depuis',
 
     // ==================== CRITICALITY ====================
     'criticality_matrix'        => 'Matrice de criticité',

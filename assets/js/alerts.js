@@ -255,7 +255,7 @@ class AlertSystem {
         
         badges.forEach(badge => {
             const link = badge.closest('.nav-link');
-            if (link && link.getAttribute('href') === '?page=alerts') {
+            if (link && (link.getAttribute('href') === '?page=alerts' || link.getAttribute('href') === 'index.php?page=alerts')) {
                 badge.textContent = total;
                 badge.style.display = total > 0 ? 'inline-block' : 'none';
             }

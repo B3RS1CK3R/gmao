@@ -75,8 +75,9 @@
 
             <!-- 9. Alerts -->
             <li class="nav-item">
-                <a href="index.php?page=alerts" class="nav-link <?php echo ($page ?? '') === 'alerts' ? 'active' : ''; ?>">
+                <a href="index.php?page=alerts" class="nav-link notification-badge <?php echo ($page ?? '') === 'alerts' ? 'active' : ''; ?>">
                     <i class="fas fa-bell me-2"></i> <?php echo t('alerts'); ?>
+                    <span class="badge-count" style="display: none;">0</span>
                 </a>
             </li>
 

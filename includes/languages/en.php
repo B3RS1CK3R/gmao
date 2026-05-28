@@ -51,6 +51,9 @@ return [
     'unknown'                   => 'Unknown',
     'admin_migrations'          => 'Admin Migrations',
     'run_migrations'            => 'Run Migrations',
+    'permissions'               => 'Permissions',
+    'download'                  => 'Download',
+    'view_all'                  => 'View All',
 
     // ==================== DASHBOARD ====================
     'view_performance'          => 'View Performance Analysis',
@@ -149,6 +152,8 @@ return [
     'team'                      => 'Team',
     'low_stock_title'           => 'Low Stock',
     'remaining'                 => 'remaining',
+    'modification_history'      => 'Modification History',
+    
     // Days
     'monday'                    => 'Monday',
     'tuesday'                   => 'Tuesday',
@@ -222,6 +227,9 @@ return [
     'localisation_placeholder'  => 'E.g. Workshop A, Building B, etc.',
     'description_placeholder'   => 'E.g. Flow rate: 500L/min, Power: 15kW, Dimensions: 2m x 1m x 1.5m...',
     'intervention_type'         => 'E.g. Preventive, Corrective, Emergency...',
+    'equipment_and_location'    => 'Equipment and Location',
+    'planning_and_organisation' => 'Planning and Organisation',
+    'identification'            => 'Identification',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'New Intervention',
@@ -261,6 +269,7 @@ return [
     'assigned_team'             => 'Assigned Team',
     'instructions'              => 'Instructions',
     'every'                     => 'Every',
+    'add_maintenance'           => 'Add Preventive Maintenance',
 
     // ==================== STOCK ====================
     'part_number'               => 'Part Number',
@@ -408,6 +417,8 @@ return [
     'critical_intervention'     => 'Critical Intervention',
     'weekly_reports'            => 'Weekly Reports',
     'alerts_check_hourly'       => 'The system checks for alert conditions every hour and sends notifications to the specified recipients when necessary.',
+    'smtp_host_help'            => 'Enter the SMTP server address (e.g., smtp.gmail.com).',
+    'smtp_port_help'            => 'Enter the SMTP server port (e.g., 587 for TLS or 465 for SSL).',
 
     // ==================== PERFORMANCE ====================
     'performance_analysis'      => 'Performance Analysis',
@@ -449,6 +460,17 @@ return [
     'warranty_expired_title'    => 'Warranty Expired',
     'warranty_expired'          => 'Warranty expired',
     'overdue_by'                => 'Overdue by',
+    'count_days'                => 'days',
+    'stock_critical_title'      => 'Critical Stock Alert',
+    'only'                      => 'only',
+    'units'                     => 'units',
+    'on'                        => 'on',
+    'hours'                     => 'hours',
+    'days_ago'                  => 'days ago',
+    'warranty_upcoming_title'   => 'Warranty expiring soon',
+    'days_left'                 => 'days left',
+    'unassigned_intervention_title' => 'Unassigned Intervention',
+    'waiting_assignment'        => 'waiting for assignment for',
 
     // ==================== CRITICALITY ====================
     'criticality_matrix'        => 'Criticality Matrix',

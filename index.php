@@ -150,6 +150,10 @@ if ($page === 'login') {
                     case 'calendar':
                         require_once 'pages/calendar.php';
                         break;
+                    
+                    case 'equipment_attachments':
+                        require_once 'pages/equipment_attachments.php';
+                        break;
 
                         if (file_exists("pages/{$page}.php")) {
                             require_once "pages/{$page}.php";
@@ -190,5 +194,7 @@ if ($page === 'login') {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/alerts.js"></script>
 </body>
+</html>ody>
 </html>
