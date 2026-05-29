@@ -262,6 +262,102 @@ $best_performers = array_slice($equipments_perf, 0, 5);
     }
     .badge-critical { background: #dc3545; color: white; }
     .badge-warning { background: #ffc107; color: #333; }
+    
+    /* Legend grid styles */
+    .legend-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .legend-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
+    }
+    .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        text-align: center;
+    }
+    .legend-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 15px;
+        border-radius: 10px;
+        transition: transform 0.2s, background 0.2s;
+        cursor: default;
+    }
+    .legend-item:hover {
+        transform: translateY(-3px);
+    }
+    /* Couleurs spécifiques pour chaque indicateur (comme les KPI cards) */
+    .legend-item-mtbf {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .legend-item-mttr {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: #333;
+    }
+    .legend-item-availability {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        color: #333;
+    }
+    .legend-item-failures {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+    .legend-icon {
+        font-size: 28px;
+    }
+    .legend-label {
+        font-weight: 700;
+        font-size: 14px;
+    }
+    .legend-desc {
+        font-size: 11px;
+        opacity: 0.9;
+    }
+    .legend-item-mtbf .legend-desc,
+    .legend-item-failures .legend-desc {
+        color: rgba(255, 255, 255, 0.85);
+    }
+    .legend-item-mttr .legend-desc,
+    .legend-item-availability .legend-desc {
+        color: rgba(0, 0, 0, 0.6);
+    }
+    
+    @media (max-width: 768px) {
+        .legend-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+    }
+    @media (max-width: 480px) {
+        .legend-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    /* Dark table headers for consistency with other pages */
+    .table-dark th {
+        background: #212529;
+        color: white;
+        padding: 12px 15px;
+        font-weight: 600;
+        vertical-align: middle;
+    }
+    .table td {
+        padding: 12px 15px;
+        vertical-align: middle;
+        border-bottom: 1px solid #eee;
+    }
 </style>
 
 <div class="container-fluid">
@@ -294,7 +390,7 @@ $best_performers = array_slice($equipments_perf, 0, 5);
             </div>
         </div>
         <div class="col-md-3">
-            <div class="kpi-card">
+            <div class="kpi-card kpi-danger">
                 <div class="kpi-value"><?php echo $total_failures; ?></div>
                 <div class="kpi-label"><i class="fas fa-exclamation-triangle"></i> <?php echo t('total_failures'); ?></div>
                 <small><?php echo t('failures_recorded'); ?></small>
@@ -336,7 +432,7 @@ $best_performers = array_slice($equipments_perf, 0, 5);
                 </div>
                 <div class="table-responsive">
                     <table class="table mb-0">
-                        <thead class="table-light">
+                        <thead class="table-dark">
                             <tr>
                                 <th><?php echo t('equipment'); ?></th>
                                 <th><?php echo t('mtbf'); ?></th>
@@ -363,7 +459,7 @@ $best_performers = array_slice($equipments_perf, 0, 5);
                 </div>
                 <div class="table-responsive">
                     <table class="table mb-0">
-                        <thead class="table-light">
+                        <thead class="table-dark">
                             <tr>
                                 <th><?php echo t('equipment'); ?></th>
                                 <th><?php echo t('mtbf'); ?></th>
@@ -396,7 +492,7 @@ $best_performers = array_slice($equipments_perf, 0, 5);
         </div>
         <div class="table-responsive">
             <table class="table mb-0">
-                <thead class="table-light">
+                <thead class="table-dark">
                     <tr>
                         <th><?php echo t('equipment'); ?></th>
                         <th><?php echo t('code'); ?></th>
@@ -476,6 +572,49 @@ $best_performers = array_slice($equipments_perf, 0, 5);
             ?>
         </ul>
     </div>
+    
+    <!-- Legend with card layout - using same colors as KPI cards -->
+    <div class="legend-card mt-4">
+        <div class="legend-header">
+            <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
+        </div>
+        <div class="card-body p-4">
+            <div class="legend-grid">
+                <!-- MTBF - same color as KPI card -->
+                <div class="legend-item legend-item-mtbf">
+                    <div class="legend-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="legend-label"><?php echo t('mtbf'); ?></div>
+                    <div class="legend-desc"><?php echo t('mtbf_description'); ?></div>
+                </div>
+                <!-- MTTR - same color as KPI warning -->
+                <div class="legend-item legend-item-mttr">
+                    <div class="legend-icon">
+                        <i class="fas fa-wrench"></i>
+                    </div>
+                    <div class="legend-label"><?php echo t('mttr'); ?></div>
+                    <div class="legend-desc"><?php echo t('mttr_description'); ?></div>
+                </div>
+                <!-- Availability - same color as KPI good -->
+                <div class="legend-item legend-item-availability">
+                    <div class="legend-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="legend-label"><?php echo t('availability'); ?></div>
+                    <div class="legend-desc"><?php echo t('availability_description'); ?></div>
+                </div>
+                <!-- Total Failures - same color as KPI danger -->
+                <div class="legend-item legend-item-failures">
+                    <div class="legend-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="legend-label"><?php echo t('total_failures'); ?></div>
+                    <div class="legend-desc"><?php echo t('failures_recorded'); ?></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -549,6 +688,12 @@ new Chart(ctx3, {
                 title: {
                     display: true,
                     text: '<?php echo t("failures_count"); ?>'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: '<?php echo t("equipment"); ?>'
                 }
             }
         }

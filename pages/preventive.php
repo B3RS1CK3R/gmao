@@ -39,7 +39,7 @@ if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
 
 // Edit preventive maintenance
 if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $next_due = date('Y-m-d', strtotime($_POST['last_done'] . ' + ' . $_POST['frequency_days'] . ' ' . t('days_s')));
+    $next_due = date('Y-m-d', strtotime($_POST['last_done'] . ' + ' . $_POST['frequency_days'] . ' days'));
     
     $sql = "UPDATE preventive_maintenance SET 
             equipment_id = ?, 
@@ -98,7 +98,7 @@ if($action == 'complete' && isset($_GET['id'])) {
     $pm = $stmt->fetch();
     
     if($pm) {
-        $next_due = date('Y-m-d', strtotime($today . ' + ' . $pm['frequency_days'] . ' ' . t('days_s')));
+        $next_due = date('Y-m-d', strtotime($today . ' + ' . $pm['frequency_days'] . ' days'));
         
         $stmt2 = $pdo->prepare("UPDATE preventive_maintenance SET last_done = ?, next_due = ? WHERE id = ?");
         $stmt2->execute([$today, $next_due, $_GET['id']]);
@@ -350,6 +350,50 @@ endif;
     .status-upcoming { background: #ffc107; color: #333; }
     .status-ok { background: #28a745; color: white; }
     .action-buttons .btn { padding: 4px 8px; margin: 0 2px; }
+    
+    /* Legend grid styles */
+    .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        text-align: center;
+    }
+    .legend-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+    .legend-item:hover {
+        transform: translateY(-2px);
+        background: #e9ecef;
+    }
+    .legend-item i {
+        font-size: 20px;
+    }
+    .legend-item .status-badge {
+        font-size: 12px;
+        padding: 5px 12px;
+    }
+    .legend-item small {
+        font-size: 11px;
+        color: #6c757d;
+    }
+    @media (max-width: 768px) {
+        .legend-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+    }
+    @media (max-width: 480px) {
+        .legend-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -498,15 +542,27 @@ endif;
     </div>
 </div>
 
-<!-- Legend -->
-<div class="row mt-3">
-    <div class="col-md-12">
+<!-- Legend with card layout -->
+<div class="row mb-4">
+    <div class="col-12">
         <div class="info-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-center gap-4">
-                    <div><span class="status-badge status-overdue">🔴 <?php echo t('overdue'); ?></span> <small><?php echo t('maintenance_overdue'); ?></small></div>
-                    <div><span class="status-badge status-upcoming">🟡 <?php echo t('upcoming'); ?> (< 30d)</span> <small><?php echo t('maintenance_upcoming'); ?></small></div>
-                    <div><span class="status-badge status-ok">🟢 OK</span> <small><?php echo t('maintenance_ok'); ?></small></div>
+            <div class="card-header-custom" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
+                <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
+            </div>
+            <div class="card-body p-3">
+                <div class="legend-grid">
+                    <div class="legend-item">
+                        <span class="status-badge status-overdue">🔴 <?php echo t('overdue'); ?></span>
+                        <small><?php echo t('maintenance_overdue'); ?></small>
+                    </div>
+                    <div class="legend-item">
+                        <span class="status-badge status-upcoming">🟡 <?php echo t('upcoming'); ?> (< 30d)</span>
+                        <small><?php echo t('maintenance_upcoming'); ?></small>
+                    </div>
+                    <div class="legend-item">
+                        <span class="status-badge status-ok">🟢 OK</span>
+                        <small><?php echo t('maintenance_ok'); ?></small>
+                    </div>
                 </div>
             </div>
         </div>

@@ -112,6 +112,9 @@ return [
     'deactivate_technician_confirm' => 'Êtes-vous sûr de vouloir désactiver ce technicien ?',
     'all_technicians'            => 'Tous les techniciens',
     'technician_updated'         => 'Technicien mis à jour avec succès',
+    'active_desc'                => 'Le technicien est actif et disponible pour les interventions.',
+    'inactive_desc'              => 'Le technicien est inactif et ne peut pas être assigné à des interventions.',
+    'on_leave_desc'              => 'Le technicien est en congé et ne peut pas être assigné à des interventions.',
 
     // Priorities & Status
     'critical'                  => 'Critique',
@@ -430,6 +433,9 @@ return [
     'availability'              => 'Disponibilité',
     'total_failures'            => 'Défaillances totales',
     'performance_charts'        => 'Graphiques de performance',
+    'mtbf_short_desc'           => 'MTBF (Mean Time Between Failures) - Temps moyen entre les défaillances',
+    'mttr_short_desc'           => 'MTTR (Mean Time To Repair) - Temps moyen pour réparer',
+    'availability_short_desc'   => 'Disponibilité - Pourcentage de temps opérationnel',
     'mtbf_description'          => 'Le MTBF (Mean Time Between Failures) est un indicateur de performance clé qui mesure le temps moyen entre les défaillances d\'équipement. Un MTBF plus élevé indique une meilleure fiabilité et moins de pannes fréquentes.',
     'mttr_description'          => 'Le MTTR (Mean Time To Repair) est un indicateur de performance clé qui mesure le temps moyen nécessaire pour réparer un équipement après une défaillance. Un MTTR plus faible indique des réparations plus rapides et moins de temps d\'arrêt.',
     'availability_description'  => 'La disponibilité est un indicateur de performance clé qui mesure le pourcentage de temps pendant lequel l\'équipement est opérationnel et disponible pour être utilisé. Elle est calculée en utilisant la formule : Disponibilité = MTBF / (MTBF + MTTR). Un pourcentage de disponibilité plus élevé indique une meilleure performance et moins de temps d\'arrêt.',
@@ -441,7 +447,7 @@ return [
     'top_problematic'           => 'Les plus problématiques',
     'failures_count'             => 'Nombre de défaillances',
     'best_performers'           => 'Meilleurs opérateurs',
-    'critical_equipment'        => 'Équipement critique',
+    'critical_equipment'        => 'Équipements critique',
     'detailed_performance'      => 'Performance détaillée',
     'recommendations'           => 'Recommandations',
     'failures'                  => 'Défaillances',

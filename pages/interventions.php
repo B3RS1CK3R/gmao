@@ -581,10 +581,12 @@ endif;
         gap: 5px;
         justify-content: center;
         align-items: center;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
+        max-width: 105px;
+        margin: 0 auto;
     }
-    .action-buttons .btn {
-        padding: 5px 8px;
+    .action-buttons .btn, .action-buttons .disabled-icon {
+        padding: 5px;
         margin: 0;
         border-radius: 6px;
         font-size: 12px;
@@ -592,21 +594,9 @@ endif;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 28px;
-        height: 28px;
-    }
-    .action-buttons .btn i {
-        font-size: 12px;
-    }
-    .disabled-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 28px;
-        height: 28px;
-        background: #e9ecef;
-        border-radius: 6px;
-        color: #6c757d;
+        width: 30px;
+        height: 30px;
+        flex: 0 0 30px;
     }
     
     .table-responsive {
@@ -620,6 +610,7 @@ endif;
         color: white;
         padding: 12px 15px;
         font-weight: 600;
+        vertical-align: middle;
     }
     .table td {
         padding: 12px 15px;
@@ -779,7 +770,7 @@ endif;
                             <th><?php echo t('technician'); ?></th>
                             <th><?php echo t('planned_date'); ?></th>
                             <th><?php echo t('last_modifications'); ?></th>
-                            <th class="text-center"><?php echo t('actions'); ?></th>
+                            <th class="text-center" style="width: 120px;"><?php echo t('actions'); ?></th>
                         </tr>
                     </thead>
                     <tbody>

@@ -113,6 +113,8 @@ return [
     'deactivate_technician_confirm' => 'Are you sure you want to deactivate this technician?',
     'all_technicians'            => 'All Technicians',
     'technician_updated'         => 'Technician updated successfully',
+    'active_desc'                => 'The technician is active and available for interventions.',
+    'on_leave_desc'              => 'The technician is on leave and cannot be assigned to interventions.',
 
     // Priorities & Status
     'critical'                  => 'Critical',
@@ -428,6 +430,9 @@ return [
     'availability'              => 'Availability',
     'total_failures'            => 'Total Failures',
     'performance_charts'        => 'Performance Charts',
+    'mtbf_short_desc'           => 'MTBF (Mean Time Between Failures) - Average time between failures',
+    'mttr_short_desc'           => 'MTTR (Mean Time To Repair) - Average time to repair',
+    'availability_short_desc'   => 'Availability - Percentage of time equipment is operational',
     'mtbf_description'          => 'Mean Time Between Failures (MTBF) is a key performance indicator that measures the average time between equipment failures. A higher MTBF indicates better reliability and less frequent breakdowns.',
     'mttr_description'          => 'Mean Time To Repair (MTTR) is a key performance indicator that measures the average time required to repair equipment after a failure. A lower MTTR indicates faster repairs and less downtime.',
     'availability_description'  => 'Availability is a key performance indicator that measures the percentage of time that equipment is operational and available for use. It is calculated using the formula: Availability = MTBF / (MTBF + MTTR). A higher availability percentage indicates better performance and less downtime.',

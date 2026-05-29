@@ -501,11 +501,45 @@ endif;
     }
     .table-row-clickable { cursor: pointer; transition: background 0.2s; }
     .table-row-clickable:hover { background: #f8f9fa; }
-    .action-buttons .btn { padding: 4px 8px; margin: 0 2px; border-radius: 6px; }
-    .progress-bar-custom {
-        height: 8px;
-        border-radius: 4px;
-        transition: width 0.5s;
+    .table-dark th {
+        background: #212529;
+        color: white;
+        padding: 12px 15px;
+        font-weight: 600;
+        vertical-align: middle;
+    }
+    .table td {
+        padding: 12px 15px;
+        vertical-align: middle;
+        border-bottom: 1px solid #eee;
+    }
+    .table tr:hover {
+        background: #f8f9fa;
+    }
+
+    /* Action buttons - 2x2 grid layout with original dimensions */
+    .action-buttons {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+        justify-content: center;
+    }
+    .action-buttons-row {
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+    }
+    .action-icon-btn {
+        width: 30px !important;
+        height: 30px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 12px !important;
+        line-height: 1 !important;
+        border-radius: 6px !important;
     }
     .stats-card {
         text-align: center;
@@ -573,6 +607,59 @@ endif;
         background: #17a2b8;
         border: none;
         border-radius: 6px;
+    }
+
+    /* Legend grid styles */
+    .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        text-align: center;
+    }
+
+    .legend-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+
+    .legend-item:hover {
+        transform: translateY(-2px);
+        background: #e9ecef;
+    }
+
+    .legend-item i {
+        font-size: 20px;
+    }
+
+    .legend-item .status-badge {
+        font-size: 12px;
+        padding: 5px 12px;
+    }
+
+    .legend-item small {
+        font-size: 11px;
+        color: #6c757d;
+    }
+
+    /* Responsive: sur mobile, passer à 2 colonnes */
+    @media (max-width: 768px) {
+        .legend-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+    }
+
+    /* Responsive: sur très petit mobile, passer à 1 colonne */
+    @media (max-width: 480px) {
+        .legend-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 
@@ -647,7 +734,7 @@ endif;
                             <th><?php echo t('unit_price'); ?></th>
                             <th><?php echo t('documentation'); ?></th>
                             <th><?php echo t('last_modifications'); ?></th>
-                            <th class="text-center"><?php echo t('actions'); ?></th>
+                            <th class="text-center" style="width: 90px;"><?php echo t('actions'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -718,25 +805,31 @@ endif;
                             </td>
                             <td class="text-center action-buttons" onclick="event.stopPropagation()">
                                 <?php if($part['quantity'] >= 0): ?>
-                                    <button type="button" class="btn btn-sm btn-success" title="<?php echo t('stock_in'); ?>" data-bs-toggle="modal" data-bs-target="#movementInModal<?php echo $part['id']; ?>">
-                                        <i class="fas fa-plus-circle"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-warning" title="<?php echo t('stock_out'); ?>" data-bs-toggle="modal" data-bs-target="#movementOutModal<?php echo $part['id']; ?>">
-                                        <i class="fas fa-minus-circle"></i>
-                                    </button>
-                                    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                    <a href="?page=stock&action=edit&id=<?php echo $part['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="?page=stock&action=delete&id=<?php echo $part['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('delete'); ?>">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                    <?php endif; ?>
+                                    <div class="action-buttons">
+                                        <div class="action-buttons-row">
+                                            <button type="button" class="btn btn-sm btn-success action-icon-btn" title="<?php echo t('stock_in'); ?>" data-bs-toggle="modal" data-bs-target="#movementInModal<?php echo $part['id']; ?>">
+                                                <i class="fas fa-plus-circle"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-warning action-icon-btn" title="<?php echo t('stock_out'); ?>" data-bs-toggle="modal" data-bs-target="#movementOutModal<?php echo $part['id']; ?>">
+                                                <i class="fas fa-minus-circle"></i>
+                                            </button>
+                                        </div>
+                                        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+                                            <div class="action-buttons-row">
+                                                <a href="?page=stock&action=edit&id=<?php echo $part['id']; ?>" class="btn btn-sm btn-primary action-icon-btn" title="<?php echo t('edit'); ?>">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="?page=stock&action=delete&id=<?php echo $part['id']; ?>" class="btn btn-sm btn-danger action-icon-btn" title="<?php echo t('delete'); ?>">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
                                 <?php else: ?>
                                     <?php if($_SESSION['role'] == 'admin'): ?>
-                                    <a href="?page=stock&action=restore&id=<?php echo $part['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('restore'); ?>" onclick="return confirm('<?php echo t('restore_confirm'); ?>')">
-                                        <i class="fas fa-undo-alt"></i>
-                                    </a>
+                                        <a href="?page=stock&action=restore&id=<?php echo $part['id']; ?>" class="btn btn-sm btn-success action-icon-btn" title="<?php echo t('restore'); ?>" onclick="return confirm('<?php echo t('restore_confirm'); ?>')">
+                                            <i class="fas fa-undo-alt"></i>
+                                        </a>
                                     <?php endif; ?>
                                 <?php endif; ?>
                             </td>
@@ -814,15 +907,43 @@ endif;
     <div class="row mb-4">
         <div class="col-12">
             <div class="stock-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-center gap-4 flex-wrap">
-                        <div><span class="status-badge status-critical">🔴 <?php echo t('critical_stock'); ?></span> <small><?php echo t('critical_desc'); ?></small></div>
-                        <div><span class="status-badge status-warning">🟡 <?php echo t('to_monitor'); ?></span> <small><?php echo t('monitor_desc'); ?></small></div>
-                        <div><span class="status-badge status-ok">🟢 <?php echo t('sufficient'); ?></span> <small><?php echo t('sufficient_desc'); ?></small></div>
-                        <div><span class="status-badge status-inactive">⚫ <?php echo t('inactive'); ?></span> <small><?php echo t('inactive_desc'); ?></small></div>
-                        <div><i class="fas fa-plus-circle text-success"></i> <small><?php echo t('stock_in'); ?></small></div>
-                        <div><i class="fas fa-minus-circle text-warning"></i> <small><?php echo t('stock_out'); ?></small></div>
-                        <div><i class="fas fa-file-alt text-info"></i> <small><?php echo t('documentation'); ?></small></div>
+                <div class="stock-card-header">
+                    <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
+                </div>
+                <div class="card-body p-3">
+                    <div class="legend-grid">
+                        <div class="legend-item">
+                            <span class="status-badge status-critical">🔴 <?php echo t('critical_stock'); ?></span>
+                            <small><?php echo t('critical_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-warning">🟡 <?php echo t('to_monitor'); ?></span>
+                            <small><?php echo t('monitor_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-ok">🟢 <?php echo t('sufficient'); ?></span>
+                            <small><?php echo t('sufficient_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-inactive">⚫ <?php echo t('inactive'); ?></span>
+                            <small><?php echo t('inactive_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <i class="fas fa-plus-circle text-success"></i>
+                            <small><?php echo t('stock_in'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <i class="fas fa-minus-circle text-warning"></i>
+                            <small><?php echo t('stock_out'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <i class="fas fa-edit text-primary"></i>
+                            <small><?php echo t('edit'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <i class="fas fa-trash text-danger"></i>
+                            <small><?php echo t('delete'); ?></small>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -631,6 +631,50 @@ endif;
         border: none;
         border-radius: 6px;
     }
+    
+    /* Legend grid styles */
+    .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        text-align: center;
+    }
+    .legend-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+    .legend-item:hover {
+        transform: translateY(-2px);
+        background: #e9ecef;
+    }
+    .legend-item i {
+        font-size: 20px;
+    }
+    .legend-item .status-badge {
+        font-size: 12px;
+        padding: 5px 12px;
+    }
+    .legend-item small {
+        font-size: 11px;
+        color: #6c757d;
+    }
+    @media (max-width: 768px) {
+        .legend-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+    }
+    @media (max-width: 480px) {
+        .legend-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
 <div class="container-fluid">
@@ -777,15 +821,27 @@ endif;
         </div>
     </div>
     
-    <!-- Legend -->
-    <div class="row mt-3">
-        <div class="col-md-12">
+    <!-- Legend with card layout -->
+    <div class="row mb-4">
+        <div class="col-12">
             <div class="info-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-center gap-4">
-                        <div><span class="status-badge status-active">🟢 <?php echo t('active'); ?></span> <small><?php echo t('active_desc'); ?></small></div>
-                        <div><span class="status-badge status-on_leave">🟡 <?php echo t('on_leave'); ?></span> <small><?php echo t('on_leave_desc'); ?></small></div>
-                        <div><span class="status-badge status-inactive">⚫ <?php echo t('inactive'); ?></span> <small><?php echo t('inactive_desc'); ?></small></div>
+                <div class="card-header-custom">
+                    <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
+                </div>
+                <div class="card-body p-3">
+                    <div class="legend-grid">
+                        <div class="legend-item">
+                            <span class="status-badge status-active">🟢 <?php echo t('active'); ?></span>
+                            <small><?php echo t('active_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-on_leave">🟡 <?php echo t('on_leave'); ?></span>
+                            <small><?php echo t('on_leave_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-inactive">⚫ <?php echo t('inactive'); ?></span>
+                            <small><?php echo t('inactive_desc'); ?></small>
+                        </div>
                     </div>
                 </div>
             </div>
