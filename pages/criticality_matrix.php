@@ -134,6 +134,47 @@ $sevLabels = [
     .bg-critical-warning { background-color: #fff3cd; }  /* jaune */
     .bg-critical-orange  { background-color: #ffe0b3; }  /* orange */
     .bg-critical-danger   { background-color: #f8d7da; }  /* rouge */
+
+    /* ========== AMÉLIORATIONS LÉGENDE ========== */
+    .legend-section {
+        padding: 1rem 1.25rem !important;
+        line-height: 1.6;
+    }
+
+    .legend-section ul {
+        margin-bottom: 0.5rem;
+        padding-left: 1.5rem;
+    }
+
+    .legend-section li {
+        margin-bottom: 0.35rem;
+    }
+
+    .criticality-levels {
+        padding: 0.75rem 1rem;
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        margin-top: 0.5rem;
+    }
+
+    /* ========== AMÉLIORATIONS TABLE DES ÉQUIPEMENTS ========== */
+    .equipment-table-section .card-body {
+        padding: 0 !important;
+    }
+
+    .equipment-table-section table {
+        margin-bottom: 0;
+    }
+
+    .equipment-table-section th,
+    .equipment-table-section td {
+        padding: 12px 10px 12px 15px !important;
+        vertical-align: middle;
+    }
+
+    .equipment-table-section tbody tr {
+        height: 50px;
+    }
 </style>
 
 <div class="container-fluid">
@@ -187,11 +228,12 @@ $sevLabels = [
         </div>
     </div>
 
+    <!-- SECTION LÉGENDE - VERSION AMÉLIORÉE -->
     <div class="info-card">
         <div class="card-header-custom">
             <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
         </div>
-        <div class="card-body">
+        <div class="card-body legend-section">
             <div class="row">
                 <div class="col-md-6">
                     <strong><?php echo t('probability_scale'); ?></strong>
@@ -214,21 +256,21 @@ $sevLabels = [
                     </ul>
                 </div>
             </div>
-            <div class="mt-3">
+            <div class="criticality-levels">
                 <strong><?php echo t('criticality_levels'); ?></strong><br>
                 <span class="legend-color" style="background-color:#d4edda;"></span> <?php echo t('low_criticality'); ?> (score 1-4)<br>
                 <span class="legend-color" style="background-color:#fff3cd;"></span> <?php echo t('medium_criticality'); ?> (score 5-9)<br>
                 <span class="legend-color" style="background-color:#ffe0b3;"></span> <?php echo t('high_criticality'); ?> (score 10-15)<br>
                 <span class="legend-color" style="background-color:#f8d7da;"></span> <?php echo t('very_high_criticality'); ?> (score 16-25)<br>
             </div>
-            <div class="mt-2 small text-muted">
+            <div class="mt-3 small text-muted">
                 <?php echo t('tooltip_instruction'); ?>
             </div>
         </div>
     </div>
 
-    <!-- Liste des équipements avec scores -->
-    <div class="info-card">
+    <!-- SECTION LISTE DES ÉQUIPEMENTS - VERSION AMÉLIORÉE -->
+    <div class="info-card equipment-table-section">
         <div class="card-header-custom">
             <i class="fas fa-list"></i> <?php echo t('equipment_list_with_scores'); ?>
         </div>
@@ -266,7 +308,7 @@ $sevLabels = [
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
-                </div>
+                </table>
             </div>
         </div>
     </div>

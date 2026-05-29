@@ -206,6 +206,33 @@ if($action == 'add'):
         border-radius: 8px;
         margin-bottom: 20px;
     }
+    .custom-file-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+    .custom-file-wrapper input[type="file"] {
+        position: absolute;
+        opacity: 0;
+        width: 0.1px;
+        height: 0.1px;
+        overflow: hidden;
+    }
+    .upload-section {
+        padding-top: 8px;
+    }
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .card-header-custom {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
+    }
 </style>
 <div class="form-card">
     <div class="form-card-header">
@@ -285,15 +312,41 @@ if($action == 'add'):
     </div>
 </div>
 
-<!-- Documents section for ADD mode - No attachments possible yet -->
+<!-- Documents section for ADD mode - conforme charte graphique -->
 <div class="info-card mt-3">
-    <div class="card-header-custom" style="background: linear-gradient(135deg, #6c757d, #5a6268);">
+    <div class="card-header-custom">
         <i class="fas fa-paperclip"></i> <?php echo t('documents'); ?>
+        <span class="badge bg-light text-dark ms-2">0 <?php echo t('files'); ?></span>
     </div>
     <div class="card-body p-3">
-        <div class="alert alert-info mb-0">
-            <i class="fas fa-info-circle"></i> 
-            <?php echo t('save_before_adding_documents'); ?>
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-save fa-3x mb-2 d-block" style="font-size: 48px; opacity: 0.4;"></i>
+            <p class="mb-2"><strong><?php echo t('save_before_adding_documents'); ?></strong></p>
+            <small>Créez d'abord l'équipement pour ajouter des documents</small>
+        </div>
+        
+        <hr class="my-3">
+        <div class="upload-section">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="custom-file-wrapper">
+                            <input type="file" disabled class="form-control" style="opacity:0.5;">
+                            <label class="btn btn-outline-secondary mb-0 disabled" style="opacity:0.5; background:#f8f9fa;">
+                                <i class="fas fa-folder-open"></i> <?php echo t('choose_file'); ?>
+                            </label>
+                        </div>
+                        <button class="btn btn-primary disabled" style="opacity:0.5;" disabled>
+                            <i class="fas fa-upload"></i> <?php echo t('upload'); ?>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted d-block text-md-end">
+                        <i class="fas fa-info-circle"></i> <?php echo t('max_file_size'); ?> : 10 MB
+                    </small>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -325,6 +378,119 @@ if($action == 'edit' && isset($_GET['id'])):
         color: white;
         padding: 15px 20px;
         font-weight: bold;
+    }
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .card-header-custom {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
+    }
+    /* Styles pour la grille de documents - charte graphique */
+    .documents-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 4px;
+    }
+
+    .document-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 15px;
+        background: white;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        border: 1px solid #eef2f6;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .document-card:hover {
+        background: #fafbfd;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: #dee2e6;
+    }
+
+    .document-icon {
+        flex-shrink: 0;
+        width: 40px;
+        text-align: center;
+    }
+
+    .document-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .document-name {
+        font-weight: 500;
+        font-size: 13px;
+        color: #2c3e50;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .document-meta {
+        margin-top: 4px;
+    }
+
+    .document-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .document-actions .btn {
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 6px;
+    }
+
+    .custom-file-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
+    .custom-file-wrapper input[type="file"] {
+        position: absolute;
+        opacity: 0;
+        width: 0.1px;
+        height: 0.1px;
+        overflow: hidden;
+    }
+
+    .upload-section {
+        padding-top: 8px;
+    }
+
+    /* Scrollbar personnalisée - conforme à la charte */
+    .documents-grid::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .documents-grid::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    .documents-grid::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 10px;
+    }
+
+    .documents-grid::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0;
     }
 </style>
 <div class="form-card">
@@ -408,10 +574,11 @@ if($action == 'edit' && isset($_GET['id'])):
     </div>
 </div>
 
-<!-- Documents / Attachments (on edit page) -->
+<!-- Documents / Attachments - Version conforme à la charte graphique -->
 <div class="info-card mt-3">
-    <div class="form-card-header">
+    <div class="card-header-custom">
         <i class="fas fa-paperclip"></i> <?php echo t('documents'); ?>
+        <span class="badge bg-light text-dark ms-2"><?php echo !empty($attachmentCounts[$eq['id']]) ? $attachmentCounts[$eq['id']] : 0; ?> <?php echo t('files'); ?></span>
     </div>
     <div class="card-body p-3">
         <?php
@@ -422,71 +589,112 @@ if($action == 'edit' && isset($_GET['id'])):
         ?>
 
         <?php if(empty($attachments_edit)): ?>
-            <div class="text-muted"><?php echo t('no_documents'); ?></div>
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-folder-open fa-3x mb-2 d-block" style="font-size: 48px; opacity: 0.4;"></i>
+                <p><?php echo t('no_documents'); ?></p>
+                <small><?php echo t('upload_first_document'); ?></small>
+            </div>
         <?php else: ?>
-            <div class="d-flex flex-wrap gap-2">
+            <div class="documents-grid">
                 <?php foreach($attachments_edit as $att): ?>
-                    <div style="width:260px; text-align:left; border:1px solid #f0f0f0; padding:8px; border-radius:8px;">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <strong><?php echo htmlspecialchars($att['original_name'] ?: ($att['external_path'] ?: $att['filename'])); ?></strong>
-                                <div class="small text-muted"><?php echo htmlspecialchars($att['mime'] === 'link' ? 'link' : $att['mime']); ?></div>
+                    <div class="document-card">
+                        <div class="document-icon">
+                            <?php
+                            $mime = $att['mime'] ?? '';
+                            if ($mime === 'link') {
+                                echo '<i class="fas fa-link fa-2x" style="color: #667eea;"></i>';
+                            } elseif (strpos($mime, 'pdf') !== false) {
+                                echo '<i class="fas fa-file-pdf fa-2x" style="color: #dc3545;"></i>';
+                            } elseif (strpos($mime, 'image') !== false) {
+                                echo '<i class="fas fa-file-image fa-2x" style="color: #28a745;"></i>';
+                            } elseif (strpos($mime, 'word') !== false || strpos($mime, 'document') !== false) {
+                                echo '<i class="fas fa-file-word fa-2x" style="color: #007bff;"></i>';
+                            } elseif (strpos($mime, 'excel') !== false || strpos($mime, 'sheet') !== false) {
+                                echo '<i class="fas fa-file-excel fa-2x" style="color: #28a745;"></i>';
+                            } else {
+                                echo '<i class="fas fa-file fa-2x" style="color: #6c757d;"></i>';
+                            }
+                            ?>
+                        </div>
+                        <div class="document-info">
+                            <div class="document-name" title="<?php echo htmlspecialchars($att['original_name'] ?: ($att['external_path'] ?: $att['filename'])); ?>">
+                                <?php echo htmlspecialchars(mb_strimwidth($att['original_name'] ?: ($att['external_path'] ?: $att['filename']), 0, 35, '...')); ?>
                             </div>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <?php if(!empty($att['external_path'])): ?>
-                                    <a href="<?php echo htmlspecialchars($att['external_path']); ?>" target="_blank" class="btn btn-info" title="<?php echo t('open_document'); ?>">
-                                        <i class="fas fa-external-link-alt"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-secondary" title="Copy link to clipboard" onclick="copyToClipboard('<?php echo htmlspecialchars($att['external_path']); ?>')">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                <?php else: ?>
-                                    <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-secondary" title="<?php echo t('view'); ?>">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-info" title="Copy folder path to clipboard" onclick="copyToClipboard('<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/')">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                <?php endif; ?>
+                            <div class="document-meta">
+                                <small class="text-muted">
+                                    <?php echo date('d/m/Y H:i', strtotime($att['created_at'])); ?>
+                                </small>
                             </div>
                         </div>
-                        <div class="mt-2 small text-truncate" style="max-width:200px;"><?php echo htmlspecialchars($att['external_path'] ?? ''); ?></div>
-                        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor' || $_SESSION['user_id'] == $att['created_by']): ?>
-                            <div class="mt-2">
+                        <div class="document-actions">
+                            <?php if(!empty($att['external_path'])): ?>
+                                <a href="<?php echo htmlspecialchars($att['external_path']); ?>" target="_blank" class="btn btn-sm btn-info" title="<?php echo t('open_document'); ?>">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-secondary" title="Copier le lien" onclick="copyToClipboard('<?php echo htmlspecialchars($att['external_path']); ?>')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            <?php else: ?>
+                                <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-sm btn-secondary" title="<?php echo t('view'); ?>">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-info" title="Copier le chemin" onclick="copyToClipboard('<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            <?php endif; ?>
+                            <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor' || $_SESSION['user_id'] == $att['created_by']): ?>
                                 <form action="api/delete_attachment.php" method="post" style="display:inline-block;" onsubmit="return confirm('<?php echo t('delete_confirm'); ?>');">
                                     <input type="hidden" name="id" value="<?php echo $att['id']; ?>">
                                     <?php echo csrf_input(); ?>
-                                    <button class="btn btn-sm btn-danger" type="submit"><i class="fas fa-trash"></i> <?php echo t('delete'); ?></button>
+                                    <button class="btn btn-sm btn-danger" type="submit" title="<?php echo t('delete'); ?>">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </form>
-                            </div>
-                        <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
 
         <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-            <hr>
-            <form id="equip-edit-upload-form" action="api/upload_attachment.php" method="post" enctype="multipart/form-data">
-                <input type="hidden" name="parent_type" value="equipment">
-                <input type="hidden" name="parent_id" value="<?php echo $eq['id']; ?>">
-                <?php echo csrf_input(); ?>
-                <div class="mb-2">
-                    <input id="equip-edit-file-input" type="file" name="file" required>
+            <hr class="my-3">
+            <div class="upload-section">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <form id="equip-edit-upload-form" action="api/upload_attachment.php" method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
+                            <input type="hidden" name="parent_type" value="equipment">
+                            <input type="hidden" name="parent_id" value="<?php echo $eq['id']; ?>">
+                            <?php echo csrf_input(); ?>
+                            <div class="custom-file-wrapper">
+                                <input id="equip-edit-file-input" type="file" name="file" required>
+                                <label for="equip-edit-file-input" class="btn btn-outline-secondary mb-0">
+                                    <i class="fas fa-folder-open"></i> <?php echo t('choose_file'); ?>
+                                </label>
+                            </div>
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-upload"></i> <?php echo t('upload'); ?>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block text-md-end">
+                            <i class="fas fa-info-circle"></i> <?php echo t('max_file_size'); ?> : 10 MB
+                        </small>
+                    </div>
                 </div>
-                <button class="btn btn-sm btn-primary" type="submit"><i class="fas fa-upload"></i> <?php echo t('upload'); ?></button>
-            </form>
+            </div>
             <script>
             (function(){
                 var form = document.getElementById('equip-edit-upload-form');
                 if(!form) return;
                 var input = document.getElementById('equip-edit-file-input');
-                var maxBytes = 10 * 1024 * 1024; // 10MB
+                var maxBytes = 10 * 1024 * 1024;
                 form.addEventListener('submit', function(e){
                     if(input.files && input.files[0]){
                         if(input.files[0].size > maxBytes){
                             e.preventDefault();
-                            alert('File is too large (max 10 MB).');
+                            alert('<?php echo t('file_too_large'); ?> (max 10 MB).');
                             return false;
                         }
                     }
@@ -496,6 +704,7 @@ if($action == 'edit' && isset($_GET['id'])):
         <?php endif; ?>
     </div>
 </div>
+
 <?php
 return;
 endif;
@@ -577,13 +786,11 @@ endif;
         padding: 4px 8px;
         font-size: 12px;
     }
-    /* Custom badge color for orange */
     .badge.bg-orange {
         background-color: #fd7e14 !important;
         color: white;
     }
     
-    /* Legend grid styles */
     .legend-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -673,7 +880,6 @@ endif;
                 <tbody>
                     <?php foreach($equipments as $eq): 
                         $criticality = (($eq['probability_score'] ?? 1) * ($eq['severity_score'] ?? 1));
-                        // 4 couleurs : vert, jaune, orange, rouge
                         if ($criticality >= 20) {
                             $criticalityClass = 'danger';
                         } elseif ($criticality >= 12) {
@@ -808,6 +1014,6 @@ function copyToClipboard(text) {
     textarea.select();
     document.execCommand('copy');
     document.body.removeChild(textarea);
-    alert('📁 Folder path copied to clipboard:\n' + text + '\n\nYou can now paste this path into File Explorer to open the folder.');
+    alert('📁 Chemin copié dans le presse-papier :\n' + text);
 }
 </script>

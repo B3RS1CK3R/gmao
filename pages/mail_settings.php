@@ -164,6 +164,11 @@ if(file_exists($settings_file)) {
     .alert {
         border-radius: 10px;
     }
+    /* Style pour le texte en gras dans la description des alertes */
+    .alerts-description {
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
 </style>
 
 <div class="container-fluid">
@@ -281,16 +286,19 @@ if(file_exists($settings_file)) {
                 </div>
             </div>
             
+            <!-- SECTION ALERTES AUTOMATIQUES - VERSION MODIFIÉE -->
             <div class="config-card">
                 <div class="config-card-header info">
                     <i class="fas fa-bell"></i> <?php echo t('automatic_alerts'); ?>
                 </div>
                 <div class="card-body p-4">
-                    <p><?php echo t('alerts_description'); ?></p>
+                    <!-- "Description des alertes" en gras -->
+                    <p class="alerts-description"><i class="fas fa-info-circle"></i> <strong><?php echo t('alerts_description'); ?></strong></p>
                     <ul class="list-unstyled">
                         <li><i class="fas fa-calendar-times text-warning"></i> <?php echo t('maintenance_overdue'); ?></li>
                         <li><i class="fas fa-boxes text-danger"></i> <?php echo t('critical_stock'); ?></li>
-                        <li><i class="fas fa-skull-crosswalk text-danger"></i> <?php echo t('critical_intervention'); ?></li>
+                        <!-- Ajout d'un icône pour la ligne "Intervention critique" -->
+                        <li><i class="fas fa-skull-crosswalk text-danger"></i> <i class="fas fa-exclamation-triangle text-danger"></i> <?php echo t('critical_intervention'); ?></li>
                         <li><i class="fas fa-chart-line text-info"></i> <?php echo t('weekly_reports'); ?></li>
                     </ul>
                     <hr>

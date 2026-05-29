@@ -21,11 +21,13 @@ if(!$equipment) {
     return;
 }
 
-// Génération de l'URL pour le QR code
+// Génération de l'URL pour le QR code - Correction du chemin
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
-$url = $protocol . "://" . $host . "/gmao/index.php?page=equipment_detail&id=" . $equipment['id'];
+$script_dir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+$url = $protocol . "://" . $host . $script_dir . "/index.php?page=equipment_detail&id=" . $equipment['id'];
 $qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" . urlencode($url);
+$local_qr_url = "https://quickchart.io/qr?text=" . urlencode($url) . "&size=250";
 
 // Récupération de l'historique des maintenances
 $stmt = $pdo->prepare("
@@ -36,6 +38,32 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$id]);
 $maintenances = $stmt->fetchAll();
+
+// Mapping des statuts d'équipement
+$status_badge_map = [
+    'active' => 'success',
+    'maintenance' => 'warning',
+    'broken' => 'danger',
+    'retired' => 'secondary'
+];
+
+// Mapping des priorités avec les classes CSS du projet
+$priority_badge_map = [
+    'critical' => 'danger',
+    'high' => 'warning',
+    'medium' => 'info',
+    'low' => 'success'
+];
+
+// Mapping des statuts d'intervention (basé sur les valeurs réelles de la BDD)
+// Les valeurs possibles : 'planifiee', 'en_cours', 'termine', 'cloturee', 'annulee'
+$intervention_status_map = [
+    'planifiee' => ['class' => 'status-planifiee', 'icon' => '📅', 'label' => 'planifiee'],
+    'en_cours' => ['class' => 'status-en_cours', 'icon' => '⚙️', 'label' => 'en_cours'],
+    'termine' => ['class' => 'status-termine', 'icon' => '✅', 'label' => 'termine'],
+    'cloturee' => ['class' => 'status-cloturee', 'icon' => '🔒', 'label' => 'cloturee'],
+    'annulee' => ['class' => 'status-annulee', 'icon' => '❌', 'label' => 'annulee']
+];
 ?>
 
 <style>
@@ -113,6 +141,33 @@ $maintenances = $stmt->fetchAll();
         background: #5a6268;
         color: white;
     }
+    
+    /* Badges pour les statuts d'intervention */
+    .status-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .status-planifiee { background: #17a2b8; color: white; }
+    .status-en_cours { background: #ffc107; color: #333; }
+    .status-termine { background: #28a745; color: white; }
+    .status-cloturee { background: #6c757d; color: white; }
+    .status-annulee { background: #dc3545; color: white; }
+    
+    /* Badges pour les priorités - charte graphique */
+    .priority-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .priority-critical { background: #dc3545; color: white; }
+    .priority-high { background: #fd7e14; color: white; }
+    .priority-medium { background: #ffc107; color: #333; }
+    .priority-low { background: #28a745; color: white; }
 </style>
 
 <div class="container-fluid">
@@ -136,7 +191,7 @@ $maintenances = $stmt->fetchAll();
         <!-- Zone à imprimer -->
         <div class="print-area" style="display: none;">
             <div class="qr-code">
-                <img src="<?php echo $qr_url; ?>" alt="QR Code">
+                <img src="<?php echo $qr_url; ?>" alt="QR Code" onerror="this.src='<?php echo $local_qr_url; ?>'">
                 <div style="margin-top: 15px; font-family: monospace; font-size: 14px; font-weight: bold;">
                     <?php echo htmlspecialchars($equipment['code']); ?>
                 </div>
@@ -155,23 +210,20 @@ $maintenances = $stmt->fetchAll();
                 <div class="card-body text-center p-4">
                     <div class="qr-code-container">
                         <div class="qr-code">
-                            <img src="<?php echo $qr_url; ?>" alt="QR Code">
+                            <img src="<?php echo $qr_url; ?>" alt="QR Code" onerror="this.src='<?php echo $local_qr_url; ?>'">
                         </div>
                         <div class="equipment-info">
                             <h5><?php echo htmlspecialchars($equipment['name']); ?></h5>
                             <p class="mb-0"><?php echo t('code'); ?> : <strong><?php echo htmlspecialchars($equipment['code']); ?></strong></p>
                             <p class="mb-0"><?php echo t('location'); ?> : <?php echo htmlspecialchars($equipment['location'] ?: t('not_specified')); ?></p>
                             <p class="mb-0"><?php echo t('status'); ?> : 
-                                <span class="badge bg-<?php 
-                                    echo $equipment['status'] == 'active' ? 'success' : 
-                                        ($equipment['status'] == 'maintenance' ? 'warning' : 'danger'); 
-                                ?>">
+                                <span class="badge bg-<?php echo $status_badge_map[$equipment['status']] ?? 'secondary'; ?>">
                                     <?php 
                                     $status_labels = [
-                                        'active' => t('active'),
-                                        'maintenance' => t('maintenance'),
-                                        'broken' => t('broken'),
-                                        'retired' => t('retired')
+                                        'active' => '🟢 ' . t('active'),
+                                        'maintenance' => '🟡 ' . t('maintenance'),
+                                        'broken' => '🔴 ' . t('broken'),
+                                        'retired' => '⚫ ' . t('retired')
                                     ];
                                     echo $status_labels[$equipment['status']] ?? $equipment['status'];
                                     ?>
@@ -186,7 +238,7 @@ $maintenances = $stmt->fetchAll();
                 </div>
             </div>
             
-            <!-- Latest interventions -->
+            <!-- Dernières interventions - Version corrigée -->
             <div class="qr-card">
                 <div class="qr-card-header">
                     <i class="fas fa-history"></i> <?php echo t('last_interventions'); ?>
@@ -206,28 +258,98 @@ $maintenances = $stmt->fetchAll();
                                         <th><?php echo t('title'); ?></th>
                                         <th><?php echo t('priority'); ?></th>
                                         <th><?php echo t('status'); ?></th>
-                                        <th></th>
+                                        <th class="text-center"><?php echo t('actions'); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach($maintenances as $m): ?>
+                                    <?php foreach($maintenances as $m): 
+                                        // Gestion de la priorité avec la charte graphique
+                                        $priority_class = '';
+                                        $priority_icon = '';
+                                        $priority_text = '';
+                                        
+                                        switch($m['priority']) {
+                                            case 'critical':
+                                                $priority_class = 'priority-critical';
+                                                $priority_icon = '🔴';
+                                                $priority_text = t('critical');
+                                                break;
+                                            case 'high':
+                                                $priority_class = 'priority-high';
+                                                $priority_icon = '🟠';
+                                                $priority_text = t('high');
+                                                break;
+                                            case 'medium':
+                                                $priority_class = 'priority-medium';
+                                                $priority_icon = '🟡';
+                                                $priority_text = t('medium');
+                                                break;
+                                            case 'low':
+                                                $priority_class = 'priority-low';
+                                                $priority_icon = '🟢';
+                                                $priority_text = t('low');
+                                                break;
+                                            default:
+                                                $priority_class = 'priority-medium';
+                                                $priority_icon = '🟡';
+                                                $priority_text = $m['priority'];
+                                        }
+                                        
+                                        // Gestion du statut de l'intervention
+                                        $status_class = '';
+                                        $status_icon = '';
+                                        $status_text = '';
+                                        
+                                        switch($m['task_status']) {
+                                            case 'planifiee':
+                                                $status_class = 'status-planifiee';
+                                                $status_icon = '📅';
+                                                $status_text = t('planned');
+                                                break;
+                                            case 'en_cours':
+                                                $status_class = 'status-en_cours';
+                                                $status_icon = '⚙️';
+                                                $status_text = t('in_progress');
+                                                break;
+                                            case 'termine':
+                                                $status_class = 'status-termine';
+                                                $status_icon = '✅';
+                                                $status_text = t('completed');
+                                                break;
+                                            case 'cloturee':
+                                                $status_class = 'status-cloturee';
+                                                $status_icon = '🔒';
+                                                $status_text = t('closed');
+                                                break;
+                                            case 'annulee':
+                                                $status_class = 'status-annulee';
+                                                $status_icon = '❌';
+                                                $status_text = t('cancelled');
+                                                break;
+                                            default:
+                                                $status_class = 'status-planifiee';
+                                                $status_icon = '📅';
+                                                $status_text = $m['task_status'];
+                                        }
+                                    ?>
                                     <tr>
                                         <td><?php echo format_date_us($m['created_at'], false); ?></td>
                                         <td><?php echo htmlspecialchars($m['title']); ?></td>
                                         <td>
-                                            <span class="badge bg-<?php 
-                                                echo $m['priority'] == 'critical' ? 'danger' : 
-                                                    ($m['priority'] == 'high' ? 'warning' : 'secondary'); 
-                                            ?>">
-                                                <?php echo t($m['priority']); ?>
+                                            <span class="priority-badge <?php echo $priority_class; ?>">
+                                                <?php echo $priority_icon . ' ' . $priority_text; ?>
                                             </span>
-                                        </td>
-                                        <td><?php echo $m['task_status']; ?></td>
+                                        </span>
                                         <td>
+                                            <span class="status-badge <?php echo $status_class; ?>">
+                                                <?php echo $status_icon . ' ' . $status_text; ?>
+                                            </span>
+                                        </span>
+                                        <td class="text-center">
                                             <a href="?page=intervention_view&id=<?php echo $m['id']; ?>" class="btn btn-sm btn-info">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                        </td>
+                                        </span>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -257,4 +379,15 @@ window.onafterprint = function() {
         normalContent.style.display = 'block';
     }
 };
-</script>t>
+
+// Vérification du chargement du QR Code
+document.addEventListener('DOMContentLoaded', function() {
+    var qrImages = document.querySelectorAll('.qr-code img');
+    qrImages.forEach(function(img) {
+        img.onerror = function() {
+            console.log('QR Code API failed, using fallback');
+            this.src = '<?php echo $local_qr_url; ?>';
+        };
+    });
+});
+</script>

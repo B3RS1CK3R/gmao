@@ -229,6 +229,8 @@ return [
     'description_placeholder'   => 'Ex. Débit: 500L/min, Puissance: 15kW, Dimensions: 2m x 1m x 1.5m...',
     'intervention_type'         => 'Ex. Préventive, Corrective, Urgence...',
     'equipment_attachments'     => 'Pièces jointes de l\'équipement',
+    'max_file_size'             => 'Taille maximale du fichier',
+    'choose_file'               => 'Choisir un fichier',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'Nouvelle Intervention',
@@ -406,6 +408,9 @@ return [
     'smtp_password'             => 'Mot de passe SMTP',
     'smtp_password_help'        => 'Entrez le mot de passe SMTP. Laissez vide pour conserver le mot de passe actuel.',
     'smtp_secure'               => 'Securité SMTP',
+    'tls'                       => 'TLS',
+    'ssl'                       => 'SSL',
+    'none'                      => 'Aucune',
     'sender_email'              => 'Email de l\'expéditeur',
     'sender_name'               => 'Nom de l\'expéditeur',
     'alert_recipients'          => 'Destinataires des alertes',
@@ -501,6 +506,7 @@ return [
     'probability'               => 'Probabilité',
     'severity'                  => 'Gravité',
     'criticality'               => 'Criticité',
-    'no_equipment'              => 'Aucun équipement trouvé avec des scores de criticité.'
+    'no_equipment'              => 'Aucun équipement trouvé avec des scores de criticité.',
+    'legend'                    => 'Légende',
 
 ];

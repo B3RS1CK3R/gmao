@@ -232,6 +232,8 @@ return [
     'equipment_and_location'    => 'Equipment and Location',
     'planning_and_organisation' => 'Planning and Organisation',
     'identification'            => 'Identification',
+    'max_file_size'             => 'Max file size',
+    'choose_file'               => 'Choose file',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'New Intervention',
@@ -403,6 +405,9 @@ return [
     'smtp_password'             => 'SMTP Password',
     'smtp_password_help'        => 'Enter the SMTP password. Leave blank to keep the current password.',
     'smtp_secure'               => 'SMTP Security',
+    'tls'                       => 'TLS',
+    'ssl'                       => 'SSL',
+    'none'                      => 'None',
     'sender_email'              => 'Sender Email',
     'sender_name'               => 'Sender Name',
     'alert_recipients'          => 'Alert Recipients',
@@ -499,5 +504,6 @@ return [
     'severity'                  => 'Severity',
     'criticality'               => 'Criticality',
     'no_equipment'              => 'No equipment found with criticality scores.',
+    'legend'                    => 'Legend',
     
 ];
