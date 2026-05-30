@@ -51,6 +51,11 @@ $del = $pdo->prepare("DELETE FROM attachments WHERE id = ?");
 $del->execute([$id]);
 
 // Redirect back or return JSON
+// Log deletion
+if(isset($_SESSION['user_id'])) {
+    log_user_action($_SESSION['user_id'], 'attachment_deleted', "attachment ID: {$id} - parent {$att['parent_type']}:{$att['parent_id']} - {$att['original_name']}");
+}
+
 if(!empty($_SERVER['HTTP_REFERER'])) {
     header('Location: ' . $_SERVER['HTTP_REFERER'] . '&deleted=1');
     exit();

@@ -27,8 +27,13 @@ if(isset($_POST['login'])) {
             $update = $pdo->prepare("UPDATE users SET last_login = NOW(), last_ip = ? WHERE id = ?");
             $update->execute([$ip, $user['id']]);
             
-            $log = $pdo->prepare("INSERT INTO user_logs (user_id, action, details, ip_address) VALUES (?, 'login_success', ?, ?)");
-            $log->execute([$user['id'], t('login_success'), $ip]);
+            // Log in DB and text log
+            if(function_exists('log_user_action')) {
+                log_user_action($user['id'], 'login_success', t('login_success'));
+            } else {
+                $log = $pdo->prepare("INSERT INTO user_logs (user_id, action, details, ip_address) VALUES (?, 'login_success', ?, ?)");
+                $log->execute([$user['id'], t('login_success'), $ip]);
+            }
             
             header('Location: index.php?page=dashboard');
             exit();

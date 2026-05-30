@@ -58,6 +58,11 @@ try {
     $stmt = $pdo->prepare("INSERT INTO attachments (parent_type, parent_id, filename, original_name, mime, size, created_by, external_path) VALUES (?, ?, '', ?, 'link', 0, ?, ?)");
     $orig = $label ?: basename($path);
     $stmt->execute([$parent_type, $parent_id, $orig, $_SESSION['user_id'], $path]);
+    // Log the action
+    if(isset($_SESSION['user_id'])) {
+        $userLabel = $_SESSION['username'] ?? $_SESSION['user_id'];
+        log_user_action($_SESSION['user_id'], 'attachment_link_added', "{$parent_type} ID: {$parent_id} - {$orig} - {$path}");
+    }
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error'=>'db_error', 'message'=>$e->getMessage()]);

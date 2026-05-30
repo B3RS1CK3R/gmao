@@ -124,7 +124,7 @@ $status_labels = [
         </div>
         
         <!-- Dates Card -->
-        <div class="card">
+        <div class="card" style="max-height:180px; overflow:auto;">
             <div class="card-header bg-warning text-dark">
                 <i class="fas fa-calendar-alt"></i> <?php echo t('dates'); ?>
             </div>
@@ -170,7 +170,7 @@ $status_labels = [
             <div class="card-header">
                 <i class="fas fa-paperclip"></i> Documents
             </div>
-            <div class="card-body">
+            <div class="card-body" style="max-height:320px; overflow:auto;">
                 <?php if(empty($attachments)): ?>
                     <div class="text-muted"><?php echo t('no_documents'); ?></div>
                 <?php else: ?>

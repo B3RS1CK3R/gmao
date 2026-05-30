@@ -252,7 +252,7 @@ function getRecentInterventions($limit = 5) {
  * Uses an external API for generation.
  */
 function generateQRCode($equipment_id, $code) {
-    $url = "http://" . $_SERVER['HTTP_HOST'] . "/gmao_GEMINI/index.php?page=equipment_detail&id=" . $equipment_id;
+    $url = "https://" . $_SERVER['HTTP_HOST'] . "/gmao_GEMINI/index.php?page=equipment_detail&id=" . $equipment_id;
     $qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($url);
     return $qr_url;
 }
@@ -291,6 +291,58 @@ function format_date_us($datetime, $withTime = true) {
     $ts = strtotime($datetime);
     if($ts === false) return htmlspecialchars($datetime);
     return $withTime ? date('m/d/Y H:i', $ts) : date('m/d/Y', $ts);
+}
+
+// ========== ACTIVITY LOGGING ==========
+
+/**
+ * Append a line to the activity log file (plain text) and optionally insert into `user_logs` table.
+ * The log file is `logs/activity.log` relative to project root. Each line: MM/DD/YYYY HH:MM - message
+ */
+function append_activity_log($message) {
+    $logDir = __DIR__ . '/../logs';
+    if(!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+    $logFile = $logDir . '/activity.log';
+    $ts = date('m/d/Y H:i');
+    $line = $ts . ' - ' . $message . PHP_EOL;
+    @file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
+}
+
+/**
+ * Log a user action both in DB (`user_logs`) and in plain-text activity log.
+ * $userId may be null for system actions. $details is free text.
+ */
+function log_user_action($userId, $action, $details = '') {
+    global $pdo;
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '-';
+    $username = '-';
+    if($userId) {
+        try {
+            $stmt = $pdo->prepare('SELECT username FROM users WHERE id = ?');
+            $stmt->execute([$userId]);
+            $row = $stmt->fetch();
+            if($row) $username = $row['username'];
+        } catch(Exception $e) {
+            // ignore DB lookup errors for logging
+        }
+    } elseif (!empty($_SESSION['username'])) {
+        $username = $_SESSION['username'];
+    }
+
+    // Insert into DB user_logs if table exists
+    try {
+        $ins = $pdo->prepare("INSERT INTO user_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+        $ins->execute([$userId, $action, $details, $ip]);
+    } catch(Exception $e) {
+        // ignore DB errors for logging
+    }
+
+    // Append to text log
+    $label = $username !== '-' ? ($username . ' ') : '';
+    $message = trim($label . '- ' . $action . ($details ? ' - ' . $details : '') . ' (IP: ' . $ip . ')');
+    append_activity_log($message);
 }
 
 // ========== EMAIL FUNCTIONS ==========
@@ -346,7 +398,7 @@ function sendPreventiveAlert($maintenance) {
             <p class='info'>👥 " . t('assigned_team') . ": {$maintenance['assigned_team']}</p>
         </div>
         <p>
-            <a href='http://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=preventive' 
+            <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=preventive' 
                style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
                " . t('view_in_gmao') . "
             </a>
@@ -387,7 +439,7 @@ function sendStockAlert($part) {
             <tr><td style='background:#e9ecef'><strong>" . t('location') . ":</strong></td><td>{$part['location']}</td></tr>
             <tr><td style='background:#e9ecef'><strong>" . t('supplier') . ":</strong></td><td>{$part['supplier']}</td></tr>
         </table>
-        <p style='margin-top:20px;'><a href='http://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=stock' 
+        <p style='margin-top:20px;'><a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=stock' 
               style='background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
               " . t('view_stock') . "
            </a></p>
@@ -425,7 +477,7 @@ function sendCriticalInterventionAlert($intervention, $equipment) {
             <p><strong>📅 " . t('date') . ":</strong> " . date('m/d/Y H:i', strtotime($intervention['created_at'])) . "</p>
         </div>
         <p>
-            <a href='http://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=interventions' 
+            <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=interventions' 
                style='background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
                " . t('view_intervention') . "
             </a>
@@ -495,7 +547,7 @@ function sendWeeklyReport() {
         </div>
         
         <p style='margin-top:20px;'>
-            <a href='http://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=dashboard' 
+            <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=dashboard' 
                style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
                " . t('access_dashboard') . "
             </a>

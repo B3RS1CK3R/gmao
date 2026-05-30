@@ -91,5 +91,10 @@ try {
 $referer = $_SERVER['HTTP_REFERER'] ?? '/index.php';
 
 // Redirect back to referer
-header('Location: ' . $referer . '&upload_success=1');
+    // Log upload action
+    if(isset($_SESSION['user_id'])) {
+        log_user_action($_SESSION['user_id'], 'attachment_uploaded', "{$parent_type} ID: {$parent_id} - {$originalName} (file)");
+    }
+
+    header('Location: ' . $referer . '&upload_success=1');
 exit();
