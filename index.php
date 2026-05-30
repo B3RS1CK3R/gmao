@@ -10,7 +10,35 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 // =======================================================
 
+// Enforce HTTPS and secure session cookies
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+if (!$isHttps) {
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $uri = $_SERVER['REQUEST_URI'] ?? '/';
+    $redirect = 'https://' . $host . $uri;
+    header('Location: ' . $redirect, true, 301);
+    exit();
+}
+
+// Set HSTS header
+header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+
+// Secure session cookie params before starting session
 if (session_status() === PHP_SESSION_NONE) {
+    $cookieParams = session_get_cookie_params();
+    $secureFlag = true; // we force secure since we redirect to https
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params([
+            'lifetime' => $cookieParams['lifetime'],
+            'path' => $cookieParams['path'],
+            'domain' => $cookieParams['domain'],
+            'secure' => $secureFlag,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    } else {
+        session_set_cookie_params($cookieParams['lifetime'], $cookieParams['path'] . '; samesite=Lax', $cookieParams['domain'], $secureFlag, true);
+    }
     session_start();
 }
 

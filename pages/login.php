@@ -1,6 +1,22 @@
 <?php
 // pages/login.php - Page de connexion
 if (session_status() === PHP_SESSION_NONE) {
+    // Ensure secure cookie params for login session if served over HTTPS
+    $cookieParams = session_get_cookie_params();
+    $isHttpsLocal = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    $secureFlag = $isHttpsLocal;
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params([
+            'lifetime' => $cookieParams['lifetime'],
+            'path' => $cookieParams['path'],
+            'domain' => $cookieParams['domain'],
+            'secure' => $secureFlag,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    } else {
+        session_set_cookie_params($cookieParams['lifetime'], $cookieParams['path'] . '; samesite=Lax', $cookieParams['domain'], $secureFlag, true);
+    }
     session_start();
 }
 
