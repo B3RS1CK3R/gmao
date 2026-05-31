@@ -449,7 +449,7 @@ return [
     'mtbf_description'          => 'Le MTBF (Mean Time Between Failures) est un indicateur de performance clé qui mesure le temps moyen entre les défaillances d\'équipement. Un MTBF plus élevé indique une meilleure fiabilité et moins de pannes fréquentes.',
     'mttr_description'          => 'Le MTTR (Mean Time To Repair) est un indicateur de performance clé qui mesure le temps moyen nécessaire pour réparer un équipement après une défaillance. Un MTTR plus faible indique des réparations plus rapides et moins de temps d\'arrêt.',
     'availability_description'  => 'La disponibilité est un indicateur de performance clé qui mesure le pourcentage de temps pendant lequel l\'équipement est opérationnel et disponible pour être utilisé. Elle est calculée en utilisant la formule : Disponibilité = MTBF / (MTBF + MTTR). Un pourcentage de disponibilité plus élevé indique une meilleure performance et moins de temps d\'arrêt.',
-    'failures_recorded'         => 'Défaillances enregistrées',
+    'failures_recorded'         => 'Nombre total de défaillances enregistrées',
     'total_downtime'            => 'Temps total d\'interruption',
     'mtbf_trend'                => 'Tendance du MTBF',
     'mttr_trend'                => 'Tendance du MTTR',

@@ -168,9 +168,9 @@ $status_labels = [
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <i class="fas fa-paperclip"></i> Documents
+                <i class="fas fa-paperclip"></i> <?php echo t('documents'); ?>
             </div>
-            <div class="card-body" style="max-height:320px; overflow:auto;">
+            <div class="card-body" style="max-height:340px; overflow:auto;">
                 <?php if(empty($attachments)): ?>
                     <div class="text-muted"><?php echo t('no_documents'); ?></div>
                 <?php else: ?>
@@ -296,42 +296,8 @@ $status_labels = [
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
-                         ->
+                        </table>
                     </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- Full Width Section: Modifications History (Audit Log) -->
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-edit"></i> <?php echo t('modifications_history'); ?>
-            </div>
-            <div class="card-body">
-                <?php if(empty($history)): ?>
-                    <div class="text-muted"><?php echo t('no_history'); ?></div>
-                <?php else: ?>
-                    <?php foreach($history as $h): ?>
-                        <div class="history-item mb-3">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <strong>
-                                        <?php
-                                        $icon = ($h['action'] == 'equipment_updated') ? '✏️ ' : (($h['action']=='equipment_created') ? '🟢 ' : '🔄 ');
-                                        echo $icon . t('modified_short');
-                                        ?>
-                                    </strong>
-                                </div>
-                                <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
-                            </div>
-                            <small class="text-muted"><?php echo t('by'); ?> : <?php echo htmlspecialchars($h['username'] ?? t('unknown')); ?> (IP: <?php echo htmlspecialchars($h['ip_address'] ?? '-'); ?>)</small>
-                            <div class="mt-2">
-                                <div><?php echo nl2br(htmlspecialchars($h['details'])); ?></div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
                 <?php endif; ?>
             </div>
         </div>
@@ -372,7 +338,7 @@ $status_labels = [
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
-                    ~
+                    </table>
                 </div>
             </div>
         </div>
@@ -388,6 +354,40 @@ $status_labels = [
             <a href="?page=preventive_add&equipment_id=<?php echo $equipment['id']; ?>" class="btn btn-warning">
                 <i class="fas fa-calendar-plus"></i> <?php echo t('plan_maintenance'); ?>
             </a>
+        </div>
+    </div>
+
+    <!-- Full Width Section: Modifications History (Audit Log) -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-edit"></i> <?php echo t('modifications_history'); ?>
+            </div>
+            <div class="card-body">
+                <?php if(empty($history)): ?>
+                    <div class="text-muted"><?php echo t('no_history'); ?></div>
+                <?php else: ?>
+                    <?php foreach($history as $h): ?>
+                        <div class="history-item mb-3">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>
+                                        <?php
+                                        $icon = ($h['action'] == 'equipment_updated') ? '✏️ ' : (($h['action']=='equipment_created') ? '🟢 ' : '🔄 ');
+                                        echo $icon . t('modified_short');
+                                        ?>
+                                    </strong>
+                                </div>
+                                <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
+                            </div>
+                            <small class="text-muted"><?php echo t('by'); ?> : <?php echo htmlspecialchars($h['username'] ?? t('unknown')); ?> (IP: <?php echo htmlspecialchars($h['ip_address'] ?? '-'); ?>)</small>
+                            <div class="mt-2">
+                                <div><?php echo nl2br(htmlspecialchars($h['details'])); ?></div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 

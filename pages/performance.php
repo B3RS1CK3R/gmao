@@ -369,21 +369,21 @@ $best_performers = array_slice($equipments_perf, 0, 5);
             <div class="kpi-card <?php echo $global_mtbf >= 100 ? 'kpi-good' : ($global_mtbf >= 50 ? 'kpi-warning' : 'kpi-danger'); ?>">
                 <div class="kpi-value"><?php echo number_format($global_mtbf, 0); ?> h</div>
                 <div class="kpi-label"><i class="fas fa-clock"></i> <?php echo t('mtbf'); ?></div>
-                <small><?php echo t('mtbf_description'); ?></small>
+                <small><?php echo t('mtbf_short_desc'); ?></small>
             </div>
         </div>
         <div class="col-md-3">
             <div class="kpi-card <?php echo $global_mttr <= 4 ? 'kpi-good' : ($global_mttr <= 8 ? 'kpi-warning' : 'kpi-danger'); ?>">
                 <div class="kpi-value"><?php echo number_format($global_mttr, 1); ?> h</div>
                 <div class="kpi-label"><i class="fas fa-wrench"></i> <?php echo t('mttr'); ?></div>
-                <small><?php echo t('mttr_description'); ?></small>
+                <small><?php echo t('mttr_short_desc'); ?></small>
             </div>
         </div>
         <div class="col-md-3">
             <div class="kpi-card <?php echo $global_availability >= 95 ? 'kpi-good' : ($global_availability >= 85 ? 'kpi-warning' : 'kpi-danger'); ?>">
                 <div class="kpi-value"><?php echo $global_availability; ?>%</div>
                 <div class="kpi-label"><i class="fas fa-chart-simple"></i> <?php echo t('availability'); ?></div>
-                <small><?php echo t('availability_description'); ?></small>
+                <small><?php echo t('availability_short_desc'); ?></small>
             </div>
         </div>
         <div class="col-md-3">
