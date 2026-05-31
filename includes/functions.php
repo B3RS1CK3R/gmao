@@ -293,6 +293,70 @@ function format_date_us($datetime, $withTime = true) {
     return $withTime ? date('m/d/Y H:i', $ts) : date('m/d/Y', $ts);
 }
 
+/**
+ * Format a date according to the current language/locale.
+ * component: 'weekday_short', 'month_short', 'day_num', 'full', 'long'
+ * if component == 'full' or 'long', $withTime controls inclusion of time.
+ */
+function format_date_local($date, $component = 'full', $withTime = false) {
+    if (empty($date) || in_array($date, ['0000-00-00', '0000-00-00 00:00:00'])) return t('not_specified');
+    $ts = strtotime($date);
+    if ($ts === false) return htmlspecialchars($date);
+
+    $lang = getCurrentLanguage();
+    $locale = ($lang === 'fr') ? 'fr_FR' : 'en_US';
+
+    if (class_exists('IntlDateFormatter')) {
+        try {
+            switch ($component) {
+                case 'weekday_short':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, NULL, IntlDateFormatter::GREGORIAN, 'EEE');
+                    return $fmt->format($ts);
+                case 'month_short':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, NULL, IntlDateFormatter::GREGORIAN, 'MMM');
+                    return $fmt->format($ts);
+                case 'day_num':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, NULL, IntlDateFormatter::GREGORIAN, 'd');
+                    return $fmt->format($ts);
+                case 'long':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::LONG, $withTime ? IntlDateFormatter::SHORT : IntlDateFormatter::NONE);
+                    return $fmt->format($ts);
+                case 'full':
+                default:
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::FULL, $withTime ? IntlDateFormatter::SHORT : IntlDateFormatter::NONE);
+                    return $fmt->format($ts);
+            }
+        } catch (Exception $e) {
+            // fallback to manual mapping below
+        }
+    }
+
+    // Fallback if Intl isn't available: basic translations for French
+    $weekday_en = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    $weekday_fr = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+    $month_en = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    $month_fr = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+
+    switch ($component) {
+        case 'weekday_short':
+            $d = date('w', $ts);
+            return ($lang === 'fr') ? $weekday_fr[$d] : $weekday_en[$d];
+        case 'month_short':
+            $m = intval(date('n', $ts)) - 1;
+            return ($lang === 'fr') ? $month_fr[$m] : $month_en[$m];
+        case 'day_num':
+            return date('d', $ts);
+        case 'long':
+            return date('F d, Y' . ($withTime ? ' H:i' : ''), $ts);
+        case 'full':
+        default:
+            if ($lang === 'fr') {
+                return date('l d F Y' . ($withTime ? ' H:i' : ''), $ts); // locale-aware names may not be translated without Intl
+            }
+            return date('l d F Y' . ($withTime ? ' H:i' : ''), $ts);
+    }
+}
+
 // ========== ACTIVITY LOGGING ==========
 
 /**

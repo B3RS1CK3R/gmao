@@ -4,7 +4,13 @@
         <span class="navbar-brand fw-bold">
             <i class="fas fa-tools text-primary"></i> GMAO
         </span>
-        
+
+        <div class="d-flex justify-content-center flex-grow-1">
+            <div class="topbar-date text-muted">
+                <?php echo format_date_local(date('Y-m-d'), 'full', false); ?>
+            </div>
+        </div>
+
         <div class="ms-auto d-flex align-items-center gap-3">
             
             <!-- Sélecteur de Langue -->

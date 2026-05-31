@@ -52,15 +52,15 @@ $stmt->execute([$selected_date]);
 $stats = $stmt->fetch();
 
 // Récupérer les interventions des 7 prochains jours pour le mini calendrier
-$week_dates = [];
-for($i = -3; $i <= 3; $i++) {
+    $week_dates = [];
+    for($i = -3; $i <= 3; $i++) {
     $date = date('Y-m-d', strtotime($selected_date . ' + ' . $i . ' days'));
     $week_dates[$date] = [
         'date' => $date,
         'count' => 0,
-        'day' => date('D', strtotime($date)),
-        'day_num' => date('d', strtotime($date)),
-        'month' => date('M', strtotime($date))
+        'day' => format_date_local($date, 'weekday_short'),
+        'day_num' => format_date_local($date, 'day_num'),
+        'month' => format_date_local($date, 'month_short')
     ];
 }
 
@@ -307,7 +307,7 @@ foreach($week_counts as $wc) {
     <div class="planning-card">
         <div class="planning-card-header">
             <i class="fas fa-list"></i> 
-            <?php echo t('interventions_for'); ?> <?php echo date('l d F Y', strtotime($selected_date)); ?>
+            <?php echo t('interventions_for'); ?> <?php echo format_date_local($selected_date, 'full', false); ?>
             <?php if($filter_technician): 
                 $tech_filter = array_filter($technicians, function($t) use ($filter_technician) { return $t['id'] == $filter_technician; });
                 $tech_filter = reset($tech_filter);
