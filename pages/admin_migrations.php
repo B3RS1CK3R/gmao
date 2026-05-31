@@ -1,7 +1,9 @@
 <?php
 // pages/admin_migrations.php - Admin UI to view & run DB migrations
 
-require_once __DIR__ . '/../config/database.php';
+// Load core helpers (DB, translations)
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
 require_once __DIR__ . '/../includes/functions.php';
 
 if(!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {

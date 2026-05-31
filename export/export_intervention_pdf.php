@@ -11,7 +11,9 @@ if($id == 0) {
     die('Missing intervention ID');
 }
 
-require_once __DIR__ . '/../config/database.php';
+// Use core helpers to ensure consistent DB access and helpers
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
 require_once __DIR__ . '/../includes/lang.php';
 
 // Récupérer l'intervention

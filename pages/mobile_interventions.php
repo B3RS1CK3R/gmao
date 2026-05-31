@@ -3,7 +3,9 @@
 session_start();
     // auth handled centrally in index.php
 
-require_once __DIR__ . '/../config/database.php';
+// Load core helpers (DB, translations)
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
 require_once __DIR__ . '/../includes/lang.php';
 
 $technician_id = null;

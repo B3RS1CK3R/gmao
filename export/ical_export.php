@@ -6,7 +6,9 @@ if(!isset($_SESSION['user_id'])) {
     exit();
 }
 
-require_once __DIR__ . '/../config/database.php';
+// Use core helpers to ensure consistent DB access and helpers
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
 
 header('Content-Type: text/calendar; charset=utf-8');
 header('Content-Disposition: attachment; filename="gmao_calendar.ics"');

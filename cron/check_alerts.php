@@ -1,6 +1,8 @@
 <?php
 // cron/check_alerts.php - Script à exécuter périodiquement
-require_once __DIR__ . '/../config/database.php';
+// Use central includes to ensure DB, translations, session and helpers are loaded
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
 require_once __DIR__ . '/../includes/functions.php';
 
 echo "[" . date('Y-m-d H:i:s') . "] Début vérification alertes\n";

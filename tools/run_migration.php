@@ -1,6 +1,8 @@
 <?php
 // tools/run_migration.php - run SQL migration file using mysqli->multi_query
-require_once __DIR__ . '/../config/database.php';
+// Use includes/functions for DB and helpers
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
 
 // Accept optional SQL file path as first CLI argument
 $fn = $argv[1] ?? __DIR__ . '/../migrations/20260524_01_unify_links.sql';

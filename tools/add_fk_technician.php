@@ -1,5 +1,7 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
+// Use central includes for DB and helpers
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
 $schema = DB_NAME;
 $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 if ($mysqli->connect_errno) {
