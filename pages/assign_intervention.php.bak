@@ -32,16 +32,16 @@ $scheduled_date = $intervention['intervention_date'];
 $interventions_taken = [];
 if($scheduled_date) {
     $stmt = $pdo->prepare("
-        SELECT technician_id, COUNT(*) as count 
+        SELECT intervenant_id, COUNT(*) as count 
         FROM interventions 
         WHERE intervention_date = ? 
         AND task_status NOT IN ('termine', 'cloturee')
-        GROUP BY technician_id
+        GROUP BY intervenant_id
     ");
     $stmt->execute([$scheduled_date]);
     $taken = $stmt->fetchAll();
     foreach($taken as $t) {
-        $interventions_taken[$t['technician_id']] = $t['count'];
+        $interventions_taken[$t['intervenant_id']] = $t['count'];
     }
 }
 
@@ -52,7 +52,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     $stmt = $pdo->prepare("
         UPDATE interventions 
-        SET technician_id = ?, intervention_date = ?, scheduled_time = ?, task_status = 'a_faire'
+        SET intervenant_id = ?, intervention_date = ?, scheduled_time = ?, task_status = 'a_faire'
         WHERE id = ?
     ");
     $result = $stmt->execute([$technician_id, $scheduled_date, $scheduled_time, $intervention_id]);

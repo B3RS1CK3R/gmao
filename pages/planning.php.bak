@@ -15,13 +15,13 @@ $sql = "
            t.id as technician_id, t.firstname, t.lastname, t.specialty
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
-    LEFT JOIN technicians t ON i.technician_id = t.id
+    LEFT JOIN technicians t ON i.intervenant_id = t.id
     WHERE DATE(i.intervention_date) = ?
 ";
 $params = [$selected_date];
 
 if($filter_technician) {
-    $sql .= " AND i.technician_id = ?";
+    $sql .= " AND i.intervenant_id = ?";
     $params[] = $filter_technician;
 }
 

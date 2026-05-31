@@ -27,7 +27,7 @@ try {
     // Ajout des nouvelles colonnes
     $columns = [
         "task_number VARCHAR(20) UNIQUE",
-        "technician_id INT NULL",
+        "intervenant_id INT NULL",
         "task_status ENUM('a_faire', 'en_cours', 'termine', 'cloturee') DEFAULT 'a_faire'",
         "intervention_date DATE NULL",
         "task_type ENUM('revision', 'depannage', 'installation', 'maintenance_preventive', 'controle', 'autre') DEFAULT 'revision'",

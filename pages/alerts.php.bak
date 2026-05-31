@@ -154,7 +154,7 @@ $stmt = $pdo->query("
         DATEDIFF(NOW(), i.created_at) as days_old
     FROM interventions i
     JOIN equipment e ON i.equipment_id = e.id
-    WHERE i.technician_id IS NULL 
+    WHERE i.intervenant_id IS NULL 
     AND i.task_status = 'a_faire'
     AND i.created_at <= DATE_SUB(NOW(), INTERVAL 3 DAY)
     ORDER BY i.created_at ASC

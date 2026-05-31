@@ -150,7 +150,7 @@ if($_SESSION['role'] == 'admin') {
 // Fetch interventions assigned to each technician
 $interventions_count = [];
 foreach($technicians as $tech) {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM interventions WHERE technician_id = ? AND task_status NOT IN ('termine', 'cloturee')");
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM interventions WHERE intervenant_id = ? AND task_status NOT IN ('termine', 'cloturee')");
     $stmt->execute([$tech['id']]);
     $interventions_count[$tech['id']] = $stmt->fetchColumn();
 }

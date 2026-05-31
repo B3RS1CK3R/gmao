@@ -1,9 +1,6 @@
 <?php
 // pages/equipment.php - Full equipment management (CRUD)
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+// auth handled centrally in index.php
 
 $action = $_GET['action'] ?? 'list';
 $message = '';
@@ -90,8 +87,8 @@ if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POS
     }
 }
 
-// Delete (soft delete - deactivation)
-if($action == 'delete' && isset($_GET['id'])) {
+// Delete (soft delete - deactivation) with modal POST handling
+if($action == 'delete_confirm' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor') {
         if(isset($_POST['confirm_password'])) {
             $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
@@ -312,7 +309,7 @@ if($action == 'add'):
     </div>
 </div>
 
-<!-- Documents section for ADD mode - conforme charte graphique -->
+<!-- Documents section for ADD mode -->
 <div class="info-card mt-3">
     <div class="card-header-custom">
         <i class="fas fa-paperclip"></i> <?php echo t('documents'); ?>
@@ -392,7 +389,7 @@ if($action == 'edit' && isset($_GET['id'])):
         padding: 15px 20px;
         font-weight: bold;
     }
-    /* Styles pour la grille de documents - charte graphique */
+
     .documents-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -474,7 +471,6 @@ if($action == 'edit' && isset($_GET['id'])):
         padding-top: 8px;
     }
 
-    /* Scrollbar personnalisée - conforme à la charte */
     .documents-grid::-webkit-scrollbar {
         width: 6px;
     }
@@ -492,6 +488,7 @@ if($action == 'edit' && isset($_GET['id'])):
     .documents-grid::-webkit-scrollbar-thumb:hover {
         background: #a0aec0;
     }
+    
 </style>
 <div class="form-card">
     <div class="form-card-header">
@@ -574,7 +571,7 @@ if($action == 'edit' && isset($_GET['id'])):
     </div>
 </div>
 
-<!-- Documents / Attachments - Version conforme à la charte graphique -->
+<!-- Documents / Attachments -->
 <div class="info-card mt-3">
     <div class="card-header-custom">
         <i class="fas fa-paperclip"></i> <?php echo t('documents'); ?>
@@ -708,45 +705,10 @@ if($action == 'edit' && isset($_GET['id'])):
 <?php
 return;
 endif;
-
-// ========== DELETE CONFIRMATION MODAL ==========
-if($action == 'delete' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT * FROM equipment WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    $eq = $stmt->fetch();
-    if(!$eq) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-?>
-<div class="form-card">
-    <div class="form-card-header" style="background: linear-gradient(135deg, #dc3545, #c82333);">
-        <i class="fas fa-trash-alt"></i> <?php echo t('delete'); ?> <?php echo t('equipment'); ?>
-    </div>
-    <div class="card-body p-4">
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <?php echo t('delete_confirm'); ?> : <strong><?php echo htmlspecialchars($eq['name']); ?></strong> (<?php echo htmlspecialchars($eq['code']); ?>)
-        </div>
-        <p><?php echo t('delete_warning'); ?></p>
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('confirm_password'); ?></label>
-                <input type="password" name="confirm_password" class="form-control" required>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> <?php echo t('confirm'); ?></button>
-                <a href="?page=equipment" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
 ?>
 
 <style>
+    /* Styles principaux */
     .info-card {
         background: white;
         border-radius: 15px;
@@ -771,7 +733,33 @@ endif;
     .status-maintenance { background: #ffc107; color: #333; }
     .status-broken { background: #dc3545; color: white; }
     .status-retired { background: #6c757d; color: white; }
-    .action-buttons .btn { padding: 4px 8px; margin: 0 2px; border-radius: 6px; }
+    
+    /* Action buttons - harmonisés avec stock.php */
+    .action-buttons {
+        white-space: nowrap;
+    }
+    .action-buttons .btn {
+        padding: 4px 8px;
+        margin: 0 2px;
+        border-radius: 6px;
+    }
+    .action-buttons-row {
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+    }
+    .action-icon-btn {
+        width: 30px !important;
+        height: 30px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 12px !important;
+        line-height: 1 !important;
+        border-radius: 6px !important;
+    }
+    
     .table-row-clickable { cursor: pointer; transition: background 0.2s; }
     .table-row-clickable:hover { background: #f8f9fa; }
     .history-item {
@@ -791,6 +779,7 @@ endif;
         color: white;
     }
     
+    /* Legend grid */
     .legend-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -822,6 +811,22 @@ endif;
         font-size: 11px;
         color: #6c757d;
     }
+    
+    /* Modal styles */
+    .modal-content {
+        border-radius: 15px;
+        border: none;
+        overflow: hidden;
+    }
+    .modal-header {
+        border-bottom: none;
+        padding: 15px 20px;
+    }
+    .modal-footer {
+        border-top: none;
+        padding: 15px 20px;
+    }
+    
     @media (max-width: 768px) {
         .legend-grid {
             grid-template-columns: repeat(2, 1fr);
@@ -835,170 +840,221 @@ endif;
     }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-microchip"></i> <?php echo t('equipment'); ?></h2>
-    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-    <a href="?page=equipment&action=add" class="btn btn-primary">
-        <i class="fas fa-plus"></i> <?php echo t('add_equipment'); ?>
-    </a>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-microchip"></i> <?php echo t('equipment'); ?></h2>
+        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+        <a href="?page=equipment&action=add" class="btn btn-primary">
+            <i class="fas fa-plus"></i> <?php echo t('add_equipment'); ?>
+        </a>
+        <?php endif; ?>
+    </div>
+    
+    <?php if($message): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle"></i> <?php echo $message; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     <?php endif; ?>
-</div>
-
-<?php if($message): ?>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="fas fa-check-circle"></i> <?php echo $message; ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-<?php endif; ?>
-
-<?php if($error): ?>
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-<?php endif; ?>
-
-<div class="info-card">
-    <div class="card-header-custom">
-        <i class="fas fa-list"></i> <?php echo t('equipment_list'); ?>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th><?php echo t('code'); ?></th>
-                        <th><?php echo t('name'); ?></th>
-                        <th><?php echo t('type'); ?></th>
-                        <th><?php echo t('location'); ?></th>
-                        <th><?php echo t('status'); ?></th>
-                        <th><?php echo t('criticality'); ?></th>
-                        <th><?php echo t('last_modifications'); ?></th>
-                        <th class="text-center"><?php echo t('actions'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach($equipments as $eq): 
-                        $criticality = (($eq['probability_score'] ?? 1) * ($eq['severity_score'] ?? 1));
-                        if ($criticality >= 20) {
-                            $criticalityClass = 'danger';
-                        } elseif ($criticality >= 12) {
-                            $criticalityClass = 'orange';
-                        } elseif ($criticality >= 6) {
-                            $criticalityClass = 'warning';
-                        } else {
-                            $criticalityClass = 'success';
-                        }
-                    ?>
-                    <tr class="table-row-clickable" onclick="window.location.href='?page=equipment_detail&id=<?php echo $eq['id']; ?>'">
-                        <td><strong><?php echo htmlspecialchars($eq['code']); ?></strong></td>
-                        <td><?php echo htmlspecialchars($eq['name']); ?></td>
-                        <td><?php echo htmlspecialchars($eq['type']); ?></td>
-                        <td><?php echo htmlspecialchars($eq['location']); ?></td>
-                        <td>
-                            <span class="status-badge status-<?php echo $eq['status']; ?>">
-                                <?php
-                                $status_labels = [
-                                    'active' => '🟢 ' . t('active'),
-                                    'maintenance' => '🟡 ' . t('maintenance'),
-                                    'broken' => '🔴 ' . t('broken'),
-                                    'retired' => '⚫ ' . t('retired')
-                                ];
-                                echo $status_labels[$eq['status']] ?? $eq['status'];
-                                ?>
+    
+    <?php if($error): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+    
+    <!-- Equipment list -->
+    <div class="info-card">
+        <div class="card-header-custom">
+            <i class="fas fa-list"></i> <?php echo t('equipment_list'); ?>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th><?php echo t('code'); ?></th>
+                            <th><?php echo t('name'); ?></th>
+                            <th><?php echo t('type'); ?></th>
+                            <th><?php echo t('location'); ?></th>
+                            <th><?php echo t('status'); ?></th>
+                            <th><?php echo t('criticality'); ?></th>
+                            <th><?php echo t('last_modifications'); ?></th>
+                            <th class="text-center"><?php echo t('actions'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($equipments as $eq): 
+                            $criticality = (($eq['probability_score'] ?? 1) * ($eq['severity_score'] ?? 1));
+                            if ($criticality >= 20) {
+                                $criticalityClass = 'danger';
+                            } elseif ($criticality >= 12) {
+                                $criticalityClass = 'orange';
+                            } elseif ($criticality >= 6) {
+                                $criticalityClass = 'warning';
+                            } else {
+                                $criticalityClass = 'success';
+                            }
+                        ?>
+                        <tr class="table-row-clickable" onclick="window.location.href='?page=equipment_detail&id=<?php echo $eq['id']; ?>'">
+                            <td><strong><?php echo htmlspecialchars($eq['code']); ?></strong></td>
+                            <td><?php echo htmlspecialchars($eq['name']); ?></td>
+                            <td><?php echo htmlspecialchars($eq['type']); ?></td>
+                            <td><?php echo htmlspecialchars($eq['location']); ?></td>
+                            <td>
+                                <span class="status-badge status-<?php echo $eq['status']; ?>">
+                                    <?php
+                                    $status_labels = [
+                                        'active' => '🟢 ' . t('active'),
+                                        'maintenance' => '🟡 ' . t('maintenance'),
+                                        'broken' => '🔴 ' . t('broken'),
+                                        'retired' => '⚫ ' . t('retired')
+                                    ];
+                                    echo $status_labels[$eq['status']] ?? $eq['status'];
+                                    ?>
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-<?php echo $criticalityClass; ?>"><?php echo $criticality; ?></span>
+                            </td>
+                            <td style="max-width: 200px;">
+                                <?php if(!empty($history[$eq['id']])):
+                                    $h = $history[$eq['id']][0]; ?>
+                                    <div class="history-item">
+                                        <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
+                                    </div>
+                                <?php else: ?>
+                                    <small class="text-muted">-</small>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-center action-buttons" onclick="event.stopPropagation()">
+                                <?php if($eq['status'] != 'retired'): ?>
+                                    <a href="?page=equipment_attachments&equipment_id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-light" title="<?php echo t('attachments'); ?>">
+                                        <i class="fas fa-paperclip"></i>
+                                        <span class="badge bg-secondary ms-1">
+                                            <?php echo !empty($attachmentCounts[$eq['id']]) ? $attachmentCounts[$eq['id']] : 0; ?>
+                                        </span>
+                                    </a>
+                                    <a href="?page=equipment_qr&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('qr_code'); ?>">
+                                        <i class="fas fa-qrcode"></i>
+                                    </a>
+                                    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+                                    <a href="?page=equipment&action=edit&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('edit'); ?>">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger" title="<?php echo t('delete'); ?>" data-bs-toggle="modal" data-bs-target="#deleteEquipmentModal<?php echo $eq['id']; ?>">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <?php if($_SESSION['role'] == 'admin'): ?>
+                                    <a href="?page=equipment_qr&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('qr_code'); ?>">
+                                        <i class="fas fa-qrcode"></i>
+                                    </a>
+                                    <a href="?page=equipment&action=restore&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('restore'); ?>" onclick="return confirm('<?php echo t('restore_confirm'); ?>')">
+                                        <i class="fas fa-undo-alt"></i>
+                                    </a>
+                                    <?php endif; ?>
+                                <?php endif; ?>
                             </span>
-                        </span>
-                        <td class="text-center">
-                            <span class="badge bg-<?php echo $criticalityClass; ?>"><?php echo $criticality; ?></span>
-                        </span>
-                        <td style="max-width: 200px;">
-                            <?php if(!empty($history[$eq['id']])):
-                                $h = $history[$eq['id']][0]; ?>
-                                <div class="history-item">
-                                    <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
+                        </tr>
+                        
+                        <!-- Modal de suppression professionnelle -->
+                        <div class="modal fade" id="deleteEquipmentModal<?php echo $eq['id']; ?>" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-danger text-white">
+                                        <h5 class="modal-title">
+                                            <i class="fas fa-trash-alt"></i> <?php echo t('delete_equipment'); ?>
+                                        </h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form method="POST" action="?page=equipment&action=delete_confirm&id=<?php echo $eq['id']; ?>">
+                                        <div class="modal-body">
+                                            <div class="alert alert-warning mb-3">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                <?php echo t('delete_confirm'); ?>
+                                            </div>
+                                            <p>
+                                                <strong><?php echo t('equipment'); ?> :</strong> 
+                                                <?php echo htmlspecialchars($eq['name']); ?>
+                                                <br>
+                                                <small class="text-muted"><?php echo htmlspecialchars($eq['code']); ?></small>
+                                            </p>
+                                            <p class="text-muted small">
+                                                <i class="fas fa-info-circle"></i> 
+                                                <?php echo t('delete_warning'); ?>
+                                            </p>
+                                            <div class="mb-3">
+                                                <label class="form-label">
+                                                    <i class="fas fa-lock"></i> <?php echo t('confirm_password'); ?>
+                                                    <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="password" name="confirm_password" class="form-control" required autocomplete="off">
+                                                <small class="text-muted"><?php echo t('password_required_to_delete'); ?></small>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                <i class="fas fa-times"></i> <?php echo t('cancel'); ?>
+                                            </button>
+                                            <button type="submit" class="btn btn-danger">
+                                                <i class="fas fa-trash-alt"></i> <?php echo t('confirm_delete'); ?>
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
-                            <?php else: ?>
-                                <small class="text-muted">-</small>
-                            <?php endif; ?>
-                        </span>
-                        <td class="text-center action-buttons" onclick="event.stopPropagation()">
-                            <?php if($eq['status'] != 'retired'): ?>
-                                <a href="?page=equipment_attachments&equipment_id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-light" title="<?php echo t('attachments'); ?>">
-                                    <i class="fas fa-paperclip"></i>
-                                    <span class="badge bg-secondary ms-1">
-                                        <?php echo !empty($attachmentCounts[$eq['id']]) ? $attachmentCounts[$eq['id']] : 0; ?>
-                                    </span>
-                                </a>
-                                <a href="?page=equipment_qr&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('qr_code'); ?>">
-                                    <i class="fas fa-qrcode"></i>
-                                </a>
-                                <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                <a href="?page=equipment&action=edit&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('edit'); ?>">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="?page=equipment&action=delete&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('delete'); ?>" onclick="return confirm('<?php echo t('delete_confirm'); ?>')">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                                <?php endif; ?>
-                            <?php else: ?>
-                                <?php if($_SESSION['role'] == 'admin'): ?>
-                                <a href="?page=equipment_qr&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('qr_code'); ?>">
-                                    <i class="fas fa-qrcode"></i>
-                                </a>
-                                <a href="?page=equipment&action=restore&id=<?php echo $eq['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('restore'); ?>" onclick="return confirm('<?php echo t('restore_confirm'); ?>')">
-                                    <i class="fas fa-undo-alt"></i>
-                                </a>
-                                <?php endif; ?>
-                            <?php endif; ?>
-                        </span>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-</div>
-
-<!-- Legend with card layout -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="info-card">
-            <div class="card-header-custom">
-                <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
-            </div>
-            <div class="card-body p-3">
-                <div class="legend-grid">
-                    <div class="legend-item">
-                        <span class="status-badge status-active">🟢 <?php echo t('active'); ?></span>
-                        <small><?php echo t('active_description'); ?></small>
-                    </div>
-                    <div class="legend-item">
-                        <span class="status-badge status-maintenance">🟡 <?php echo t('maintenance'); ?></span>
-                        <small><?php echo t('maintenance_description'); ?></small>
-                    </div>
-                    <div class="legend-item">
-                        <span class="status-badge status-broken">🔴 <?php echo t('broken'); ?></span>
-                        <small><?php echo t('broken_description'); ?></small>
-                    </div>
-                    <div class="legend-item">
-                        <span class="status-badge status-retired">⚫ <?php echo t('retired'); ?></span>
-                        <small><?php echo t('retired_description'); ?></small>
-                    </div>
-                    <div class="legend-item">
-                        <span class="badge bg-success">1-5</span>
-                        <small><?php echo t('low_criticality'); ?></small>
-                    </div>
-                    <div class="legend-item">
-                        <span class="badge bg-warning">6-10</span>
-                        <small><?php echo t('medium_criticality'); ?></small>
-                    </div>
-                    <div class="legend-item">
-                        <span class="badge bg-orange">11-15</span>
-                        <small><?php echo t('high_criticality'); ?></small>
-                    </div>
-                    <div class="legend-item">
-                        <span class="badge bg-danger">16-25</span>
-                        <small><?php echo t('very_high_criticality'); ?></small>
+    
+    <!-- Legend -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
+                </div>
+                <div class="card-body p-3">
+                    <div class="legend-grid">
+                        <div class="legend-item">
+                            <span class="status-badge status-active">🟢 <?php echo t('active'); ?></span>
+                            <small><?php echo t('active_description'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-maintenance">🟡 <?php echo t('maintenance'); ?></span>
+                            <small><?php echo t('maintenance_description'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-broken">🔴 <?php echo t('broken'); ?></span>
+                            <small><?php echo t('broken_description'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-retired">⚫ <?php echo t('retired'); ?></span>
+                            <small><?php echo t('retired_description'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge bg-success">1-5</span>
+                            <small><?php echo t('low_criticality'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge bg-warning">6-10</span>
+                            <small><?php echo t('medium_criticality'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge bg-orange">11-15</span>
+                            <small><?php echo t('high_criticality'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge bg-danger">16-25</span>
+                            <small><?php echo t('very_high_criticality'); ?></small>
+                        </div>
                     </div>
                 </div>
             </div>

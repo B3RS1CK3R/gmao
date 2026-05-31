@@ -22,7 +22,7 @@ if($_SESSION['role'] == 'technician') {
             SELECT i.*, e.name as equipment_name 
             FROM interventions i 
             JOIN equipment e ON i.equipment_id = e.id 
-            WHERE i.technician_id = ? 
+            WHERE i.intervenant_id = ? 
             AND i.task_status IN ('a_faire', 'en_cours')
             ORDER BY i.intervention_date ASC
             LIMIT 10

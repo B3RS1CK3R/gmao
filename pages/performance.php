@@ -1,9 +1,6 @@
 <?php
 // pages/performance.php - Analyse performance (MTBF/MTTR)
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+    // auth handled centrally in index.php
 
 // Récupérer tous les équipements
 $stmt = $pdo->query("SELECT id, name, code, status FROM equipment WHERE status = 'active' ORDER BY name");

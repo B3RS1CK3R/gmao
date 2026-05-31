@@ -645,12 +645,12 @@ function assignInterventionToTechnician($intervention_id, $technician_id, $sched
     try {
         $pdo->beginTransaction();
         
-        // Determine which column exists in interventions table (migration may use technician_id)
+        // Determine which column exists in interventions table (migration may use intervenant_id)
         $intervCol = 'technician_id';
         $colStmt = $pdo->prepare("SHOW COLUMNS FROM interventions LIKE 'technician_id'");
         $colStmt->execute();
         if ($colStmt->rowCount() === 0) {
-            $intervCol = 'technician_id';
+            $intervCol = 'intervenant_id';
         }
 
         // Update the intervention with technician/intervenant and timing info
@@ -679,10 +679,10 @@ function assignInterventionToTechnician($intervention_id, $technician_id, $sched
  */
 function getTechnicianInterventions($technician_id, $limit = 10) {
     global $pdo;
-    // Support both technician_id and technician_id depending on DB schema
+    // Support both technician_id and intervenant_id depending on DB schema
     $colStmt = $pdo->prepare("SHOW COLUMNS FROM interventions LIKE 'technician_id'");
     $colStmt->execute();
-    $intervCol = $colStmt->rowCount() > 0 ? 'technician_id' : 'technician_id';
+    $intervCol = $colStmt->rowCount() > 0 ? 'technician_id' : 'intervenant_id';
 
     $sql = "SELECT i.*, e.name as equipment_name 
         FROM interventions i

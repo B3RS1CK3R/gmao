@@ -82,7 +82,7 @@ $stmt = $pdo->query("
     WHERE i.priority = 'critical' 
     AND i.task_status != 'termine'
     AND i.task_status != 'cloturee'
-    AND i.technician_id IS NULL
+    AND i.intervenant_id IS NULL
 ");
 $critical = $stmt->fetchAll();
 
@@ -147,7 +147,7 @@ $stmt = $pdo->query("
     SELECT i.*, e.name as equipment_name 
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
-    WHERE i.technician_id IS NULL 
+    WHERE i.intervenant_id IS NULL 
     AND i.task_status = 'a_faire'
     AND i.created_at <= DATE_SUB(NOW(), INTERVAL 3 DAY)
 ");

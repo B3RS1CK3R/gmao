@@ -28,7 +28,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     $sql = "INSERT INTO interventions (
         task_number, equipment_id, type, priority, title, description, reported_by,
-        technician_id, task_status, intervention_date, task_type, zone, localisation, planned_duration
+        intervenant_id, task_status, intervention_date, task_type, zone, localisation, planned_duration
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
     $stmt = $pdo->prepare($sql);
@@ -40,7 +40,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $_POST['title'],
         $_POST['description'],
         $_SESSION['username'],
-        !empty($_POST['technician_id']) ? $_POST['technician_id'] : null,
+        !empty($_POST['intervenant_id']) ? $_POST['intervenant_id'] : null,
         $_POST['task_status'],
         !empty($_POST['intervention_date']) ? $_POST['intervention_date'] : null,
         $_POST['task_type'],
@@ -251,7 +251,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label"><?php echo t('technician'); ?></label>
-                                <select name="technician_id" class="form-select">
+                                <select name="intervenant_id" class="form-select">
                                     <option value="">-- <?php echo t('unassigned'); ?> --</option>
                                     <?php foreach($intervenants as $intervenant): ?>
                                     <option value="<?php echo $intervenant['id']; ?>">

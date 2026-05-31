@@ -26,7 +26,7 @@ $stmt = $pdo->prepare("
     SELECT i.*, e.name as equipment_name, e.code as equipment_code, e.location as equipment_location
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
-    WHERE i.technician_id = ?
+    WHERE i.intervenant_id = ?
     ORDER BY i.intervention_date ASC, i.created_at DESC
 ");
 $stmt->execute([$id]);

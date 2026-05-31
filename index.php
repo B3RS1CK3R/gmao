@@ -10,6 +10,11 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 // =======================================================
 
+// Start output buffering to avoid "headers already sent" when pages perform redirects
+if (ob_get_level() == 0) {
+    ob_start();
+}
+
 // Enforce HTTPS and secure session cookies
 $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
 if (!$isHttps) {
@@ -53,14 +58,31 @@ if (isset($_GET['setlang'])) {
 require_once 'includes/lang.php';
 // ===========================================================
 
-require_once 'config/database.php';
-require_once 'includes/functions.php';   // Fonctions globales
+    require_once 'config/database.php';
+    require_once 'includes/functions.php';   // Fonctions globales
 
-$page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
+    // Determine requested page early so we can apply auth checks before including templates
+    $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
+
+    // Centralised auth: redirect to login if user not authenticated and requesting a protected page
+    $public_pages = ['login', 'setlang'];
+    if (!in_array($page, $public_pages, true)) {
+        if (empty($_SESSION['user_id'])) {
+            // Use absolute redirect to ensure header sent properly
+            header('Location: index.php?page=login');
+            exit();
+        }
+    }
 
 // Page Login traitée en premier
 if ($page === 'login') {
     require_once 'pages/login.php';
+    exit();
+}
+// Logout: destroy session and redirect before any output
+if ($page === 'logout') {
+    session_destroy();
+    header('Location: index.php?page=login');
     exit();
 }
 ?>
@@ -182,13 +204,6 @@ if ($page === 'login') {
                     case 'equipment_attachments':
                         require_once 'pages/equipment_attachments.php';
                         break;
-
-                        if (file_exists("pages/{$page}.php")) {
-                            require_once "pages/{$page}.php";
-                        } else {
-                            echo "<div class='alert alert-info'>La page <strong>" . ucfirst(str_replace('_', ' ', $page)) . "</strong> est en cours de développement.</div>";
-                        }
-                        break;
                         
                     // Autres pages existantes
                     case 'equipment':
@@ -224,5 +239,4 @@ if ($page === 'login') {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="assets/js/alerts.js"></script>
 </body>
-</html>ody>
 </html>

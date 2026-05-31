@@ -1,9 +1,6 @@
 <?php
 // pages/criticality_matrix.php - Matrice de criticité (probabilité vs sévérité)
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+// auth handled centrally in index.php
 
 if($_SESSION['role'] != 'admin') {
     echo "<div class='alert alert-danger'>" . t('access_denied') . "</div>";

@@ -133,23 +133,24 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <td class="page-name"><?php echo htmlspecialchars($pageName); ?></td>
                                 <td class="text-center">
                                     <input type="checkbox" checked disabled class="form-check-input checkbox-admin">
-                                </span>
+                                </td>
                                 <td class="text-center">
                                     <input type="checkbox" name="supervisor[<?php echo $page; ?>]" value="1" <?php echo $checkedSupervisor; ?> class="form-check-input">
-                                </span>
+                                </td>
                                 <td class="text-center">
                                     <input type="checkbox" name="technician[<?php echo $page; ?>]" value="1" <?php echo $checkedTechnician; ?> class="form-check-input">
-                                </span>
+                                </td>
                                 <td class="text-center">
                                     <input type="checkbox" name="viewer[<?php echo $page; ?>]" value="1" <?php echo $checkedViewer; ?> class="form-check-input">
-                                </span>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
-                    </div>
+                    </table>
                 </div>
             </div>
         </div>
+    </div>
         <div class="mt-3">
             <button type="submit" class="btn btn-primary"> <?php echo t('save_changes'); ?> </button>
             <a href="?page=dashboard" class="btn btn-secondary"> <?php echo t('cancel'); ?> </a>

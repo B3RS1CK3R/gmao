@@ -19,7 +19,7 @@ if($action == 'change_status' && isset($_GET['id']) && isset($_GET['status'])) {
 
 // Assign a technician
 if($action == 'assign' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $stmt = $pdo->prepare("UPDATE interventions SET technician_id = ? WHERE id = ?");
+    $stmt = $pdo->prepare("UPDATE interventions SET intervenant_id = ? WHERE id = ?");
     $stmt->execute([$_POST['technician_id'], $_GET['id']]);
     logUserAction($_SESSION['user_id'], 'intervention_assigned', "Technician assigned to ID: {$_GET['id']}");
     $message = "✅ " . t('technician_assigned');
@@ -107,7 +107,7 @@ $interventions = $pdo->query("
            t.id as technician_id, t.firstname, t.lastname, t.specialty
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
-    LEFT JOIN technicians t ON i.technician_id = t.id
+    LEFT JOIN technicians t ON i.intervenant_id = t.id
     ORDER BY 
         CASE i.task_status 
             WHEN 'a_faire' THEN 1      -- to do
@@ -201,7 +201,7 @@ if($action == 'assign' && isset($_GET['id'])):
                 <select name="technician_id" class="form-select" required>
                     <option value="">-- <?php echo t('select_technician'); ?> --</option>
                     <?php foreach($technicians as $tech): ?>
-                    <option value="<?php echo $tech['id']; ?>" <?php if($interv['technician_id'] == $tech['id']) echo 'selected'; ?>>
+                    <option value="<?php echo $tech['id']; ?>" <?php if($interv['intervenant_id'] == $tech['id']) echo 'selected'; ?>>
                         <?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname'] . ' (' . $tech['specialty'] . ')'); ?>
                     </option>
                     <?php endforeach; ?>

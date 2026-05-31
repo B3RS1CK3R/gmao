@@ -1,9 +1,6 @@
 <?php
 // pages/profile.php - User Profile
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+    // auth handled centrally in index.php
 
 $user_id = $_SESSION['user_id'];
 $user = getUser($user_id);

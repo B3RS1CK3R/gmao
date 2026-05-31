@@ -15,7 +15,7 @@ $stmt = $pdo->prepare("
            u.username as created_by_name
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
-    LEFT JOIN technicians t ON i.technician_id = t.id
+    LEFT JOIN technicians t ON i.intervenant_id = t.id
     LEFT JOIN users u ON i.reported_by = u.username
     WHERE i.id = ?
 ");
@@ -266,7 +266,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             
             <!-- Card: Technician -->
             <div class="info-card">
-                <div class="card-header-custom <?php echo $intervention['technician_id'] ? 'success' : 'warning'; ?>">
+                <div class="card-header-custom <?php echo $intervention['intervenant_id'] ? 'success' : 'warning'; ?>">
                     <i class="fas fa-user-cog"></i> <?php echo t('technician'); ?>
                 </div>
                 <div class="card-body p-4">

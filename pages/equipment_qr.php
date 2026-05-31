@@ -1,9 +1,6 @@
 <?php
 // pages/equipment_qr.php - Page QR Code pour équipement
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+// auth handled centrally in index.php
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if($id == 0) {

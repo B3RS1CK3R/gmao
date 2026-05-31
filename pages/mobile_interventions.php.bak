@@ -29,7 +29,7 @@ $sql = "
 $params = [];
 
 if($technician_id) {
-    $sql .= " AND i.technician_id = ?";
+    $sql .= " AND i.intervenant_id = ?";
     $params[] = $technician_id;
 }
 

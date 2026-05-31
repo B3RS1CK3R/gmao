@@ -36,7 +36,7 @@ $sql = "
         i.localisation as 'Location'
     FROM interventions i
     JOIN equipment e ON i.equipment_id = e.id
-    LEFT JOIN technicians t ON i.technician_id = t.id
+    LEFT JOIN technicians t ON i.intervenant_id = t.id
     WHERE 1=1
 ";
 

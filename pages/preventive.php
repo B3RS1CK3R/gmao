@@ -1,9 +1,6 @@
 <?php
 // pages/preventive.php - Preventive maintenance management
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+// auth handled centrally in index.php
 
 $action = $_GET['action'] ?? 'list';
 $message = '';

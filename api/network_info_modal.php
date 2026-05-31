@@ -2,8 +2,8 @@
 // network_info_modal.php - Contenu de la modale
 require_once __DIR__ . '/../includes/lang.php';
 $ip = $_SERVER['SERVER_ADDR'] ?? '192.168.1.x';
-$port = $_SERVER['SERVER_PORT'] ?? 80;
-$url = "http://{$ip}:{$port}/gmao/index.php?page=mobile_dashboard";
+$port = $_SERVER['SERVER_PORT'] == 80 ? 443 : $_SERVER['SERVER_PORT'];
+$url = "https://{$ip}:{$port}/gmao/index.php?page=mobile_dashboard";
 ?>
 
 <div class="text-center">

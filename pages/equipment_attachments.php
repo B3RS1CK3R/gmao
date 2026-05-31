@@ -1,9 +1,6 @@
 <?php
 // pages/equipment_attachments.php - Manage attachments for equipments
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+    // auth handled centrally in index.php
 
 // Only admins and supervisors can manage global attachments
 if(!in_array($_SESSION['role'], ['admin','supervisor'])) {

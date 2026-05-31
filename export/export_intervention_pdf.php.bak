@@ -21,7 +21,7 @@ $stmt = $pdo->prepare("
            u.username as created_by_name
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
-    LEFT JOIN technicians t ON i.technician_id = t.id
+    LEFT JOIN technicians t ON i.intervenant_id = t.id
     LEFT JOIN users u ON i.reported_by = u.username
     WHERE i.id = ?
 ");
