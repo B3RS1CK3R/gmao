@@ -1,5 +1,9 @@
 <?php
 // api/get_ip.php
+// Provide core helpers to ensure consistent environment (session, translation)
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
+
 header('Content-Type: application/json');
 
 function getLocalIP() {
