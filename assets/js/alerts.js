@@ -316,33 +316,40 @@ function convertAlertsToToasts() {
                 <div class="toast-content">
                     <div class="toast-message">${message}</div>
                 </div>
-                <div class="toast-close">×</div>
+                <button type="button" class="toast-close" aria-label="Close notification">×</button>
             `;
+            
+            // Function to close toast
+            const closeToast = () => {
+                toast.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.remove();
+                    }
+                }, 300);
+            };
             
             // Event listener pour le bouton de fermeture
             const closeBtn = toast.querySelector('.toast-close');
             closeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                toast.style.animation = 'slideOutRight 0.3s ease-out';
-                setTimeout(() => toast.remove(), 300);
+                closeToast();
             });
             
-            // Event listener pour fermer en cliquant sur le toast (mais pas sur close)
-            toast.addEventListener('click', (e) => {
-                if (e.target !== closeBtn && !closeBtn.contains(e.target)) {
-                    toast.style.animation = 'slideOutRight 0.3s ease-out';
-                    setTimeout(() => toast.remove(), 300);
+            // Auto-close après 8 secondes
+            const autoCloseTimeout = setTimeout(() => {
+                if (toast.parentElement) {
+                    closeToast();
                 }
+            }, 8000);
+            
+            // Clear timeout if manually closed
+            closeBtn.addEventListener('click', () => {
+                clearTimeout(autoCloseTimeout);
             });
             
             alertSystem.toastContainer.appendChild(toast);
-            
-            setTimeout(() => {
-                if (toast.parentElement) {
-                    toast.style.animation = 'slideOutRight 0.3s ease-out';
-                    setTimeout(() => toast.remove(), 300);
-                }
-            }, 8000);
         }
         
         // Remove the original alert div

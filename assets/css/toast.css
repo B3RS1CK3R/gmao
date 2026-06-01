@@ -76,21 +76,28 @@
 .toast-close {
     cursor: pointer;
     color: #999;
-    padding: 5px 8px;
-    font-size: 18px;
+    padding: 4px 6px;
+    font-size: 20px;
     font-weight: bold;
     line-height: 1;
     user-select: none;
     pointer-events: auto;
     flex-shrink: 0;
     border: none;
-    background: none;
+    background: transparent;
+    display: block;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin: -15px -20px -15px 0;
+    margin-left: auto;
+    text-align: center;
+    line-height: 32px;
 }
 
 .toast-close:hover {
     color: #333;
-    background-color: rgba(0,0,0,0.1);
-    border-radius: 4px;
+    background-color: rgba(0,0,0,0.05);
 }
 
 .toast-close:active {
