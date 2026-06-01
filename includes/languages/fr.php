@@ -584,5 +584,10 @@ return [
     'log_msg_intervention_completed'=>'Intervention de maintenance marquée comme terminée :',
     'log_msg_attachment_uploaded'=>'Document/fichier attaché au dossier :',
     'log_msg_attachment_deleted'=>'Document/fichier supprimé :',
+    
+    // Popup notifications settings
+    'popup_display_duration'    => 'Durée d\'affichage des popups',
+    'popup_duration_desc'       => 'Choisissez combien de temps les notifications doivent rester à l\'écran',
+    'seconds'                   => 'secondes',
 
 ];

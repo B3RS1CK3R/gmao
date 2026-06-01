@@ -359,6 +359,29 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
             </label>
         </div>
     </div>
+
+    <!-- ===== POPUP DURATION SETTINGS ===== -->
+    <div class="popup-settings">
+        <div>
+            <i class="fas fa-hourglass-half"></i> <strong><?php echo t('popup_display_duration'); ?></strong>
+            <small class="text-muted d-block"><?php echo t('popup_duration_desc'); ?></small>
+        </div>
+        <div>
+            <div class="input-group" style="max-width: 250px;">
+                <select id="popupDuration" class="form-select">
+                    <option value="3000">3 <?php echo t('seconds'); ?></option>
+                    <option value="5000">5 <?php echo t('seconds'); ?></option>
+                    <option value="8000" selected>8 <?php echo t('seconds'); ?> (<?php echo t('default'); ?>)</option>
+                    <option value="10000">10 <?php echo t('seconds'); ?></option>
+                    <option value="15000">15 <?php echo t('seconds'); ?></option>
+                    <option value="20000">20 <?php echo t('seconds'); ?></option>
+                </select>
+                <button class="btn btn-outline-primary" type="button" id="saveDurationBtn">
+                    <i class="fas fa-save"></i> <?php echo t('save'); ?>
+                </button>
+            </div>
+        </div>
+    </div>
     
     <!-- Alerts summary -->
     <div class="row mb-4">
@@ -497,6 +520,31 @@ if (popupsToggle) {
         msg.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; min-width: 250px;';
         msg.innerHTML = `
             <i class="fas fa-check-circle"></i> Popup notifications ${enabled ? 'enabled' : 'disabled'}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(msg);
+        setTimeout(() => msg.remove(), 2000);
+    });
+}
+
+// ===== POPUP DURATION SETTINGS (AJOUTÉ) =====
+const popupDuration = document.getElementById('popupDuration');
+const saveDurationBtn = document.getElementById('saveDurationBtn');
+if (popupDuration) {
+    // Load saved duration
+    const savedDuration = localStorage.getItem('gmao_popup_duration') || '8000';
+    popupDuration.value = savedDuration;
+    
+    // Save duration
+    saveDurationBtn.addEventListener('click', function() {
+        const duration = popupDuration.value;
+        localStorage.setItem('gmao_popup_duration', duration);
+        
+        const msg = document.createElement('div');
+        msg.className = 'alert alert-success alert-dismissible fade show';
+        msg.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+        msg.innerHTML = `
+            <i class="fas fa-check-circle"></i> Popup duration set to ${duration/1000} seconds
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         document.body.appendChild(msg);

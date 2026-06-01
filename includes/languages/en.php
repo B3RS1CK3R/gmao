@@ -581,5 +581,10 @@ return [
     'log_msg_intervention_completed'=>'Maintenance intervention marked as completed:',
     'log_msg_attachment_uploaded'=>'Document/file attached to record:',
     'log_msg_attachment_deleted'=>'Document/file removed:',
+    
+    // Popup notifications settings
+    'popup_display_duration'    => 'Popup display duration',
+    'popup_duration_desc'       => 'Choose how long notifications should stay on screen',
+    'seconds'                   => 'seconds',
 
 ];

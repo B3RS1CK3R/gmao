@@ -305,11 +305,23 @@ let alertSystem = null;
 
 // Convert Bootstrap alerts to toasts
 function convertAlertsToToasts() {
+    // Only convert alerts on dashboard page
+    const params = new URLSearchParams(window.location.search);
+    const currentPage = params.get('page') || 'dashboard';
+    
+    // Skip conversion if not on dashboard
+    if (currentPage !== 'dashboard') {
+        console.log('⏭️  Alerts only shown on dashboard. Current page:', currentPage);
+        document.querySelectorAll('.alert[data-convertible="true"]').forEach(alert => alert.remove());
+        return;
+    }
+    
     // Only convert alerts marked with data-convertible="true" (real feedback alerts, not confirmation dialogs)
     const alerts = document.querySelectorAll('.alert[data-convertible="true"]:not(.alert-fixed)');
     const dismissedAlerts = JSON.parse(sessionStorage.getItem('gmao_dismissed_alerts') || '[]');
+    const displayDuration = parseInt(localStorage.getItem('gmao_popup_duration') || '8000'); // Default 8 seconds
     
-    console.log('🔍 Converting alerts. Found:', alerts.length, 'Dismissed IDs:', dismissedAlerts);
+    console.log('🔍 Converting alerts. Found:', alerts.length, 'Duration:', displayDuration + 'ms', 'Dismissed IDs:', dismissedAlerts);
     
     alerts.forEach((alert, index) => {
         const type = alert.classList.contains('alert-success') ? 'success' :
@@ -388,12 +400,12 @@ function convertAlertsToToasts() {
                 closeToast();
             });
             
-            // Auto-close après 8 secondes
+            // Auto-close après la durée configurée
             const autoCloseTimeout = setTimeout(() => {
                 if (toast.parentElement) {
                     closeToast();
                 }
-            }, 8000);
+            }, displayDuration);
             
             // Clear timeout if manually closed
             closeBtn.addEventListener('click', () => {
