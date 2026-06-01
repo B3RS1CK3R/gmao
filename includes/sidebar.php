@@ -9,8 +9,8 @@
         <div class="d-flex align-items-center mb-4 px-3 pt-3">
             <i class="fas fa-tools fa-2x text-primary me-3"></i>
             <div>
-                <h4 class="mb-0 text-white">GMAO</h4>
-                <small class="text-light">Gestion de Maintenance</small>
+                <h4 class="mb-0 text-white"><?php echo t('gmao'); ?></h4>
+                <small class="text-light"><?php echo t('gmao_desc'); ?></small>
             </div>
         </div>
 
@@ -138,7 +138,7 @@
         <!-- Footer -->
         <div class="sidebar-footer pt-3 pb-3 px-3 border-top border-secondary">
             <small class="text-muted">
-                <?php echo t('version'); ?> 1.0<br>
+                <span class="text-info"><?php echo t('version'); ?> <?php echo t('version_number'); ?></span><br>
                 <span class="text-light"><?php echo date('Y'); ?> © GMAO</span>
             </small>
         </div>

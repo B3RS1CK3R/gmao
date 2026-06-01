@@ -247,6 +247,60 @@ $status_labels = [
         </div>
     </div>
 
+    <!-- Preventive Maintenances Section (only shown if records exist) -->
+    <?php if(!empty($preventives)): ?>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <i class="fas fa-calendar-check"></i> <?php echo t('preventive_maintenance'); ?>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th><?php echo t('frequency'); ?></th>
+                                <th><?php echo t('last_done'); ?></th>
+                                <th><?php echo t('next_due'); ?></th>
+                                <th><?php echo t('instructions'); ?></th>
+                                <th><?php echo t('team'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach($preventives as $pm): ?>
+                            <tr>
+                                <td><?php echo t('every') . ' ' . $pm['frequency_days'] . ' ' . t('days_s'); ?></span>
+                                <td><?php echo $pm['last_done'] ? format_date_us($pm['last_done'], false) : t('never'); ?></span>
+                                <td>
+                                    <?php echo format_date_us($pm['next_due'], false); ?>
+                                    <?php if(strtotime($pm['next_due']) < time()): ?>
+                                        <span class="badge bg-danger ms-2"><?php echo t('overdue'); ?></span>
+                                    <?php endif; ?>
+                                </span>
+                                <td><?php echo nl2br(htmlspecialchars($pm['instructions'])); ?></span>
+                                <td><?php echo htmlspecialchars($pm['assigned_team'] ?: '-'); ?></span>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Quick Actions Bar -->
+    <div class="col-12">
+        <div class="action-buttons">
+            <a href="?page=intervention_add&equipment_id=<?php echo $equipment['id']; ?>" class="btn btn-primary">
+                <i class="fas fa-plus"></i> <?php echo t('new_intervention'); ?>
+            </a>
+            <a href="?page=preventive_add&equipment_id=<?php echo $equipment['id']; ?>" class="btn btn-warning">
+                <i class="fas fa-calendar-plus"></i> <?php echo t('plan_maintenance'); ?>
+            </a>
+        </div>
+    </div>
+
     <!-- Full Width Section: Interventions History -->
     <div class="col-12">
         <div class="card">
@@ -300,60 +354,6 @@ $status_labels = [
                     </div>
                 <?php endif; ?>
             </div>
-        </div>
-    </div>
-
-    <!-- Preventive Maintenances Section (only shown if records exist) -->
-    <?php if(!empty($preventives)): ?>
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-warning text-dark">
-                <i class="fas fa-calendar-check"></i> <?php echo t('preventive_maintenance'); ?>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th><?php echo t('frequency'); ?></th>
-                                <th><?php echo t('last_done'); ?></th>
-                                <th><?php echo t('next_due'); ?></th>
-                                <th><?php echo t('instructions'); ?></th>
-                                <th><?php echo t('team'); ?></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach($preventives as $pm): ?>
-                            <tr>
-                                <td><?php echo t('every') . ' ' . $pm['frequency_days'] . ' ' . t('days'); ?></span>
-                                <td><?php echo $pm['last_done'] ? format_date_us($pm['last_done'], false) : t('never'); ?></span>
-                                <td>
-                                    <?php echo format_date_us($pm['next_due'], false); ?>
-                                    <?php if(strtotime($pm['next_due']) < time()): ?>
-                                        <span class="badge bg-danger ms-2"><?php echo t('overdue'); ?></span>
-                                    <?php endif; ?>
-                                </span>
-                                <td><?php echo nl2br(htmlspecialchars($pm['instructions'])); ?></span>
-                                <td><?php echo htmlspecialchars($pm['assigned_team'] ?: '-'); ?></span>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- Quick Actions Bar -->
-    <div class="col-12">
-        <div class="action-buttons">
-            <a href="?page=intervention_add&equipment_id=<?php echo $equipment['id']; ?>" class="btn btn-primary">
-                <i class="fas fa-plus"></i> <?php echo t('new_intervention'); ?>
-            </a>
-            <a href="?page=preventive_add&equipment_id=<?php echo $equipment['id']; ?>" class="btn btn-warning">
-                <i class="fas fa-calendar-plus"></i> <?php echo t('plan_maintenance'); ?>
-            </a>
         </div>
     </div>
 
