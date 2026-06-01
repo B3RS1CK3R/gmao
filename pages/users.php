@@ -302,14 +302,14 @@ if(!$logs) $logs = [];
     </div>
     
     <?php if($message): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <div class="alert alert-success alert-dismissible fade show" role="alert" data-convertible="true">
             <i class="fas fa-check-circle"></i> <?php echo $message; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
     
     <?php if($error): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" data-convertible="true">
             <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>

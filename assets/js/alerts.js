@@ -227,26 +227,35 @@ class AlertSystem {
     }
     
     playAlertSound() {
-        if (!this.audioContext) {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // AudioContext requires user interaction - try to resume if suspended
+        try {
+            if (!this.audioContext) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            // Only try to play if audio context is available and allowed
+            if (this.audioContext && this.audioContext.state !== 'closed') {
+                if (this.audioContext.state === 'suspended') {
+                    // Don't force resume - it requires user interaction
+                    return;
+                }
+                
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                oscillator.frequency.value = 880;
+                gainNode.gain.value = 0.3;
+                
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, this.audioContext.currentTime + 1);
+                oscillator.stop(this.audioContext.currentTime + 1);
+            }
+        } catch (error) {
+            console.warn('Audio notification not available:', error.message);
         }
-        
-        if (this.audioContext.state === 'suspended') {
-            this.audioContext.resume();
-        }
-        
-        const oscillator = this.audioContext.createOscillator();
-        const gainNode = this.audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(this.audioContext.destination);
-        
-        oscillator.frequency.value = 880;
-        gainNode.gain.value = 0.3;
-        
-        oscillator.start();
-        gainNode.gain.exponentialRampToValueAtTime(0.00001, this.audioContext.currentTime + 1);
-        oscillator.stop(this.audioContext.currentTime + 1);
     }
     
     updateNotificationBadges(counts) {
@@ -296,10 +305,13 @@ let alertSystem = null;
 
 // Convert Bootstrap alerts to toasts
 function convertAlertsToToasts() {
-    const alerts = document.querySelectorAll('.alert:not(.alert-fixed)');
+    // Only convert alerts marked with data-convertible="true" (real feedback alerts, not confirmation dialogs)
+    const alerts = document.querySelectorAll('.alert[data-convertible="true"]:not(.alert-fixed)');
     const dismissedAlerts = JSON.parse(sessionStorage.getItem('gmao_dismissed_alerts') || '[]');
     
-    alerts.forEach(alert => {
+    console.log('🔍 Converting alerts. Found:', alerts.length, 'Dismissed IDs:', dismissedAlerts);
+    
+    alerts.forEach((alert, index) => {
         const type = alert.classList.contains('alert-success') ? 'success' :
                      alert.classList.contains('alert-danger') ? 'critical' :
                      alert.classList.contains('alert-warning') ? 'warning' : 'info';
@@ -316,11 +328,14 @@ function convertAlertsToToasts() {
         }
         message = message.trim().replace(/[\s]+/g, ' ');
         
-        // Create unique ID for this alert
-        const alertId = btoa(`${type}:${message}`).substring(0, 32);
+        // Use index-based ID for more reliable tracking
+        const alertId = `${type}_${index}`;
+        
+        console.log(`Alert #${index}:`, {type, message: message.substring(0, 50), alertId, isDismissed: dismissedAlerts.includes(alertId)});
         
         // Check if this alert was already dismissed in this session
         if (dismissedAlerts.includes(alertId)) {
+            console.log(`⏭️  Skipping dismissed alert:`, alertId);
             alert.remove();
             return; // Skip this alert
         }
@@ -353,6 +368,7 @@ function convertAlertsToToasts() {
                 if (!dismissed.includes(alertId)) {
                     dismissed.push(alertId);
                     sessionStorage.setItem('gmao_dismissed_alerts', JSON.stringify(dismissed));
+                    console.log('💾 Saved dismissal:', alertId, 'All dismissed:', dismissed);
                 }
                 
                 // Animate out
