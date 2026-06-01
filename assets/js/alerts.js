@@ -200,12 +200,13 @@ class AlertSystem {
         
         this.toastContainer.appendChild(toast);
         
+        const displayDuration = parseInt(localStorage.getItem('gmao_popup_duration') || '8000');
         setTimeout(() => {
             if (toast.parentElement) {
                 toast.style.animation = 'slideOutRight 0.3s ease-out';
                 setTimeout(() => toast.remove(), 300);
             }
-        }, 8000);
+        }, displayDuration);
     }
     
     escapeHtml(text) {
@@ -431,8 +432,18 @@ function hashString(str) {
     return Math.abs(hash).toString(36);
 }
 
+function getCurrentPage() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('page') || 'dashboard';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    alertSystem = new AlertSystem();
+    const currentPage = getCurrentPage();
+    if (currentPage === 'dashboard') {
+        alertSystem = new AlertSystem();
+    } else {
+        console.log('⏭️ AlertSystem disabled on page:', currentPage);
+    }
     // Convert existing Bootstrap alerts to toasts
     setTimeout(convertAlertsToToasts, 100);
 });
