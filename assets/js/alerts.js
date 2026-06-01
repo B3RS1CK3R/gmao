@@ -289,6 +289,63 @@ class AlertSystem {
 
 let alertSystem = null;
 
+// Convert Bootstrap alerts to toasts
+function convertAlertsToToasts() {
+    const alerts = document.querySelectorAll('.alert:not(.alert-fixed)');
+    alerts.forEach(alert => {
+        const type = alert.classList.contains('alert-success') ? 'success' :
+                     alert.classList.contains('alert-danger') ? 'critical' :
+                     alert.classList.contains('alert-warning') ? 'warning' : 'info';
+        
+        const message = alert.textContent.trim();
+        
+        if (alertSystem && message) {
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+            
+            let icon = '';
+            switch(type) {
+                case 'success': icon = '✓'; break;
+                case 'critical': icon = '⚠'; break;
+                case 'warning': icon = '!'; break;
+                case 'info': icon = 'i'; break;
+            }
+            
+            toast.innerHTML = `
+                <div class="toast-icon">${icon}</div>
+                <div class="toast-content">
+                    <div class="toast-message">${message}</div>
+                </div>
+                <div class="toast-close">×</div>
+            `;
+            
+            toast.querySelector('.toast-close').addEventListener('click', () => {
+                toast.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            });
+            
+            toast.addEventListener('click', () => {
+                toast.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            });
+            
+            alertSystem.toastContainer.appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 8000);
+        }
+        
+        // Remove the original alert div
+        alert.remove();
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     alertSystem = new AlertSystem();
+    // Convert existing Bootstrap alerts to toasts
+    setTimeout(convertAlertsToToasts, 100);
 });
