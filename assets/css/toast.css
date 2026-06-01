@@ -129,7 +129,7 @@
 /* Badge de notification */
 .notification-badge {
     position: relative;
-    display: inline-block;
+    display: block;
 }
 
 .badge-count {
