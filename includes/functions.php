@@ -95,8 +95,8 @@ function getEquipment($id = null) {
         return $stmt->fetch();
     } else {
         $stmt = $pdo->query("SELECT e.*, 
-                             (SELECT COUNT(*) FROM interventions WHERE equipment_id = e.id AND task_status = 'pending') as pending_interventions
-                             FROM equipment e ORDER BY e.name");
+                            (SELECT COUNT(*) FROM interventions WHERE equipment_id = e.id AND task_status = 'pending') as pending_interventions
+                            FROM equipment e ORDER BY e.name");
         return $stmt->fetchAll();
     }
 }
@@ -161,14 +161,14 @@ function getDashboardStats() {
     
     // Number of interventions completed during the current month
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM interventions 
-                         WHERE task_status IN ('completed', 'closed') 
-                         AND MONTH(created_at) = MONTH(CURRENT_DATE()) 
-                         AND YEAR(created_at) = YEAR(CURRENT_DATE())");
+                        WHERE task_status IN ('completed', 'closed') 
+                        AND MONTH(created_at) = MONTH(CURRENT_DATE()) 
+                        AND YEAR(created_at) = YEAR(CURRENT_DATE())");
     $stats['completed_interventions'] = $stmt->fetch()['total'];
     
     // Average duration of completed interventions in hours
     $stmt = $pdo->query("SELECT AVG(duration_hours) as avg_duration 
-                         FROM interventions WHERE task_status IN ('completed', 'closed') AND duration_hours IS NOT NULL");
+                        FROM interventions WHERE task_status IN ('completed', 'closed') AND duration_hours IS NOT NULL");
     $stats['avg_intervention_duration'] = round($stmt->fetch()['avg_duration'] ?? 0, 1);
     
     // Count of spare parts with quantity at or below minimum threshold
@@ -186,9 +186,9 @@ function getDashboardStats() {
 function updatePreventiveSchedule() {
     global $pdo;
     $stmt = $pdo->query("SELECT pm.*, e.name as equipment_name 
-                         FROM preventive_maintenance pm 
-                         JOIN equipment e ON pm.equipment_id = e.id 
-                         WHERE pm.next_due <= CURDATE() AND e.status = 'active'");
+                        FROM preventive_maintenance pm 
+                        JOIN equipment e ON pm.equipment_id = e.id 
+                        WHERE pm.next_due <= CURDATE() AND e.status = 'active'");
     return $stmt->fetchAll();
 }
 
@@ -214,8 +214,8 @@ function getAlerts() {
     
     // 3. Expiring or expired warranties (within 30 days)
     $stmt = $pdo->query("SELECT name, warranty_end FROM equipment 
-                         WHERE warranty_end <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) 
-                         AND warranty_end IS NOT NULL");
+                        WHERE warranty_end <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) 
+                        AND warranty_end IS NOT NULL");
     $warranty = $stmt->fetchAll();
     foreach($warranty as $eq) {
         $days = ceil((strtotime($eq['warranty_end']) - time()) / 86400);
@@ -331,29 +331,45 @@ function format_date_local($date, $component = 'full', $withTime = false) {
         }
     }
 
-    // Fallback if Intl isn't available: basic translations for French
-    $weekday_en = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    $weekday_fr = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-    $month_en = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    $month_fr = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+    // Fallback if Intl isn't available: manual translations for French and English
+    $weekday_short_en = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    $weekday_short_fr = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+    $weekday_long_en = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    $weekday_long_fr = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    $month_short_en = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    $month_short_fr = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+    $month_long_en = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    $month_long_fr = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
     switch ($component) {
         case 'weekday_short':
             $d = date('w', $ts);
-            return ($lang === 'fr') ? $weekday_fr[$d] : $weekday_en[$d];
+            return ($lang === 'fr') ? $weekday_short_fr[$d] : $weekday_short_en[$d];
         case 'month_short':
             $m = intval(date('n', $ts)) - 1;
-            return ($lang === 'fr') ? $month_fr[$m] : $month_en[$m];
+            return ($lang === 'fr') ? $month_short_fr[$m] : $month_short_en[$m];
         case 'day_num':
             return date('d', $ts);
         case 'long':
-            return date('F d, Y' . ($withTime ? ' H:i' : ''), $ts);
+            $m = intval(date('n', $ts)) - 1;
+            $day = date('d', $ts);
+            $year = date('Y', $ts);
+            if ($lang === 'fr') {
+                return $day . ' ' . $month_long_fr[$m] . ' ' . $year . ($withTime ? ' ' . date('H:i', $ts) : '');
+            } else {
+                return $month_long_en[$m] . ' ' . $day . ', ' . $year . ($withTime ? ' ' . date('H:i', $ts) : '');
+            }
         case 'full':
         default:
+            $w = date('w', $ts);
+            $m = intval(date('n', $ts)) - 1;
+            $day = date('d', $ts);
+            $year = date('Y', $ts);
             if ($lang === 'fr') {
-                return date('l d F Y' . ($withTime ? ' H:i' : ''), $ts); // locale-aware names may not be translated without Intl
+                return $weekday_long_fr[$w] . ' ' . $day . ' ' . $month_long_fr[$m] . ' ' . $year . ($withTime ? ' ' . date('H:i', $ts) : '');
+            } else {
+                return $weekday_long_en[$w] . ', ' . $month_long_en[$m] . ' ' . $day . ', ' . $year . ($withTime ? ' ' . date('H:i', $ts) : '');
             }
-            return date('l d F Y' . ($withTime ? ' H:i' : ''), $ts);
     }
 }
 
@@ -463,8 +479,8 @@ function sendPreventiveAlert($maintenance) {
         </div>
         <p>
             <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=preventive' 
-               style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-               " . t('view_in_gmao') . "
+                style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                " . t('view_in_gmao') . "
             </a>
         </p>
         <hr>
@@ -504,9 +520,9 @@ function sendStockAlert($part) {
             <tr><td style='background:#e9ecef'><strong>" . t('supplier') . ":</strong></td><td>{$part['supplier']}</td></tr>
         </table>
         <p style='margin-top:20px;'><a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=stock' 
-              style='background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-              " . t('view_stock') . "
-           </a></p>
+                style='background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                " . t('view_stock') . "
+            </a></p>
         <hr>
         <small>" . t('automatic_message') . "</small>
     </body>
@@ -542,8 +558,8 @@ function sendCriticalInterventionAlert($intervention, $equipment) {
         </div>
         <p>
             <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=interventions' 
-               style='background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-               " . t('view_intervention') . "
+                style='background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                " . t('view_intervention') . "
             </a>
         </p>
         <hr>
@@ -612,8 +628,8 @@ function sendWeeklyReport() {
         
         <p style='margin-top:20px;'>
             <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=dashboard' 
-               style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-               " . t('access_dashboard') . "
+                style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                " . t('access_dashboard') . "
             </a>
         </p>
         <hr>
