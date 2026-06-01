@@ -44,7 +44,7 @@
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="?page=profile"><?php echo t('profile'); ?></a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-danger" href="?page=logout"><?php echo t('logout'); ?></a></li>
+                    <li><a class="dropdown-item text-danger" href="?page=logout" onclick="AlertSystem.clearDismissedAlerts()"><?php echo t('logout'); ?></a></li>
                 </ul>
             </div>
         </div>

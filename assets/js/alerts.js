@@ -285,6 +285,11 @@ class AlertSystem {
             clearInterval(this.checkInterval);
         }
     }
+    
+    // Static method to clear dismissed alerts (call on logout)
+    static clearDismissedAlerts() {
+        localStorage.removeItem('gmao_dismissed_alerts');
+    }
 }
 
 let alertSystem = null;
@@ -292,6 +297,8 @@ let alertSystem = null;
 // Convert Bootstrap alerts to toasts
 function convertAlertsToToasts() {
     const alerts = document.querySelectorAll('.alert:not(.alert-fixed)');
+    const dismissedAlerts = JSON.parse(localStorage.getItem('gmao_dismissed_alerts') || '[]');
+    
     alerts.forEach(alert => {
         const type = alert.classList.contains('alert-success') ? 'success' :
                      alert.classList.contains('alert-danger') ? 'critical' :
@@ -299,9 +306,19 @@ function convertAlertsToToasts() {
         
         const message = alert.textContent.trim();
         
+        // Create unique ID for this alert based on message + type
+        const alertId = btoa(`${type}:${message}`).substring(0, 32); // Base64 encode for unique ID
+        
+        // Check if this alert was already dismissed in this session
+        if (dismissedAlerts.includes(alertId)) {
+            alert.remove();
+            return; // Skip this alert
+        }
+        
         if (alertSystem && message) {
             const toast = document.createElement('div');
             toast.className = `toast-notification ${type}`;
+            toast.setAttribute('data-alert-id', alertId);
             
             let icon = '';
             switch(type) {
@@ -319,8 +336,16 @@ function convertAlertsToToasts() {
                 <button type="button" class="toast-close" aria-label="Close notification">×</button>
             `;
             
-            // Function to close toast
+            // Function to close toast and remember it was dismissed
             const closeToast = () => {
+                // Add to dismissed list
+                const dismissed = JSON.parse(localStorage.getItem('gmao_dismissed_alerts') || '[]');
+                if (!dismissed.includes(alertId)) {
+                    dismissed.push(alertId);
+                    localStorage.setItem('gmao_dismissed_alerts', JSON.stringify(dismissed));
+                }
+                
+                // Animate out
                 toast.style.animation = 'slideOutRight 0.3s ease-out';
                 setTimeout(() => {
                     if (toast.parentElement) {
