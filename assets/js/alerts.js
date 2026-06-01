@@ -328,8 +328,8 @@ function convertAlertsToToasts() {
         }
         message = message.trim().replace(/[\s]+/g, ' ');
         
-        // Use index-based ID for more reliable tracking
-        const alertId = `${type}_${index}`;
+        // Create stable ID from type + message hash (not affected by page position)
+        const alertId = `${type}_${hashString(message)}`;
         
         console.log(`Alert #${index}:`, {type, message: message.substring(0, 50), alertId, isDismissed: dismissedAlerts.includes(alertId)});
         
@@ -406,6 +406,17 @@ function convertAlertsToToasts() {
         // Remove the original alert div
         alert.remove();
     });
+}
+
+// Simple hash function for generating stable IDs from strings
+function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(36);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
