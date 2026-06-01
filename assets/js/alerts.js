@@ -319,14 +319,20 @@ function convertAlertsToToasts() {
                 <div class="toast-close">×</div>
             `;
             
-            toast.querySelector('.toast-close').addEventListener('click', () => {
+            // Event listener pour le bouton de fermeture
+            const closeBtn = toast.querySelector('.toast-close');
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 toast.style.animation = 'slideOutRight 0.3s ease-out';
                 setTimeout(() => toast.remove(), 300);
             });
             
-            toast.addEventListener('click', () => {
-                toast.style.animation = 'slideOutRight 0.3s ease-out';
-                setTimeout(() => toast.remove(), 300);
+            // Event listener pour fermer en cliquant sur le toast (mais pas sur close)
+            toast.addEventListener('click', (e) => {
+                if (e.target !== closeBtn && !closeBtn.contains(e.target)) {
+                    toast.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => toast.remove(), 300);
+                }
             });
             
             alertSystem.toastContainer.appendChild(toast);
