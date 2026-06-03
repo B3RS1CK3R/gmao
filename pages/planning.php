@@ -3,6 +3,9 @@
 // auth handled centrally in index.php
 
 $selected_date = $_GET['date'] ?? date('Y-m-d');
+if (empty($selected_date) || strtotime($selected_date) === false) {
+    $selected_date = date('Y-m-d');
+}
 $filter_technician = isset($_GET['technician']) ? intval($_GET['technician']) : null;
 $filter_status = $_GET['status'] ?? 'all';
 
@@ -51,26 +54,34 @@ $stmt = $pdo->prepare("
 $stmt->execute([$selected_date]);
 $stats = $stmt->fetch();
 
-// Récupérer les interventions des 7 prochains jours pour le mini calendrier
-    $week_dates = [];
-    for($i = -3; $i <= 3; $i++) {
-    $date = date('Y-m-d', strtotime($selected_date . ' + ' . $i . ' days'));
+// Récupérer les interventions de la semaine en cours (Lundi à Dimanche)
+$ts = strtotime($selected_date);
+$day_of_week = date('N', $ts); // 1 (Mon) to 7 (Sun)
+$monday_ts = $ts - ($day_of_week - 1) * 86400;
+$start_of_week = date('Y-m-d', $monday_ts);
+$end_of_week = date('Y-m-d', $monday_ts + 6 * 86400);
+
+$week_dates = [];
+for($i = 0; $i < 7; $i++) {
+    $current_ts = $monday_ts + $i * 86400;
+    $date = date('Y-m-d', $current_ts);
     $week_dates[$date] = [
         'date' => $date,
         'count' => 0,
         'day' => format_date_local($date, 'weekday_short'),
         'day_num' => format_date_local($date, 'day_num'),
-        'month' => format_date_local($date, 'month_short')
+        'month' => format_date_local($date, 'month_short'),
+        'is_weekend' => (date('N', $current_ts) >= 6)
     ];
 }
 
 $stmt = $pdo->prepare("
     SELECT DATE(intervention_date) as int_date, COUNT(*) as count
     FROM interventions 
-    WHERE intervention_date BETWEEN DATE_SUB(?, INTERVAL 3 DAY) AND DATE_ADD(?, INTERVAL 3 DAY)
+    WHERE intervention_date BETWEEN ? AND ?
     GROUP BY DATE(intervention_date)
 ");
-$stmt->execute([$selected_date, $selected_date]);
+$stmt->execute([$start_of_week, $end_of_week]);
 $week_counts = $stmt->fetchAll();
 
 foreach($week_counts as $wc) {
@@ -165,8 +176,21 @@ foreach($week_counts as $wc) {
         background: #e9ecef;
     }
     .week-day.active {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: rgba(40, 167, 69, 0.5);
+        color: #155724;
+        font-weight: bold;
+    }
+    .week-day.weekend {
+        background-color: #f8f9fa;
+        color: #adb5bd;
+    }
+    .week-day.weekend:not(.active):hover {
+        background-color: #e9ecef;
+    }
+    .week-day.active.weekend {
+        background: rgba(40, 167, 69, 0.5);
+        color: #155724;
+        opacity: 1;
     }
     .week-day .count {
         font-size: 18px;
@@ -218,7 +242,7 @@ foreach($week_counts as $wc) {
     <!-- Filtres -->
     <div class="filter-bar">
         <div class="row align-items-center">
-            <div class="col-md-6">
+            <div class="col-md-5">
                 <div class="btn-group" role="group">
                     <a href="?page=planning&date=<?php echo date('Y-m-d', strtotime($selected_date . ' -1 day')); ?><?php echo $filter_technician ? '&technician=' . $filter_technician : ''; ?><?php echo $filter_status != 'all' ? '&status=' . $filter_status : ''; ?>" class="btn btn-outline-secondary">
                         <i class="fas fa-chevron-left"></i> <?php echo t('previous_day'); ?>
@@ -231,10 +255,10 @@ foreach($week_counts as $wc) {
                     </a>
                 </div>
             </div>
-            <div class="col-md-4">
-                <input type="date" id="datePicker" class="form-control" value="<?php echo $selected_date; ?>" style="width: auto; display: inline-block;">
+            <div class="col-md-3">
+                <input type="date" id="datePicker" class="form-control" value="<?php echo $selected_date; ?>" style="width: 100%; display: inline-block;">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
                 <select id="technicianFilter" class="form-select">
                     <option value=""><?php echo t('all_technicians'); ?></option>
                     <?php foreach($technicians as $tech): ?>
@@ -256,8 +280,8 @@ foreach($week_counts as $wc) {
             <div class="row">
                 <?php foreach($week_dates as $date => $info): ?>
                 <div class="col text-center">
-                    <div class="week-day <?php echo $date == $selected_date ? 'active' : ''; ?>"
-                         onclick="window.location.href='?page=planning&date=<?php echo $date; ?><?php echo $filter_technician ? '&technician=' . $filter_technician : ''; ?><?php echo $filter_status != 'all' ? '&status=' . $filter_status : ''; ?>'">
+                    <div class="week-day <?php echo $date == $selected_date ? 'active' : ''; ?> <?php echo $info['is_weekend'] ? 'weekend' : ''; ?>"
+                        onclick="window.location.href='?page=planning&date=<?php echo $date; ?><?php echo $filter_technician ? '&technician=' . $filter_technician : ''; ?><?php echo $filter_status != 'all' ? '&status=' . $filter_status : ''; ?>'">
                         <div class="small text-uppercase"><?php echo $info['day']; ?></div>
                         <div class="count"><?php echo $info['day_num']; ?></div>
                         <div class="small"><?php echo $info['month']; ?></div>

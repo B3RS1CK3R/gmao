@@ -56,6 +56,18 @@ return [
     'permissions'               => 'Permissions',
     'download'                  => 'Télécharger',
     'view_all'                  => 'Voir tout',
+    'page'                      => 'Page',
+    'performance'               => 'Performance',
+    'equipment_detail'          => 'Détail Équipement',
+    'intervention_add'          => 'Ajouter Intervention',
+    'intervention_view'         => 'Voir Intervention',
+    'mail_settings'             => 'Configuration Mail',
+    'calendar'                  => 'Calendrier',
+    'equipment_edit'            => 'Modifier Équipement',
+    'intervention_edit'         => 'Modifier Intervention',
+    'preventive_edit'           => 'Modifier Préventif',
+    'technician_edit'           => 'Modifier Technicien',
+    'stock_detail'              => 'Détail Stock',
 
     // ==================== DASHBOARD ====================
     'view_performance'          => 'Voir l\'Analyse de Performance',
@@ -83,6 +95,21 @@ return [
     'on_leave'                  => 'En congé',
     'active_interventions'      => 'Inter. actives',
     'technicians_active'        => 'Techniciens actifs',
+    'technician_list'           => 'Liste des techniciens',
+    'add_technician'            => 'Ajouter Technicien',
+    'delete_technician'         => 'Supprimer Technicien',
+    'delete_confirm'            => 'Êtes-vous sûr de vouloir supprimer cet item ?',
+    'delete_warning_technician' => 'Supprimer ce technicien le supprimera définitivement du système.',
+    'assign_team_or_technician' => 'Assigner une équipe ou un technicien',
+    'assign_team'               => 'Équipe',
+    'no_team'                   => 'Aucune équipe',
+    'team_assign_help'          => 'Laissez vide si vous ne souhaitez pas assigner d\'équipe',
+    'assign_technician'         => 'Technicien',
+    'no_technician'             => 'Aucun technicien',
+    'technician_assign_help'    => 'Laissez vide si vous ne souhaitez pas assigner de technicien',
+    'assign_info'               => 'Vous pouvez assigner une équipe, un technicien, ou les deux.',
+    'assign_success'            => 'Assignation effectuée avec succès',
+    'team_assigned'             => 'Équipe assignée',
 
     'skills'                    => 'Compétences',
     'no_skills'                 => 'Aucune compétence enregistrée',
@@ -92,6 +119,7 @@ return [
     'beginner'                  => 'Débutant',
     'certified'                 => 'Certifié',
     'specialty'                 => 'Spécialité',
+    'specialty_placeholder'     => 'Ex. Électrique, Mécanique, Hydraulique, etc.',
 
     'weekly_schedule'           => 'Planning Hebdomadaire',
     'total_interventions'       => 'Total Interventions',
@@ -118,6 +146,7 @@ return [
     'active_desc'                => 'Le technicien est actif et disponible pour les interventions.',
     'inactive_desc'              => 'Le technicien est inactif et ne peut pas être assigné à des interventions.',
     'on_leave_desc'              => 'Le technicien est en congé et ne peut pas être assigné à des interventions.',
+    'view_technicians'           => 'Voir les techniciens',
 
     // Priorities & Status
     'critical'                  => 'Critique',
@@ -158,6 +187,8 @@ return [
     'low_stock_title'           => 'Stock Faible',
     'remaining'                 => 'restants',
     'modification_history'      => 'Historique des Modifications',
+    'actual_duration'           => 'Durée réelle',
+    'completion_date'           => 'Date de complétion',
 
     // Days
     'monday'                    => 'Lundi',
@@ -178,6 +209,8 @@ return [
     'month_view'                => 'Vue mensuelle',
     'week_view'                 => 'Vue hebdomadaire',
     'day_view'                  => 'Vue quotidienne',
+    'week'                      => 'Semaine',
+    'current_week'              => 'Semaine actuelle',
 
     // ==================== COMMON MODULES ====================
     'technicians'               => 'Techniciens',
@@ -242,6 +275,8 @@ return [
     'equipment_attachments'     => 'Pièces jointes de l\'équipement',
     'max_file_size'             => 'Taille maximale du fichier',
     'choose_file'               => 'Choisir un fichier',
+    'delete_equipment'          => 'Supprimer l\'équipement',
+    'delete_confirm_equipment'  => 'Êtes-vous sûr de vouloir supprimer cet équipement ?',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'Nouvelle Intervention',
@@ -280,6 +315,12 @@ return [
     'equipment_and_location'    => 'Équipement et localisation',
     'planning_and_organisation' => 'Planification et Organisation',
     'identification'            => 'Identification',
+    'revision'                  => 'Révision',
+    'repair'                    => 'Réparation',
+    'installation'              => 'Installation',
+    'inspection'                => 'Inspection',
+    'other'                     => 'Autre',
+    'cancel_intervention'       => 'Annuler l\'intervention',
 
     // ==================== PREVENTIVE MAINTENANCE ====================
     'frequency_days'            => 'Fréquence (jours)',
@@ -410,6 +451,7 @@ return [
     'confirm_password'          => 'Confirmer le nouveau mot de passe',
     'password_updated'          => 'Mot de passe mis à jour avec succès',
     'password_too_short'        => 'Le mot de passe est trop court',
+    'password_required_to_delete' => 'Le mot de passe est requis pour supprimer un utilisateur',
 
     // ==================== EMAIL ====================
     'email_config'              => 'Configuration email',

@@ -65,19 +65,27 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 ?>
 
 <style>
-    .permissions-table {
+    .info-card {
         background: white;
         border-radius: 15px;
-        overflow-x: auto;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .card-header-custom {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
     }
     .permissions-table th {
-        background: #667eea;
+        background: #343a40;
         color: white;
         padding: 12px;
         text-align: center;
     }
     .permissions-table td {
-        padding: 8px;
+        padding: 12px 8px;
         text-align: center;
         vertical-align: middle;
     }
@@ -85,6 +93,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         font-weight: bold;
         background: #f8f9fa;
         text-align: left;
+        color: #2c3e50;
     }
     .checkbox-admin {
         opacity: 0.7;
@@ -92,30 +101,33 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 </style>
 
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-lock"></i> <?php echo t('role_access_management'); ?></h2>
-    </div>
+    <h2 class="mb-4">
+        <i class="fas fa-lock"></i> <?php echo t('role_access_management'); ?>
+    </h2>
 
     <?php if(isset($message)): ?>
-        <div class="alert alert-success"><?php echo $message; ?></div>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle"></i> <?php echo $message; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     <?php endif; ?>
 
     <div class="alert alert-info">
         <i class="fas fa-info-circle"></i> 
-        <strong>Admin</strong> <?php echo t('admin_desc'); ?>
+        <strong><?php echo t('administrator'); ?></strong> : <?php echo t('admin_desc'); ?>
     </div>
 
     <form method="POST">
-        <div class="info-card permissions-table">
-            <div class="card-header-custom primary">
+        <div class="info-card">
+            <div class="card-header-custom">
                 <i class="fas fa-table"></i> <?php echo t('page_access_by_role'); ?>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-bordered mb-0">
+                    <table class="table table-bordered table-hover mb-0 permissions-table">
                         <thead>
                             <tr>
-                                <th><?php echo t('page'); ?></th>
+                                <th style="text-align: left;"><?php echo t('page'); ?></th>
                                 <th><?php echo t('administrator'); ?></th>
                                 <th><?php echo t('supervisor'); ?></th>
                                 <th><?php echo t('technician'); ?></th>
@@ -124,13 +136,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </thead>
                         <tbody>
                             <?php foreach($all_pages as $page): 
-                                $pageName = ucwords(str_replace('_', ' ', $page));
+                                $translatedName = t($page);
+                                // Fallback to formatted name if key equals value (meaning no translation found)
+                                if ($translatedName === $page) {
+                                    $translatedName = ucwords(str_replace('_', ' ', $page));
+                                }
+                                
                                 $checkedSupervisor = in_array($page, $permissionsData['supervisor'] ?? []) ? 'checked' : '';
                                 $checkedTechnician = in_array($page, $permissionsData['technician'] ?? []) ? 'checked' : '';
                                 $checkedViewer = in_array($page, $permissionsData['viewer'] ?? []) ? 'checked' : '';
                             ?>
                             <tr>
-                                <td class="page-name"><?php echo htmlspecialchars($pageName); ?></td>
+                                <td class="page-name"><?php echo htmlspecialchars($translatedName); ?></td>
                                 <td class="text-center">
                                     <input type="checkbox" checked disabled class="form-check-input checkbox-admin">
                                 </td>
@@ -150,10 +167,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
             </div>
         </div>
-    </div>
-        <div class="mt-3">
-            <button type="submit" class="btn btn-primary"> <?php echo t('save_changes'); ?> </button>
-            <a href="?page=dashboard" class="btn btn-secondary"> <?php echo t('cancel'); ?> </a>
+        <div class="mt-3 mb-5">
+            <button type="submit" class="btn btn-primary"> <i class="fas fa-save"></i> <?php echo t('save_changes'); ?> </button>
+            <a href="?page=dashboard" class="btn btn-secondary"> <i class="fas fa-times"></i> <?php echo t('cancel'); ?> </a>
         </div>
     </form>
 </div>

@@ -467,7 +467,7 @@ endif;
 <!-- Preventive maintenance list -->
 <div class="info-card">
     <div class="card-header-custom" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
-        <i class="fas fa-list"></i> <?php echo t('maintenance_list'); ?>
+        <i class="fas fa-list"></i> <?php echo t('preventive_maintenance_list'); ?>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">

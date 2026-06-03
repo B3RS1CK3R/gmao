@@ -11,8 +11,8 @@ if($id == 0) {
 // Récupération de l'intervention
 $stmt = $pdo->prepare("
     SELECT i.*, e.name as equipment_name, e.code as equipment_code, e.location as equipment_location,
-           t.id as technician_id, t.firstname, t.lastname, t.specialty, t.phone as technician_phone,
-           u.username as created_by_name
+        t.id as technician_id, t.firstname, t.lastname, t.specialty, t.phone as technician_phone,
+        u.username as created_by_name
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
     LEFT JOIN technicians t ON i.technician_id = t.id
@@ -31,7 +31,7 @@ if(!$intervention) {
 $stmt = $pdo->prepare("
     SELECT * FROM user_logs 
     WHERE action IN ('intervention_created', 'intervention_updated', 'intervention_status_change', 
-                     'intervention_assigned', 'intervention_completed', 'intervention_deleted')
+                    'intervention_assigned', 'intervention_completed', 'intervention_deleted')
     AND details LIKE ?
     ORDER BY created_at DESC
     LIMIT 30
@@ -347,7 +347,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                         <?php if($intervention['duration_hours']): ?>
                         <tr>
                             <td><strong><?php echo t('actual_duration'); ?></strong></td>
-                            <td><?php echo $intervention['duration_hours']; ?> hours</td>
+                            <td><?php echo $intervention['duration_hours']; ?>h</td>
                         </tr>
                         <?php endif; ?>
                         <?php if($intervention['completed_date']): ?>

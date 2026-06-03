@@ -62,7 +62,7 @@ foreach($overdueMaintenances as $pm) {
 // 3. Upcoming preventive maintenances (less than 7 days)
 $stmt = $pdo->query("
     SELECT pm.*, e.name as equipment_name, e.code as equipment_code,
-           DATEDIFF(pm.next_due, CURDATE()) as days_left
+        DATEDIFF(pm.next_due, CURDATE()) as days_left
     FROM preventive_maintenance pm
     JOIN equipment e ON pm.equipment_id = e.id
     WHERE pm.next_due >= CURDATE() 

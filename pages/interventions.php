@@ -1,14 +1,30 @@
 <?php
-// pages/interventions.php - Full interventions management (CRUD)
-    // auth handled centrally in index.php
+// pages/interventions.php - Liste principale des interventions
+// auth handled centrally in index.php
 
 $action = $_GET['action'] ?? 'list';
 $message = '';
 $error = '';
 
-// ========== ACTION PROCESSING ==========
+// Rediriger vers les pages spécifiques pour les actions
+if($action == 'assign' && isset($_GET['id'])) {
+    header('Location: ?page=interventions_assign&id=' . intval($_GET['id']));
+    exit();
+}
+if($action == 'complete' && isset($_GET['id'])) {
+    header('Location: ?page=interventions_complete&id=' . intval($_GET['id']));
+    exit();
+}
+if($action == 'edit' && isset($_GET['id'])) {
+    header('Location: ?page=interventions_edit&id=' . intval($_GET['id']));
+    exit();
+}
+if($action == 'delete' && isset($_GET['id'])) {
+    header('Location: ?page=interventions_delete&id=' . intval($_GET['id']));
+    exit();
+}
 
-// Quick status change
+// Quick status change (inline sans formulaire)
 if($action == 'change_status' && isset($_GET['id']) && isset($_GET['status'])) {
     $stmt = $pdo->prepare("UPDATE interventions SET task_status = ? WHERE id = ?");
     $stmt->execute([$_GET['status'], $_GET['id']]);
@@ -17,103 +33,24 @@ if($action == 'change_status' && isset($_GET['id']) && isset($_GET['status'])) {
     echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
 }
 
-// Assign a technician
-if($action == 'assign' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $stmt = $pdo->prepare("UPDATE interventions SET technician_id = ? WHERE id = ?");
-    $stmt->execute([$_POST['technician_id'], $_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'intervention_assigned', "Technician assigned to ID: {$_GET['id']}");
-    $message = "✅ " . t('technician_assigned');
-    echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
-}
-
-// Complete an intervention with report
-if($action == 'complete' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $stmt = $pdo->prepare("
-        UPDATE interventions 
-        SET task_status = 'termine', 
-            completed_date = NOW(), 
-            completion_report = ?,
-            duration_hours = COALESCE(?, duration_hours)
-        WHERE id = ?
-    ");
-    $stmt->execute([$_POST['completion_report'], $_POST['duration_hours'], $_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'intervention_completed', "Intervention completed ID: {$_GET['id']}");
-    $message = "✅ " . t('intervention_completed');
-    echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
-}
-
-// Delete (soft delete - cancellation) with password validation
-if($action == 'delete' && isset($_GET['id'])) {
-    if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor') {
-        if(isset($_POST['confirm_password'])) {
-            $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
-            $stmt->execute([$_SESSION['user_id']]);
-            $user = $stmt->fetch();
-            if(password_verify($_POST['confirm_password'], $user['password'])) {
-                $stmt2 = $pdo->prepare("UPDATE interventions SET status = 'cancelled', task_status = 'cloturee' WHERE id = ?");
-                $stmt2->execute([$_GET['id']]);
-                logUserAction($_SESSION['user_id'], 'intervention_deleted', "Intervention ID: {$_GET['id']} cancelled");
-                $message = "✅ " . t('save_success');
-                echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
-            } else {
-                $error = "❌ " . t('password_error');
-            }
-        }
-    }
-}
-
-// Edit an intervention
-if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $sql = "UPDATE interventions SET 
-            title = ?,
-            description = ?,
-            priority = ?,
-            task_status = ?,
-            intervention_date = ?,
-            task_type = ?,
-            zone = ?,
-            localisation = ?,
-            planned_duration = ?
-            WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
-    $result = $stmt->execute([
-        $_POST['title'],
-        $_POST['description'],
-        $_POST['priority'],
-        $_POST['task_status'],
-        !empty($_POST['intervention_date']) ? $_POST['intervention_date'] : null,
-        $_POST['task_type'],
-        $_POST['zone'],
-        $_POST['localisation'],
-        $_POST['planned_duration'],
-        $_GET['id']
-    ]);
-    
-    if($result) {
-        logUserAction($_SESSION['user_id'], 'intervention_updated', "Intervention ID: {$_GET['id']} updated");
-        $message = "✅ " . t('save_success');
-        echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
-    } else {
-        $error = "❌ " . t('save_error');
-    }
-}
-
-// Fetch technicians list
+// Fetch technicians list (pour les besoins de l'affichage)
 $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
 
-// Fetch interventions with all details - CORRECTED ORDER BY with COALESCE
+/// Fetch interventions with all details - INCLUT L'ÉQUIPE
 $interventions = $pdo->query("
     SELECT i.*, e.name as equipment_name, e.code as equipment_code, e.location as equipment_location,
-           t.id as technician_id, t.firstname, t.lastname, t.specialty
+            t.id as technician_id, t.firstname, t.lastname, t.specialty,
+            team.name as team_name
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
     LEFT JOIN technicians t ON i.technician_id = t.id
+    LEFT JOIN teams team ON i.team_id = team.id
     ORDER BY 
         CASE i.task_status 
-            WHEN 'a_faire' THEN 1      -- to do
-            WHEN 'en_cours' THEN 2     -- in progress
-            WHEN 'termine' THEN 3      -- completed
-            WHEN 'cloturee' THEN 4     -- closed
+            WHEN 'a_faire' THEN 1
+            WHEN 'en_cours' THEN 2
+            WHEN 'termine' THEN 3
+            WHEN 'cloturee' THEN 4
             ELSE 5
         END,
         COALESCE(i.intervention_date, i.created_at) ASC,
@@ -141,377 +78,10 @@ foreach($interventions as $inv) {
     $stmt->execute(["%ID: {$inv['id']}%"]);
     $history[$inv['id']] = $stmt->fetchAll();
 }
-
-// ========== ASSIGNMENT MODAL ==========
-if($action == 'assign' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT * FROM interventions WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    $interv = $stmt->fetch();
-    if(!$interv) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #17a2b8, #138496);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-    .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        padding: 10px 12px;
-    }
-    .btn-info {
-        background: #17a2b8;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-user-plus"></i> <?php echo t('assign_technician'); ?>
-    </div>
-    <div class="card-body p-4">
-        <p><strong><?php echo t('title'); ?> :</strong> <?php echo htmlspecialchars($interv['title']); ?></p>
-        <p><strong><?php echo t('task_number'); ?> :</strong> <?php echo htmlspecialchars($interv['task_number'] ?? 'N/A'); ?></p>
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('technician'); ?></label>
-                <select name="technician_id" class="form-select" required>
-                    <option value="">-- <?php echo t('select_technician'); ?> --</option>
-                    <?php foreach($technicians as $tech): ?>
-                    <option value="<?php echo $tech['id']; ?>" <?php if($interv['technician_id'] == $tech['id']) echo 'selected'; ?>>
-                        <?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname'] . ' (' . $tech['specialty'] . ')'); ?>
-                    </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-info"><i class="fas fa-save"></i> <?php echo t('assign'); ?></button>
-                <a href="?page=interventions" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
-
-// ========== COMPLETION MODAL ==========
-if($action == 'complete' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT i.*, e.name as equipment_name FROM interventions i JOIN equipment e ON i.equipment_id = e.id WHERE i.id = ?");
-    $stmt->execute([$_GET['id']]);
-    $interv = $stmt->fetch();
-    if(!$interv) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #28a745, #1e7e34);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-    .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        padding: 10px 12px;
-    }
-    .btn-success {
-        background: #28a745;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-check-circle"></i> <?php echo t('complete_intervention'); ?>
-    </div>
-    <div class="card-body p-4">
-        <p><strong><?php echo t('title'); ?> :</strong> <?php echo htmlspecialchars($interv['title']); ?></p>
-        <p><strong><?php echo t('task_number'); ?> :</strong> <?php echo htmlspecialchars($interv['task_number'] ?? 'N/A'); ?></p>
-        <p><strong><?php echo t('equipment'); ?> :</strong> <?php echo htmlspecialchars($interv['equipment_name']); ?></p>
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('duration_hours'); ?></label>
-                <input type="number" step="0.5" name="duration_hours" class="form-control" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('completion_report'); ?></label>
-                <textarea name="completion_report" class="form-control" rows="4" placeholder="<?php echo t('report_placeholder'); ?>" required></textarea>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> <?php echo t('confirm'); ?></button>
-                <a href="?page=interventions" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
-
-// ========== DELETE CONFIRMATION MODAL ==========
-if($action == 'delete' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT * FROM interventions WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    $interv = $stmt->fetch();
-    if(!$interv) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #dc3545, #c82333);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-    .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        padding: 10px 12px;
-    }
-    .btn-danger {
-        background: #dc3545;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-trash-alt"></i> <?php echo t('cancel_intervention'); ?>
-    </div>
-    <div class="card-body p-4">
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <?php echo t('delete_confirm'); ?> : <strong><?php echo htmlspecialchars($interv['title']); ?></strong>
-        </div>
-        <p><?php echo t('delete_warning'); ?></p>
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('confirm_password'); ?></label>
-                <input type="password" name="confirm_password" class="form-control" required>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> <?php echo t('confirm'); ?></button>
-                <a href="?page=interventions" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
-
-// ========== EDIT FORM ==========
-if($action == 'edit' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT i.*, e.name as equipment_name FROM interventions i JOIN equipment e ON i.equipment_id = e.id WHERE i.id = ?");
-    $stmt->execute([$_GET['id']]);
-    $interv = $stmt->fetch();
-    if(!$interv) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-    
-    $equipments = $pdo->query("SELECT id, code, name FROM equipment WHERE status = 'active' ORDER BY name")->fetchAll();
-    $intervenants = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #fd7e14, #e06a0a);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-    .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        padding: 10px 12px;
-    }
-    .form-control:focus, .form-select:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-    .btn-warning {
-        background: #fd7e14;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-        color: white;
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-edit"></i> <?php echo t('edit_intervention'); ?> : <?php echo htmlspecialchars($interv['task_number'] ?? 'N/A'); ?>
-    </div>
-    <div class="card-body p-4">
-        <form method="POST">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('equipment'); ?> <span class="text-danger">*</span></label>
-                    <select name="equipment_id" class="form-select" required>
-                        <option value="">-- <?php echo t('select_equipment'); ?> --</option>
-                        <?php foreach($equipments as $eq): ?>
-                        <option value="<?php echo $eq['id']; ?>" <?php if($interv['equipment_id'] == $eq['id']) echo 'selected'; ?>>
-                            <?php echo htmlspecialchars($eq['code'] . ' - ' . $eq['name']); ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('title'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="title" class="form-control" value="<?php echo htmlspecialchars($interv['title']); ?>" required>
-                </div>
-                <div class="col-md-12 mb-3">
-                    <label class="form-label"><?php echo t('description'); ?></label>
-                    <textarea name="description" class="form-control" rows="3"><?php echo htmlspecialchars($interv['description']); ?></textarea>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label"><?php echo t('priority'); ?></label>
-                    <select name="priority" class="form-select">
-                        <option value="low" <?php if($interv['priority'] == 'low') echo 'selected'; ?>><?php echo t('low'); ?></option>
-                        <option value="medium" <?php if($interv['priority'] == 'medium') echo 'selected'; ?>><?php echo t('medium'); ?></option>
-                        <option value="high" <?php if($interv['priority'] == 'high') echo 'selected'; ?>><?php echo t('high'); ?></option>
-                        <option value="critical" <?php if($interv['priority'] == 'critical') echo 'selected'; ?>><?php echo t('critical'); ?></option>
-                    </select>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label"><?php echo t('status'); ?></label>
-                    <select name="task_status" class="form-select">
-                        <option value="a_faire" <?php if($interv['task_status'] == 'a_faire') echo 'selected'; ?>><?php echo t('to_do'); ?></option>
-                        <option value="en_cours" <?php if($interv['task_status'] == 'en_cours') echo 'selected'; ?>><?php echo t('in_progress'); ?></option>
-                        <option value="termine" <?php if($interv['task_status'] == 'termine') echo 'selected'; ?>><?php echo t('completed'); ?></option>
-                        <option value="cloturee" <?php if($interv['task_status'] == 'cloturee') echo 'selected'; ?>><?php echo t('closed'); ?></option>
-                    </select>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label"><?php echo t('planned_date'); ?></label>
-                    <input type="date" name="intervention_date" class="form-control" value="<?php echo $interv['intervention_date']; ?>">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label"><?php echo t('task_type'); ?></label>
-                    <select name="task_type" class="form-select">
-                        <option value="revision" <?php if($interv['task_type'] == 'revision') echo 'selected'; ?>><?php echo t('revision'); ?></option>
-                        <option value="depannage" <?php if($interv['task_type'] == 'depannage') echo 'selected'; ?>><?php echo t('repair'); ?></option>
-                        <option value="installation" <?php if($interv['task_type'] == 'installation') echo 'selected'; ?>><?php echo t('installation'); ?></option>
-                        <option value="maintenance_preventive" <?php if($interv['task_type'] == 'maintenance_preventive') echo 'selected'; ?>><?php echo t('preventive_maintenance'); ?></option>
-                        <option value="controle" <?php if($interv['task_type'] == 'controle') echo 'selected'; ?>><?php echo t('inspection'); ?></option>
-                        <option value="autre" <?php if($interv['task_type'] == 'autre') echo 'selected'; ?>><?php echo t('other'); ?></option>
-                    </select>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label"><?php echo t('planned_duration'); ?></label>
-                    <select name="planned_duration" class="form-select">
-                        <option value="1h" <?php if($interv['planned_duration'] == '1h') echo 'selected'; ?>>1h</option>
-                        <option value="2h" <?php if($interv['planned_duration'] == '2h') echo 'selected'; ?>>2h</option>
-                        <option value="2h30" <?php if($interv['planned_duration'] == '2h30') echo 'selected'; ?>>2h30</option>
-                        <option value="3h" <?php if($interv['planned_duration'] == '3h') echo 'selected'; ?>>3h</option>
-                        <option value="4h" <?php if($interv['planned_duration'] == '4h') echo 'selected'; ?>>4h</option>
-                        <option value="6h" <?php if($interv['planned_duration'] == '6h') echo 'selected'; ?>>6h</option>
-                        <option value="8h" <?php if($interv['planned_duration'] == '8h') echo 'selected'; ?>>8h</option>
-                        <option value="1j" <?php if($interv['planned_duration'] == '1j') echo 'selected'; ?>>1j</option>
-                    </select>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('zone'); ?></label>
-                    <input type="text" name="zone" class="form-control" value="<?php echo htmlspecialchars($interv['zone']); ?>">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('localisation'); ?></label>
-                    <input type="text" name="localisation" class="form-control" value="<?php echo htmlspecialchars($interv['localisation']); ?>">
-                </div>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> <?php echo t('update'); ?></button>
-                <a href="?page=interventions" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
 ?>
 
 <style>
+    /* Tous les styles identiques à l'original */
     .info-card {
         background: white;
         border-radius: 15px;
@@ -572,7 +142,6 @@ endif;
     .status-termine { background: #28a745; color: white; }
     .status-cloturee { background: #343a40; color: white; }
     
-    /* Action buttons - uniform size and alignment */
     .action-buttons {
         display: flex;
         gap: 5px;
@@ -595,7 +164,6 @@ endif;
         height: 30px;
         flex: 0 0 30px;
     }
-    
     .table-responsive {
         overflow-x: auto;
     }
@@ -749,7 +317,7 @@ endif;
         </div>
     </div>
     
-    <!-- Interventions list with unified chart -->
+    <!-- Interventions list -->
     <div class="info-card">
         <div class="card-header-custom">
             <i class="fas fa-list"></i> <?php echo t('intervention_list'); ?>
@@ -764,7 +332,7 @@ endif;
                             <th><?php echo t('title'); ?></th>
                             <th><?php echo t('priority'); ?></th>
                             <th><?php echo t('status'); ?></th>
-                            <th><?php echo t('technician'); ?></th>
+                            <th><?php echo t('technician'); ?><br><?php echo t('team'); ?></th>
                             <th><?php echo t('planned_date'); ?></th>
                             <th><?php echo t('last_modifications'); ?></th>
                             <th class="text-center" style="width: 120px;"><?php echo t('actions'); ?></th>
@@ -799,18 +367,31 @@ endif;
                                     <option value="cloturee" <?php if($inv['task_status'] == 'cloturee') echo 'selected'; ?>><?php echo t('closed'); ?></option>
                                 </select>
                             </td>
+                            <!-- Colonne Technicien / Équipe -->
                             <td>
-                                <?php if($inv['firstname']): ?>
-                                    <?php echo htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']); ?>
-                                    <br><small class="text-muted"><?php echo htmlspecialchars($inv['specialty']); ?></small>
-                                <?php else: ?>
-                                    <span class="text-muted"><?php echo t('unassigned'); ?></span>
-                                <?php endif; ?>
+                                <?php 
+                                $hasTeam = !empty($inv['team_name']);
+                                $hasTech = !empty($inv['firstname']);
+                                
+                                if($hasTeam && $hasTech) {
+                                    echo '<span class="badge bg-info">' . htmlspecialchars($inv['team_name']) . '</span><br>';
+                                    echo '<small>' . htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']) . '</small>';
+                                } elseif($hasTeam) {
+                                    echo '<span class="badge bg-info">' . htmlspecialchars($inv['team_name']) . '</span>';
+                                    echo '<br><small class="text-muted">' . t('team_assigned') . '</small>';
+                                } elseif($hasTech) {
+                                    echo htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']);
+                                    echo '<br><small class="text-muted">' . htmlspecialchars($inv['specialty']) . '</small>';
+                                } else {
+                                    echo '<span class="text-muted">' . t('unassigned') . '</span>';
+                                }
+                                ?>
                             </td>
                             <td>
                                 <?php echo $inv['intervention_date'] ? date('m/d/Y', strtotime($inv['intervention_date'])) : '-'; ?>
                             </td>
                             <td style="max-width: 150px;">
+                                <!-- historique inchangé -->
                                 <?php if(!empty($history[$inv['id']])): ?>
                                     <?php foreach(array_slice($history[$inv['id']], 0, 1) as $h): ?>
                                     <div class="history-item">
@@ -833,28 +414,29 @@ endif;
                                 <?php endif; ?>
                             </td>
                             <td class="text-center action-buttons" onclick="event.stopPropagation()">
+                                <!-- boutons d'action inchangés -->
                                 <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 <?php if($inv['task_status'] != 'termine' && $inv['task_status'] != 'cloturee'): ?>
-                                    <a href="?page=interventions&action=complete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('complete'); ?>">
+                                    <a href="?page=interventions_complete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('complete'); ?>">
                                         <i class="fas fa-check-circle"></i>
                                     </a>
                                     <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                        <a href="?page=interventions&action=assign&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
+                                        <a href="?page=interventions_assign&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
                                             <i class="fas fa-user-plus"></i>
                                         </a>
-                                        <a href="?page=interventions&action=edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                        <a href="?page=interventions_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
                                             <i class="fas fa-pen"></i>
                                         </a>
-                                        <a href="?page=interventions&action=delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>" onclick="return confirm('<?php echo t('delete_confirm'); ?>')">
+                                        <a href="?page=interventions_delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>">
                                             <i class="fas fa-trash-alt"></i>
                                         </a>
                                     <?php endif; ?>
                                 <?php else: ?>
                                     <span class="disabled-icon"><i class="fas fa-lock"></i></span>
                                     <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                        <a href="?page=interventions&action=edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                        <a href="?page=interventions_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
                                             <i class="fas fa-pen"></i>
                                         </a>
                                     <?php endif; ?>

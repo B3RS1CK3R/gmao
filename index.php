@@ -125,23 +125,39 @@ if ($page === 'logout') {
                     case 'dashboard':
                         require_once 'pages/dashboard.php';
                         break;
-                        
+                    
                     case 'technicians':
                         require_once 'pages/technicians.php';
                         break;
-                        
+                    
+                    case 'technician_add':
+                        require_once 'pages/technician_add.php';
+                        break;
+                    
+                    case 'technician_edit':
+                        require_once 'pages/technician_edit.php';
+                        break;
+                    
+                    case 'technician_delete':
+                        require_once 'pages/technician_delete.php';
+                        break;
+                    
+                    case 'team_add':
+                        require_once 'pages/team_add.php';
+                        break;
+                    
                     case 'technician_detail':
                         require_once 'pages/technician_detail.php';
                         break;
-                        
+                    
                     case 'alerts':
                         require_once 'pages/alerts.php';
                         break;
-                        
+                    
                     case 'users':
                         require_once 'pages/users.php';
                         break;
-                        
+                    
                     case 'profile':
                         require_once 'pages/profile.php';
                         break;
@@ -170,6 +186,14 @@ if ($page === 'logout') {
                         require_once 'pages/preventive.php';
                         break;
                     
+                    case 'interventions_assign':
+                        require_once 'pages/interventions_assign.php';
+                        break;
+                    
+                    case 'interventions_edit':
+                        require_once 'pages/interventions_edit.php';
+                        break;
+                    
                     case 'intervention_detail':
                         require_once 'pages/intervention_detail.php';
                         break;
@@ -180,6 +204,10 @@ if ($page === 'logout') {
                     
                     case 'intervention_add':
                         require_once 'pages/intervention_add.php';
+                        break;
+                    
+                    case 'interventions_delete':
+                        require_once 'pages/interventions_delete.php';
                         break;
                     
                     case 'equipment_detail':

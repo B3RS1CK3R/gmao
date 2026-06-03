@@ -57,6 +57,18 @@ return [
     'permissions'               => 'Permissions',
     'download'                  => 'Download',
     'view_all'                  => 'View All',
+    'page'                      => 'Page',
+    'performance'               => 'Performance',
+    'equipment_detail'          => 'Equipment Detail',
+    'intervention_add'          => 'Add Intervention',
+    'intervention_view'         => 'View Intervention',
+    'mail_settings'             => 'Email Settings',
+    'calendar'                  => 'Calendar',
+    'equipment_edit'            => 'Edit Equipment',
+    'intervention_edit'         => 'Edit Intervention',
+    'preventive_edit'           => 'Edit Preventive',
+    'technician_edit'           => 'Edit Technician',
+    'stock_detail'              => 'Stock Detail',
 
     // ==================== DASHBOARD ====================
     'view_performance'          => 'View Performance Analysis',
@@ -84,6 +96,21 @@ return [
     'on_leave'                  => 'On Leave',
     'active_interventions'      => 'Active Interventions',
     'technicians_active'        => 'Active Technicians',
+    'technician_list'           => 'Technician List',
+    'add_technician'            => 'Add Technician',
+    'delete_technician'         => 'Delete Technician',
+    'delete_confirm'            => 'Are you sure you want to delete this item?',
+    'delete_warning_technician' => 'Deleting this technician will permanently remove them from the system.',
+    'assign_team_or_technician' => 'Assign a team or a technician',
+    'assign_team'               => 'Team',
+    'no_team'                   => 'No team',
+    'team_assign_help'          => 'Leave empty if you do not want to assign a team',
+    'assign_technician'         => 'Technician',
+    'no_technician'             => 'No technician',
+    'technician_assign_help'    => 'Leave empty if you do not want to assign a technician',
+    'assign_info'               => 'You can assign a team, a technician, or both.',
+    'assign_success'            => 'Assignment successful',
+    'team_assigned'             => 'Team assigned',
 
     'skills'                    => 'Skills',
     'no_skills'                 => 'No skills recorded',
@@ -93,6 +120,7 @@ return [
     'beginner'                  => 'Beginner',
     'certified'                 => 'Certified',
     'specialty'                 => 'Specialty',
+    'specialty_placeholder'     => 'E.g. Electrical, Mechanical, Hydraulic, etc.',
 
     'weekly_schedule'           => 'Weekly Schedule',
     'total_interventions'       => 'Total Interventions',
@@ -118,6 +146,7 @@ return [
     'technician_updated'         => 'Technician updated successfully',
     'active_desc'                => 'The technician is active and available for interventions.',
     'on_leave_desc'              => 'The technician is on leave and cannot be assigned to interventions.',
+    'view_technicians'           => 'View Technicians',
 
     // Priorities & Status
     'critical'                  => 'Critical',
@@ -178,6 +207,8 @@ return [
     'month_view'                => 'Month View',
     'week_view'                 => 'Week View',
     'day_view'                  => 'Day View',
+    'week'                      => 'Week',
+    'current_week'              => 'Current Week',
 
     // ==================== COMMON MODULES ====================
     'technicians'               => 'Technicians',
@@ -245,6 +276,8 @@ return [
     'identification'            => 'Identification',
     'max_file_size'             => 'Max file size',
     'choose_file'               => 'Choose file',
+    'delete_equipment'          => 'Delete Equipment',
+    'delete_confirm_equipment'  => 'Are you sure you want to delete this equipment?',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'New Intervention',
@@ -276,7 +309,18 @@ return [
     'edit_intervention'         => 'Edit Intervention',
     'auto_increment'            => 'Auto-incremented',
     'back_to_list'              => 'Back to List',
+    'Task Number'               => 'Task Number',
+    'Intervention Type'         => 'Intervention Type',
     'intervention_updated'      => 'Intervention updated',
+    'equipment_and_location'    => 'Equipment and Location',
+    'planning_and_organisation' => 'Planning and Organisation',
+    'identification'            => 'Identification',
+    'revision'                  => 'Revision',
+    'repair'                    => 'Repair',
+    'installation'              => 'Installation',
+    'inspection'                => 'Inspection',
+    'other'                     => 'Other',
+    'cancel_intervention'       => 'Cancel Intervention',
 
     // ==================== PREVENTIVE MAINTENANCE ====================
     'frequency_days'            => 'Frequency (days)',
@@ -407,6 +451,7 @@ return [
     'confirm_password'          => 'Confirm New Password',
     'password_updated'          => 'Password updated successfully',
     'password_too_short'        => 'The password is too short',
+    'password_required_to_delete' => 'You must enter your current password to delete your account',
 
     // ==================== EMAIL ====================
     'email_config'              => 'Email Config',

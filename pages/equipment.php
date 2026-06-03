@@ -974,7 +974,7 @@ endif;
                                         <div class="modal-body">
                                             <div class="alert alert-warning mb-3">
                                                 <i class="fas fa-exclamation-triangle"></i>
-                                                <?php echo t('delete_confirm'); ?>
+                                                <?php echo t('delete_confirm_equipment'); ?>
                                             </div>
                                             <p>
                                                 <strong><?php echo t('equipment'); ?> :</strong> 

@@ -1,8 +1,6 @@
 <?php
-// pages/technicians.php - Full technicians management (CRUD)
-// auth handled centrally in index.php
+// pages/technicians.php - Liste principale des techniciens + Module Équipes
 
-// Check permissions (admin or supervisor only)
 if($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'supervisor') {
     echo "<div class='alert alert-danger'>" . t('access_denied') . "</div>";
     return;
@@ -12,119 +10,15 @@ $action = $_GET['action'] ?? 'list';
 $message = '';
 $error = '';
 
-// ========== ACTION PROCESSING ==========
-
-// Add technician
-if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $sql = "INSERT INTO technicians (employee_id, firstname, lastname, phone, email, specialty, hire_date, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-    $stmt = $pdo->prepare($sql);
-    $result = $stmt->execute([
-        $_POST['employee_id'],
-        $_POST['firstname'],
-        $_POST['lastname'],
-        $_POST['phone'],
-        $_POST['email'],
-        $_POST['specialty'],
-        $_POST['hire_date'],
-        $_POST['status']
-    ]);
-    
-    if($result) {
-        $technicianName = $_POST['firstname'] . ' ' . $_POST['lastname'];
-        logUserAction($_SESSION['user_id'], 'technician_created', "[{$technicianName}] - Technician created (ID: {$_POST['employee_id']}, Role: {$_POST['specialty']})");
-        $message = "✅ " . t('save_success');
-        echo "<meta http-equiv='refresh' content='1;url=?page=technicians'>";
-    } else {
-        $error = "❌ " . t('save_error');
-    }
-}
-
-// Edit technician
-if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Get old data before update
-    $stmtOld = $pdo->prepare("SELECT * FROM technicians WHERE id = ?");
-    $stmtOld->execute([$_GET['id']]);
-    $oldTechnician = $stmtOld->fetch();
-    
-    $sql = "UPDATE technicians SET 
-            employee_id = ?, 
-            firstname = ?, 
-            lastname = ?, 
-            phone = ?, 
-            email = ?, 
-            specialty = ?, 
-            hire_date = ?, 
-            status = ? 
-            WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
-    $result = $stmt->execute([
-        $_POST['employee_id'],
-        $_POST['firstname'],
-        $_POST['lastname'],
-        $_POST['phone'],
-        $_POST['email'],
-        $_POST['specialty'],
-        $_POST['hire_date'],
-        $_POST['status'],
-        $_GET['id']
-    ]);
-    
-    if($result) {
-        // ========== SAUVEGARDE DES COMPÉTENCES ==========
-        if(isset($_POST['skills'])) {
-            // Supprimer les anciennes compétences
-            $stmtDel = $pdo->prepare("DELETE FROM technician_skills WHERE technician_id = ?");
-            $stmtDel->execute([$_GET['id']]);
-            
-            // Insérer les nouvelles compétences
-            $stmtIns = $pdo->prepare("INSERT INTO technician_skills (technician_id, equipment_type, skill_level, certified) VALUES (?, ?, ?, ?)");
-            foreach($_POST['skills'] as $skill) {
-                if(!empty($skill['equipment_type'])) {
-                    $certified = isset($skill['certified']) ? 1 : 0;
-                    $stmtIns->execute([$_GET['id'], $skill['equipment_type'], $skill['skill_level'], $certified]);
-                }
-            }
-        }
-        
-        // Log detailed changes
-        $technicianName = $_POST['firstname'] . ' ' . $_POST['lastname'];
-        logTechnicianUpdate($_SESSION['user_id'], $_GET['id'], $technicianName, $oldTechnician, $_POST);
-        $message = "✅ " . t('save_success');
-        echo "<meta http-equiv='refresh' content='1;url=?page=technicians'>";
-    } else {
-        $error = "❌ " . t('save_error');
-    }
-}
-
-// Delete (soft delete - deactivation) with password validation
-if($action == 'delete' && isset($_GET['id']) && ($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor')) {
-    if(isset($_POST['confirm_password'])) {
-        $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
-        $stmt->execute([$_SESSION['user_id']]);
-        $user = $stmt->fetch();
-        if(password_verify($_POST['confirm_password'], $user['password'])) {
-            $stmt2 = $pdo->prepare("UPDATE technicians SET status = 'inactive' WHERE id = ?");
-            $stmt2->execute([$_GET['id']]);
-            logUserAction($_SESSION['user_id'], 'technician_deleted', "Technician ID: {$_GET['id']} deactivated");
-            $message = "✅ " . t('save_success');
-            echo "<meta http-equiv='refresh' content='1;url=?page=technicians'>";
-        } else {
-            $error = "❌ " . t('password_error');
-        }
-    }
-}
-
-// Restore technician (admin only)
-if($action == 'restore' && isset($_GET['id']) && $_SESSION['role'] == 'admin') {
-    $stmt = $pdo->prepare("UPDATE technicians SET status = 'active' WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'technician_restored', "Technician ID: {$_GET['id']} reactivated");
-    $message = "✅ " . t('save_success');
+// Suppression d'une équipe
+if($action == 'team_delete' && isset($_GET['team_id'])) {
+    $stmt = $pdo->prepare("DELETE FROM teams WHERE id = ?");
+    $stmt->execute([$_GET['team_id']]);
+    $message = "✅ Équipe supprimée avec succès";
     echo "<meta http-equiv='refresh' content='1;url=?page=technicians'>";
 }
 
-// Fetch technicians - afficher tous par défaut
+// Fetch technicians
 $status_filter = $_GET['status'] ?? 'all';
 $technicians = [];
 
@@ -137,7 +31,6 @@ if($_SESSION['role'] == 'admin') {
         $technicians = $stmt->fetchAll();
     }
 } else {
-    // Pour les superviseurs, ne pas montrer les inactifs
     if($status_filter == 'all' || $status_filter == 'inactive') {
         $technicians = $pdo->query("SELECT * FROM technicians WHERE status != 'inactive' ORDER BY lastname ASC")->fetchAll();
     } else {
@@ -147,7 +40,7 @@ if($_SESSION['role'] == 'admin') {
     }
 }
 
-// Fetch interventions assigned to each technician
+// Fetch interventions
 $interventions_count = [];
 foreach($technicians as $tech) {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM interventions WHERE technician_id = ? AND task_status NOT IN ('termine', 'cloturee')");
@@ -155,7 +48,7 @@ foreach($technicians as $tech) {
     $interventions_count[$tech['id']] = $stmt->fetchColumn();
 }
 
-// Fetch modifications history for each technician
+// Fetch history
 $history = [];
 foreach($technicians as $tech) {
     $stmt = $pdo->prepare("
@@ -169,367 +62,21 @@ foreach($technicians as $tech) {
     $history[$tech['id']] = $stmt->fetchAll();
 }
 
-// Statistics (basées sur tous les techniciens)
-$stmt = $pdo->query("SELECT COUNT(*) FROM technicians WHERE status = 'active'");
-$active_count = $stmt->fetchColumn();
-$stmt = $pdo->query("SELECT COUNT(*) FROM technicians WHERE status = 'on_leave'");
-$leave_count = $stmt->fetchColumn();
-$stmt = $pdo->query("SELECT COUNT(*) FROM technicians WHERE status = 'inactive'");
-$inactive_count = $stmt->fetchColumn();
+// Statistics
+$active_count = $pdo->query("SELECT COUNT(*) FROM technicians WHERE status = 'active'")->fetchColumn();
+$leave_count = $pdo->query("SELECT COUNT(*) FROM technicians WHERE status = 'on_leave'")->fetchColumn();
+$inactive_count = $pdo->query("SELECT COUNT(*) FROM technicians WHERE status = 'inactive'")->fetchColumn();
 
-// ========== ADD FORM ==========
-if($action == 'add'):
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #28a745, #1e7e34);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-    .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        padding: 10px 12px;
-    }
-    .form-control:focus, .form-select:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-    .btn-primary {
-        background: linear-gradient(135deg, #28a745, #1e7e34);
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-primary:hover {
-        filter: brightness(0.95);
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary:hover {
-        background: #5a6268;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-user-plus"></i> <?php echo t('add_technician'); ?>
-    </div>
-    <div class="card-body p-4">
-        <form method="POST">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('employee_id'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="employee_id" class="form-control" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('firstname'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="firstname" class="form-control" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('lastname'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="lastname" class="form-control" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('phone'); ?></label>
-                    <input type="tel" name="phone" class="form-control" placeholder="06 12 34 56 78">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('email'); ?></label>
-                    <input type="email" name="email" class="form-control">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('specialty'); ?></label>
-                    <input type="text" name="specialty" class="form-control" placeholder="<?php echo t('specialty_placeholder'); ?>">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('hire_date'); ?></label>
-                    <input type="date" name="hire_date" class="form-control">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('status'); ?></label>
-                    <select name="status" class="form-select">
-                        <option value="active">🟢 <?php echo t('active'); ?></option>
-                        <option value="inactive">🔴 <?php echo t('inactive'); ?></option>
-                        <option value="on_leave">🟡 <?php echo t('on_leave'); ?></option>
-                    </select>
-                </div>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <?php echo t('create'); ?></button>
-                <a href="?page=technicians" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
-
-// ========== EDIT FORM ==========
-if($action == 'edit' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT * FROM technicians WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    $tech = $stmt->fetch();
-    if(!$tech) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-    
-    // Get existing skills for this technician
-    $stmtSkills = $pdo->prepare("SELECT * FROM technician_skills WHERE technician_id = ?");
-    $stmtSkills->execute([$_GET['id']]);
-    $existingSkills = $stmtSkills->fetchAll();
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #fd7e14, #e06a0a);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .skill-row {
-        background: #f8f9fa;
-        padding: 10px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-    }
-    .btn-add-skill {
-        background: #28a745;
-        color: white;
-        border: none;
-        padding: 5px 15px;
-        border-radius: 5px;
-        font-size: 12px;
-    }
-    .btn-add-skill:hover {
-        background: #1e7e34;
-    }
-    .btn-remove-skill {
-        background: #dc3545;
-        color: white;
-        border: none;
-        padding: 5px 10px;
-        border-radius: 5px;
-        font-size: 12px;
-    }
-    .btn-remove-skill:hover {
-        background: #c82333;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-user-edit"></i> <?php echo t('edit_technician'); ?> : <?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname']); ?>
-    </div>
-    <div class="card-body p-4">
-        <form method="POST" id="editTechnicianForm">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('employee_id'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="employee_id" class="form-control" value="<?php echo htmlspecialchars($tech['employee_id']); ?>" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('firstname'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="firstname" class="form-control" value="<?php echo htmlspecialchars($tech['firstname']); ?>" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('lastname'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="lastname" class="form-control" value="<?php echo htmlspecialchars($tech['lastname']); ?>" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('phone'); ?></label>
-                    <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars($tech['phone']); ?>">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('email'); ?></label>
-                    <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars($tech['email']); ?>">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('specialty'); ?></label>
-                    <input type="text" name="specialty" class="form-control" value="<?php echo htmlspecialchars($tech['specialty']); ?>">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('hire_date'); ?></label>
-                    <input type="date" name="hire_date" class="form-control" value="<?php echo $tech['hire_date']; ?>">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('status'); ?></label>
-                    <select name="status" class="form-select">
-                        <option value="active" <?php if($tech['status'] == 'active') echo 'selected'; ?>>🟢 <?php echo t('active'); ?></option>
-                        <option value="inactive" <?php if($tech['status'] == 'inactive') echo 'selected'; ?>>🔴 <?php echo t('inactive'); ?></option>
-                        <option value="on_leave" <?php if($tech['status'] == 'on_leave') echo 'selected'; ?>>🟡 <?php echo t('on_leave'); ?></option>
-                    </select>
-                </div>
-            </div>
-            
-            <!-- Skills Section -->
-            <div class="mt-4">
-                <label class="form-label"><i class="fas fa-tools"></i> <?php echo t('skills'); ?></label>
-                <div id="skills-container">
-                    <?php if(empty($existingSkills)): ?>
-                        <div class="skill-row" data-skill-index="0">
-                            <div class="row align-items-center">
-                                <div class="col-md-5">
-                                    <input type="text" name="skills[0][equipment_type]" class="form-control" placeholder="Equipment type (ex: Pump, Motor)">
-                                </div>
-                                <div class="col-md-4">
-                                    <select name="skills[0][skill_level]" class="form-select">
-                                        <option value="beginner">🌱 Beginner</option>
-                                        <option value="intermediate">📌 Intermediate</option>
-                                        <option value="advanced">📈 Advanced</option>
-                                        <option value="expert">🏆 Expert</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-check-label">
-                                        <input type="checkbox" name="skills[0][certified]" value="1"> Certified
-                                    </label>
-                                </div>
-                                <div class="col-md-1">
-                                    <button type="button" class="btn-remove-skill" onclick="removeSkillRow(this)">✕</button>
-                                </div>
-                            </div>
-                        </div>
-                    <?php else: ?>
-                        <?php foreach($existingSkills as $idx => $skill): ?>
-                        <div class="skill-row" data-skill-index="<?php echo $idx; ?>">
-                            <div class="row align-items-center">
-                                <div class="col-md-5">
-                                    <input type="text" name="skills[<?php echo $idx; ?>][equipment_type]" class="form-control" value="<?php echo htmlspecialchars($skill['equipment_type']); ?>">
-                                </div>
-                                <div class="col-md-4">
-                                    <select name="skills[<?php echo $idx; ?>][skill_level]" class="form-select">
-                                        <option value="beginner" <?php echo $skill['skill_level'] == 'beginner' ? 'selected' : ''; ?>>🌱 Beginner</option>
-                                        <option value="intermediate" <?php echo $skill['skill_level'] == 'intermediate' ? 'selected' : ''; ?>>📌 Intermediate</option>
-                                        <option value="advanced" <?php echo $skill['skill_level'] == 'advanced' ? 'selected' : ''; ?>>📈 Advanced</option>
-                                        <option value="expert" <?php echo $skill['skill_level'] == 'expert' ? 'selected' : ''; ?>>🏆 Expert</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-check-label">
-                                        <input type="checkbox" name="skills[<?php echo $idx; ?>][certified]" value="1" <?php echo $skill['certified'] ? 'checked' : ''; ?>> Certified
-                                    </label>
-                                </div>
-                                <div class="col-md-1">
-                                    <button type="button" class="btn-remove-skill" onclick="removeSkillRow(this)">✕</button>
-                                </div>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-                <button type="button" class="btn-add-skill mt-2" onclick="addSkillRow()">
-                    <i class="fas fa-plus"></i> Add Skill
-                </button>
-            </div>
-            
-            <div class="mt-4">
-                <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> <?php echo t('update'); ?></button>
-                <a href="?page=technicians" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
-let skillCounter = <?php echo count($existingSkills); ?>;
-function addSkillRow() {
-    const container = document.getElementById('skills-container');
-    const newRow = document.createElement('div');
-    newRow.className = 'skill-row';
-    newRow.setAttribute('data-skill-index', skillCounter);
-    newRow.innerHTML = `
-        <div class="row align-items-center">
-            <div class="col-md-5">
-                <input type="text" name="skills[${skillCounter}][equipment_type]" class="form-control" placeholder="Equipment type (ex: Pump, Motor)">
-            </div>
-            <div class="col-md-4">
-                <select name="skills[${skillCounter}][skill_level]" class="form-select">
-                    <option value="beginner">🌱 Beginner</option>
-                    <option value="intermediate">📌 Intermediate</option>
-                    <option value="advanced">📈 Advanced</option>
-                    <option value="expert">🏆 Expert</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-check-label">
-                    <input type="checkbox" name="skills[${skillCounter}][certified]" value="1"> Certified
-                </label>
-            </div>
-            <div class="col-md-1">
-                <button type="button" class="btn-remove-skill" onclick="removeSkillRow(this)">✕</button>
-            </div>
-        </div>
-    `;
-    container.appendChild(newRow);
-    skillCounter++;
-}
-
-function removeSkillRow(button) {
-    button.closest('.skill-row').remove();
-}
-</script>
-<?php
-return;
-endif;
-
-// ========== DELETE CONFIRMATION MODAL ==========
-if($action == 'delete' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT * FROM technicians WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    $tech = $stmt->fetch();
-    if(!$tech) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-?>
-<div class="form-card">
-    <div class="form-card-header" style="background: linear-gradient(135deg, #dc3545, #c82333);">
-        <i class="fas fa-trash-alt"></i> <?php echo t('delete_technician'); ?>
-    </div>
-    <div class="card-body p-4">
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <?php echo t('delete_confirm'); ?> : <strong><?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname']); ?></strong>
-        </div>
-        <p><?php echo t('delete_warning_technician'); ?></p>
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('confirm_password'); ?></label>
-                <input type="password" name="confirm_password" class="form-control" required>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> <?php echo t('confirm'); ?></button>
-                <a href="?page=technicians" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
+// Fetch teams
+$teams = $pdo->query("
+    SELECT t.*, COUNT(tm.technician_id) as member_count, 
+           CONCAT(tech.firstname, ' ', tech.lastname) as leader_name
+    FROM teams t 
+    LEFT JOIN team_members tm ON t.id = tm.team_id
+    LEFT JOIN technicians tech ON t.leader_id = tech.id
+    GROUP BY t.id
+    ORDER BY t.name ASC
+")->fetchAll();
 ?>
 
 <style>
@@ -558,78 +105,7 @@ endif;
     .status-on_leave { background: #ffc107; color: #333; }
     .table-row-clickable { cursor: pointer; transition: background 0.2s; }
     .table-row-clickable:hover { background: #f8f9fa; }
-    .action-buttons {
-        white-space: nowrap;
-    }
-    .action-buttons .btn {
-        padding: 4px 8px;
-        margin: 0 2px;
-        border-radius: 6px;
-    }
-    .history-item {
-        padding: 5px 0;
-        font-size: 10px;
-        border-bottom: 1px solid #eee;
-    }
-    .history-item:last-child {
-        border-bottom: none;
-    }
-    .stats-card {
-        text-align: center;
-        padding: 15px;
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
-        cursor: pointer;
-    }
-    .stats-card:hover {
-        transform: translateY(-3px);
-    }
-    .stats-number {
-        font-size: 28px;
-        font-weight: bold;
-    }
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-primary:hover {
-        filter: brightness(0.95);
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary:hover {
-        background: #5a6268;
-    }
-    .btn-warning {
-        background: #fd7e14;
-        border: none;
-        border-radius: 6px;
-        color: white;
-    }
-    .btn-warning:hover {
-        background: #e06a0a;
-        color: white;
-    }
-    .btn-danger {
-        background: #dc3545;
-        border: none;
-        border-radius: 6px;
-    }
-    .btn-info {
-        background: #17a2b8;
-        border: none;
-        border-radius: 6px;
-    }
-    
-    /* Legend grid styles */
+    .action-buttons .btn { padding: 4px 8px; margin: 0 2px; border-radius: 6px; }
     .legend-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -644,58 +120,40 @@ endif;
         padding: 10px;
         background: #f8f9fa;
         border-radius: 10px;
+    }
+    .stats-card {
+        text-align: center;
+        padding: 15px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         transition: transform 0.2s;
+        cursor: pointer;
     }
-    .legend-item:hover {
-        transform: translateY(-2px);
-        background: #e9ecef;
-    }
-    .legend-item i {
-        font-size: 20px;
-    }
-    .legend-item .status-badge {
-        font-size: 12px;
-        padding: 5px 12px;
-    }
-    .legend-item small {
-        font-size: 11px;
-        color: #6c757d;
-    }
-    @media (max-width: 768px) {
-        .legend-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-    }
-    @media (max-width: 480px) {
-        .legend-grid {
-            grid-template-columns: 1fr;
-        }
-    }
+    .stats-card:hover { transform: translateY(-3px); }
+    .stats-number { font-size: 28px; font-weight: bold; }
 </style>
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-users"></i> <?php echo t('technicians'); ?></h2>
-        <a href="?page=technicians&action=add" class="btn btn-primary">
-            <i class="fas fa-plus"></i> <?php echo t('add_technician'); ?>
-        </a>
+        <div>
+            <a href="?page=technician_add" class="btn btn-primary me-2">
+                <i class="fas fa-plus"></i> <?php echo t('add_technician'); ?>
+            </a>
+            <a href="?page=team_add" class="btn btn-success">
+                <i class="fas fa-users-rectangle"></i> Créer équipe
+            </a>
+        </div>
     </div>
-    
+
     <?php if($message): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <div class="alert alert-success alert-dismissible fade show">
             <i class="fas fa-check-circle"></i> <?php echo $message; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
-    
-    <?php if($error): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
-    
+
     <!-- Statistics cards -->
     <div class="row mb-4">
         <div class="col-md-4">
@@ -717,7 +175,7 @@ endif;
             </div>
         </div>
     </div>
-    
+
     <!-- Technicians list -->
     <div class="info-card">
         <div class="card-header-custom">
@@ -759,11 +217,8 @@ endif;
                             <td>
                                 <?php 
                                 $count = $interventions_count[$tech['id']] ?? 0;
-                                if($count > 0) {
-                                    echo '<span class="badge bg-warning text-dark">' . $count . '</span>';
-                                } else {
-                                    echo '<span class="text-muted">0</span>';
-                                }
+                                if($count > 0) echo '<span class="badge bg-warning text-dark">' . $count . '</span>';
+                                else echo '<span class="text-muted">0</span>';
                                 ?>
                             </td>
                             <td style="max-width: 120px;">
@@ -787,27 +242,12 @@ endif;
                                 <?php endif; ?>
                             </td>
                             <td class="text-center action-buttons" onclick="event.stopPropagation()">
+                                <a href="?page=technician_detail&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-info" title="Voir"><i class="fas fa-eye"></i></a>
+                                <a href="?page=technician_edit&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-warning" title="Modifier"><i class="fas fa-edit"></i></a>
                                 <?php if($tech['status'] != 'inactive'): ?>
-                                    <a href="?page=technician_detail&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                    <a href="?page=technicians&action=edit&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('edit'); ?>">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="?page=technicians&action=delete&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('delete'); ?>">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                    <?php endif; ?>
+                                <a href="?page=technician_delete&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-danger" title="Désactiver"><i class="fas fa-trash"></i></a>
                                 <?php else: ?>
-                                    <a href="?page=technician_detail&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <?php if($_SESSION['role'] == 'admin'): ?>
-                                    <a href="?page=technicians&action=restore&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('restore'); ?>" onclick="return confirm('<?php echo t('restore_confirm'); ?>')">
-                                        <i class="fas fa-undo-alt"></i>
-                                    </a>
-                                    <?php endif; ?>
+                                <a href="?page=technicians_restore&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-success" title="Restaurer"><i class="fas fa-undo-alt"></i></a>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -817,8 +257,44 @@ endif;
             </div>
         </div>
     </div>
-    
-    <!-- Legend with card layout -->
+
+    <!-- Module Équipes -->
+    <div class="info-card mt-5">
+        <div class="card-header-custom d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-users-rectangle"></i> Équipes</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Nom de l'équipe</th>
+                            <th>Leader</th>
+                            <th>Membres</th>
+                            <th>Description</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($teams as $team): ?>
+                        <tr>
+                            <td><strong><?php echo htmlspecialchars($team['name']); ?></strong></td>
+                            <td><?php echo htmlspecialchars($team['leader_name'] ?? 'Aucun'); ?></td>
+                            <td><span class="badge bg-primary"><?php echo $team['member_count']; ?></span></td>
+                            <td><?php echo htmlspecialchars($team['description'] ?? '-'); ?></td>
+                            <td class="text-center">
+                                <a href="#" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
+                                <a href="?page=technicians&action=team_delete&team_id=<?php echo $team['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Supprimer cette équipe ?')"><i class="fas fa-trash"></i></a>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="info-card">
