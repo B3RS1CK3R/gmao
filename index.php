@@ -15,18 +15,21 @@ if (ob_get_level() == 0) {
     ob_start();
 }
 
-// Enforce HTTPS and secure session cookies
-$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
-if (!$isHttps) {
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $uri = $_SERVER['REQUEST_URI'] ?? '/';
-    $redirect = 'https://' . $host . $uri;
-    header('Location: ' . $redirect, true, 301);
-    exit();
-}
+// Enforce HTTPS only on production (not on localhost)
+// $isLocalhost = in_array($_SERVER['SERVER_NAME'] ?? '', ['localhost', '127.0.0.1']);
+//if (!$isLocalhost) {
+//    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+//    if (!$isHttps) {
+//        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+//        $uri = $_SERVER['REQUEST_URI'] ?? '/';
+//        $redirect = 'https://' . $host . $uri;
+//        header('Location: ' . $redirect, true, 301);
+//        exit();
+//    }
+//}
 
 // Set HSTS header
-header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+// header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 
 // Secure session cookie params before starting session
 if (session_status() === PHP_SESSION_NONE) {
@@ -233,7 +236,11 @@ if ($page === 'logout') {
                     case 'equipment_attachments':
                         require_once 'pages/equipment_attachments.php';
                         break;
-                        
+                    
+                    case 'settings':
+                        require_once 'pages/settings.php';
+                        break;
+
                     // Autres pages existantes
                     case 'equipment':
                     case 'interventions':

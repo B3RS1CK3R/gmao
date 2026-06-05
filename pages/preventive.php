@@ -86,38 +86,41 @@ if($action == 'delete' && isset($_GET['id'])) {
     }
 }
 
-// Validate maintenance (mark as completed)
+// Validate maintenance (mark as completed) - MODIFIÉ POUR UTILISER LE GÉNÉRATEUR DE NUMÉRO
 if($action == 'complete' && isset($_GET['id'])) {
     $today = date('Y-m-d');
     
-    $stmt = $pdo->prepare("SELECT * FROM preventive_maintenance WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT pm.*, e.name as equipment_name 
+                           FROM preventive_maintenance pm 
+                           JOIN equipment e ON pm.equipment_id = e.id 
+                           WHERE pm.id = ?");
     $stmt->execute([$_GET['id']]);
     $pm = $stmt->fetch();
     
     if($pm) {
         $next_due = date('Y-m-d', strtotime($today . ' + ' . $pm['frequency_days'] . ' days'));
         
+        // Mettre à jour la maintenance préventive
         $stmt2 = $pdo->prepare("UPDATE preventive_maintenance SET last_done = ?, next_due = ? WHERE id = ?");
         $stmt2->execute([$today, $next_due, $_GET['id']]);
         
+        // Générer un numéro de tâche via la fonction de configuration
+        $task_number = generateTaskNumber($pdo, 'preventive', false);
+        
+        // Créer l'intervention associée
         $stmt3 = $pdo->prepare("
-            INSERT INTO interventions (task_number, equipment_id, type, priority, title, description, reported_by, task_type, intervention_date, task_status)
-            SELECT 
-                CONCAT('PREV-', DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')),
-                equipment_id,
-                'preventive',
-                'medium',
-                CONCAT('Preventive maintenance - ', e.name),
-                instructions,
-                'system',
-                'maintenance_preventive',
-                DATE_ADD(CURDATE(), INTERVAL frequency_days DAY),
-                'a_faire'
-            FROM preventive_maintenance pm
-            JOIN equipment e ON pm.equipment_id = e.id
-            WHERE pm.id = ?
+            INSERT INTO interventions (
+                task_number, equipment_id, type, priority, title, description, 
+                reported_by, task_type, intervention_date, task_status
+            ) VALUES (?, ?, 'preventive', 'medium', ?, ?, 'system', 'maintenance_preventive', DATE_ADD(CURDATE(), INTERVAL ? DAY), 'a_faire')
         ");
-        $stmt3->execute([$_GET['id']]);
+        $stmt3->execute([
+            $task_number,
+            $pm['equipment_id'],
+            "Maintenance préventive - " . $pm['equipment_name'],
+            $pm['instructions'],
+            $pm['frequency_days']
+        ]);
         
         logUserAction($_SESSION['user_id'], 'preventive_completed', "Preventive maintenance ID: {$_GET['id']} validated");
         $message = "✅ " . t('save_success');

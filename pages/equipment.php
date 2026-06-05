@@ -898,7 +898,19 @@ endif;
                             }
                         ?>
                         <tr class="table-row-clickable" onclick="window.location.href='?page=equipment_detail&id=<?php echo $eq['id']; ?>'">
-                            <td><strong><?php echo htmlspecialchars($eq['code']); ?></strong></td>
+                            <td>
+                                <strong><?php echo htmlspecialchars($eq['code']); ?></strong>
+                                <?php
+                                // Vérification de la garantie
+                                $warranty_end = $eq['warranty_end'];
+                                $now = time();
+                                if ($warranty_end && strtotime($warranty_end) < $now) {
+                                    echo ' <span class="badge bg-danger">' . t('warranty_expired') . '</span>';
+                                } elseif ($warranty_end && strtotime($warranty_end) < strtotime('+30 days')) {
+                                    echo ' <span class="badge bg-warning text-dark">' . t('warranty_expiring_soon') . '</span>';
+                                }
+                                ?>
+                            </td>
                             <td><?php echo htmlspecialchars($eq['name']); ?></td>
                             <td><?php echo htmlspecialchars($eq['type']); ?></td>
                             <td><?php echo htmlspecialchars($eq['location']); ?></td>

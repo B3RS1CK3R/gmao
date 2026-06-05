@@ -1335,37 +1335,67 @@ function requireRole($role) {
 // ========== TASK SEQUENCE & STATUS ==========
 
 /**
- * Generate a unique task number (e.g., TASK-260031) using an atomic sequence.
+ * Génère un numéro de tâche selon la configuration stockée
+ * @param PDO $pdo
+ * @param string $type 'intervention' ou 'preventive'
+ * @param bool $dryRun Si true, n'incrémente pas le compteur (juste un aperçu)
+ * @return string
  */
-function generateTaskNumber() {
-    global $pdo;
+function generateTaskNumber($pdo, $type, $dryRun = false) {
+    $stmt = $pdo->prepare("SELECT * FROM task_format_settings WHERE type = ?");
+    $stmt->execute([$type]);
+    $config = $stmt->fetch();
+    if (!$config) return 'ERROR';
     
-    try {
-        $pdo->beginTransaction();
-        
-        // Fetch the last used number with a lock for update to prevent duplicates
-        $stmt = $pdo->query("SELECT last_number FROM task_sequence FOR UPDATE");
-        $last_number = $stmt->fetchColumn();
-        
-        if(!$last_number) {
-            $last_number = 260031; // Default starting number
-        }
-        
-        $new_number = $last_number + 1;
-        
-        // Update the sequence table
-        $update = $pdo->prepare("UPDATE task_sequence SET last_number = ?");
-        $update->execute([$new_number]);
-        
-        $pdo->commit();
-        
-        return "TASK-" . $new_number;
-        
-    } catch(PDOException $e) {
-        $pdo->rollBack();
-        // Fallback to timestamp-based ID if database sequence fails
-        return "TASK-" . date('YmdHis');
+    $prefix = $config['prefix'];
+    $useYear = (bool)$config['use_year'];
+    $useMonth = (bool)$config['use_month'];
+    $digits = (int)$config['digits'];
+    $resetOnYear = (bool)$config['reset_on_year_change'];
+    $resetOnMonth = (bool)$config['reset_on_month_change'];
+    $lastYear = $config['last_year'];
+    $lastMonth = $config['last_month'];
+    
+    $currentYear = (int)date('y');
+    $currentMonth = (int)date('m');
+    $needReset = false;
+    
+    if ($useYear && $resetOnYear && $lastYear !== null && $currentYear != $lastYear) {
+        $needReset = true;
     }
+    if ($useMonth && $resetOnMonth && !$needReset && $lastMonth !== null && $currentMonth != $lastMonth) {
+        $needReset = true;
+    }
+    
+    if ($dryRun) {
+        $nextNum = (int)$config['last_number'] + 1;
+        if ($needReset) $nextNum = 1;
+    } else {
+        // Mise à jour du compteur et éventuelle réinitialisation
+        if ($needReset) {
+            $pdo->prepare("UPDATE task_format_settings SET last_number = 0 WHERE type = ?")->execute([$type]);
+        }
+        $pdo->prepare("UPDATE task_format_settings SET last_number = last_number + 1 WHERE type = ?")->execute([$type]);
+        $stmt2 = $pdo->prepare("SELECT last_number FROM task_format_settings WHERE type = ?");
+        $stmt2->execute([$type]);
+        $nextNum = (int)$stmt2->fetchColumn();
+        // Mettre à jour last_year et last_month
+        $pdo->prepare("UPDATE task_format_settings SET last_year = ?, last_month = ? WHERE type = ?")
+            ->execute([$currentYear, $currentMonth, $type]);
+    }
+    
+    $numberPart = str_pad($nextNum, $digits, '0', STR_PAD_LEFT);
+    $parts = [$prefix];
+    if ($useYear) {
+        $datePart = date('y');
+        if ($useMonth) {
+            $datePart .= date('m');
+        }
+        $parts[] = $datePart;
+    }
+    $parts[] = $numberPart;
+    
+    return implode('-', $parts);
 }
 
 /**

@@ -277,6 +277,8 @@ return [
     'choose_file'               => 'Choisir un fichier',
     'delete_equipment'          => 'Supprimer l\'équipement',
     'delete_confirm_equipment'  => 'Êtes-vous sûr de vouloir supprimer cet équipement ?',
+    'warranty_expired'          => 'Garantie expirée',
+    'warranty_expiring_soon'    => 'Garantie expire bientôt',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'Nouvelle Intervention',
@@ -397,6 +399,10 @@ return [
     'page_access_by_role'       => 'Accès aux pages par rôle',
     'admin_desc'                => 'a accès à toutes les pages par défaut (ne peut pas être modifié). Décochez une page pour restreindre l\'accès pour un rôle spécifique.',
     'role_access_management'    => 'Gestion des accès par rôle',
+    'backup_reminder_title'     => 'Rappel de sauvegarde',
+    'backup_reminder_message'   => 'N\'oubliez pas de faire une sauvegarde régulière de votre base de données pour éviter toute perte de données en cas de problème. Vous pouvez configurer des sauvegardes automatiques dans les paramètres du système.',
+    'last_backup'               => 'Dernière sauvegarde',
+    'backup_advice'             => 'Il est recommandé de faire une sauvegarde au moins une fois par semaine, ou plus fréquemment si vous avez beaucoup d\'interventions et de données critiques.',
 
     // ==================== PLANNING ====================
     'planning_title'            => 'Planning',
@@ -448,7 +454,7 @@ return [
     'change_password'           => 'Changer le mot de passe',
     'current_password'          => 'Mot de passe actuel',
     'new_password'              => 'Nouveau mot de passe',
-    'confirm_password'          => 'Confirmer le nouveau mot de passe',
+    'confirm_password'          => 'Confirmer le mot de passe',
     'password_updated'          => 'Mot de passe mis à jour avec succès',
     'password_too_short'        => 'Le mot de passe est trop court',
     'password_required_to_delete' => 'Le mot de passe est requis pour supprimer un utilisateur',
@@ -631,5 +637,31 @@ return [
     'popup_display_duration'    => 'Durée d\'affichage des popups',
     'popup_duration_desc'       => 'Choisissez combien de temps les notifications doivent rester à l\'écran',
     'seconds'                   => 'secondes',
+    'settings'                  => 'Paramètres',
+
+    // ==================== TASK NUMBER ====================
+    'configuration'             => 'Configuration',
+    'task_numbers_interventions' => 'Numéros de tâche – Interventions',
+    'task_numbers_preventive'   => 'Numéros de tâche – Maintenances préventives',
+    'prefix'                    => 'Préfixe',
+    'max_4_chars'               => 'max 4 caractères',
+    'include_year'              => 'Inclure l\'année (2 chiffres)',
+    'include_month'             => 'Inclure le mois (2 chiffres) – requiert l\'année',
+    'digits_counter'            => 'Nombre de chiffres pour l\'incrément',
+    'digits'                    => 'chiffres',
+    'preview_next'              => 'Aperçu du prochain numéro',
+    'month_requires_year'       => 'Le mois ne peut être inclus que si l\'année est également incluse.',
+    'reset_counter_on_year'     => 'Réinitialiser le compteur au changement d\'année',
+    'reset_counter_on_month'    => 'Réinitialiser le compteur au changement de mois',
+    'reset_counter_now'         => 'Réinitialiser le compteur maintenant',
+    'enter_password_to_reset'   => 'Entrez votre mot de passe administrateur pour réinitialiser le compteur',
+    'counter_reset'             => 'Compteur réinitialisé',
+    'reset_counter_on_year_change' => 'Réinitialiser le compteur au changement d\'année',
+    'reset_counter_on_month_change' => 'Réinitialiser le compteur au changement de mois',
+    'reset_info'                => 'Lorsque ces options sont activées, le compteur d\'incrément repasse automatiquement à 1 si l\'année (ou le mois) change.',
+    'reset_counter'             => 'Réinitialiser le compteur',
+    'reset_counter_confirm'     => 'Réinitialisation du compteur',
+    'reset_counter_warning'     => 'Cette action remettra le compteur d\'incrément à zéro. Confirmez avec votre mot de passe.',
+    'password_required'         => 'Mot de passe requis'
 
 ];

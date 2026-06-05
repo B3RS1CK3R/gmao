@@ -174,6 +174,29 @@ foreach($unassigned as $inv) {
     ];
 }
 
+// 7. Backup reminder for admin (ajouter après les autres alertes)
+if ($_SESSION['role'] === 'admin') {
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM system_settings");
+    $sys = [];
+    while ($row = $stmt->fetch()) { $sys[$row['setting_key']] = $row['setting_value']; }
+    $last_backup = $sys['last_backup_date'] ?? null;
+    $interval = intval($sys['backup_alert_interval'] ?? 7);
+    if ($last_backup && strtotime($last_backup) < strtotime("-$interval days")) {
+        $days_since = floor((time() - strtotime($last_backup)) / 86400);
+        $alerts[] = [
+            'id' => 'backup_reminder_' . time(),
+            'type' => 'backup_reminder',
+            'priority' => 'warning',
+            'title' => t('backup_reminder_title'),
+            'message' => t('backup_reminder_message') . ' ' . $days_since . ' ' . t('days'),
+            'details' => t('last_backup') . ' : ' . format_date_us($last_backup, false) . '<br>' . t('backup_advice'),
+            'url' => '?page=profile',
+            'date' => $last_backup,
+            'days_since' => $days_since
+        ];
+    }
+}
+
 // Sort alerts by date (newest first)
 usort($alerts, function($a, $b) {
     return strtotime($b['date']) - strtotime($a['date']);
@@ -420,7 +443,8 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         'stock_critical' => ['title' => t('stock_critical_title'), 'icon' => 'fas fa-boxes', 'color' => 'warning'],
         'warranty_expired' => ['title' => t('warranty_expired_title'), 'icon' => 'fas fa-file-contract', 'color' => 'critical'],
         'warranty_upcoming' => ['title' => t('warranty_upcoming_title'), 'icon' => 'fas fa-file-contract', 'color' => 'info'],
-        'unassigned_intervention' => ['title' => t('unassigned_intervention_title'), 'icon' => 'fas fa-user-plus', 'color' => 'warning']
+        'unassigned_intervention' => ['title' => t('unassigned_intervention_title'), 'icon' => 'fas fa-user-plus', 'color' => 'warning'],
+        'backup_reminder' => ['title' => t('backup_reminder_title'), 'icon' => 'fas fa-database', 'color' => 'warning']
     ];
     
     foreach($categories as $type => $cat):

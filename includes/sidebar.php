@@ -125,7 +125,14 @@
                     </a>
                 </li>
 
-                <!-- 16. Admin Migrations -->
+                <!-- 16. Settings -->
+                <li class="nav-item">
+                    <a href="index.php?page=settings" class="nav-link <?php echo ($page ?? '') === 'settings' ? 'active' : ''; ?>">
+                        <i class="fas fa-cog me-2"></i> <?php echo t('settings'); ?>
+                    </a>
+                </li>
+
+                <!-- 17. Admin Migrations -->
                 <li class="nav-item">
                     <a href="index.php?page=migrations" class="nav-link <?php echo ($page ?? '') === 'migrations' ? 'active' : ''; ?>">
                         <i class="fas fa-database me-2"></i> <?php echo t('admin_migrations'); ?>

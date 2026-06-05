@@ -11,20 +11,12 @@ $equipments = $pdo->query("SELECT id, code, name, location, zone FROM equipment 
 $intervenants = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
 
 // Générer le prochain numéro de tâche
-$stmt = $pdo->query("SELECT last_number FROM task_sequence");
-$last = $stmt->fetchColumn();
-$next_number = ($last ? $last + 1 : 260032);
-$next_task_number = "TASK-" . $next_number;
-
-$message = '';
-$error = '';
+// Générer le prochain numéro de tâche (aperçu)
+$next_task_number = generateTaskNumber($pdo, 'intervention', true);
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Générer le vrai numéro
-    $pdo->exec("UPDATE task_sequence SET last_number = last_number + 1");
-    $stmt = $pdo->query("SELECT last_number FROM task_sequence");
-    $new_number = $stmt->fetchColumn();
-    $task_number = "TASK-" . $new_number;
+    $task_number = generateTaskNumber($pdo, 'intervention', false);
     
     $sql = "INSERT INTO interventions (
         task_number, equipment_id, type, priority, title, description, reported_by,

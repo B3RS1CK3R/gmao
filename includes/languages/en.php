@@ -278,6 +278,8 @@ return [
     'choose_file'               => 'Choose file',
     'delete_equipment'          => 'Delete Equipment',
     'delete_confirm_equipment'  => 'Are you sure you want to delete this equipment?',
+    'warranty_expired'          => 'Warranty expired',
+    'warranty_expiring_soon'    => 'Warranty expiring soon',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'New Intervention',
@@ -397,6 +399,10 @@ return [
     'page_access_by_role'       => 'Page access by role',
     'admin_desc'                => 'has access to all pages by default (cannot be changed). Uncheck a page to restrict access for a specific role.',
     'role_access_management'    => 'Role Access Management',
+    'backup_reminder_title'     => 'Backup Reminder',
+    'backup_reminder_message'   => 'Don\'t forget to make regular backups of your database to avoid any data loss in case of issues. You can configure automatic backups in the system settings.',
+    'last_backup'               => 'Last Backup',
+    'backup_advice'             => 'It is recommended to make a backup at least once a week, or more frequently if you have many interventions and critical data.',
 
     // ==================== PLANNING ====================
     'planning_title'            => 'Planning',
@@ -448,7 +454,7 @@ return [
     'change_password'           => 'Change Password',
     'current_password'          => 'Current Password',
     'new_password'              => 'New Password',
-    'confirm_password'          => 'Confirm New Password',
+    'confirm_password'          => 'Confirm Password',
     'password_updated'          => 'Password updated successfully',
     'password_too_short'        => 'The password is too short',
     'password_required_to_delete' => 'You must enter your current password to delete your account',
@@ -631,5 +637,31 @@ return [
     'popup_display_duration'    => 'Popup display duration',
     'popup_duration_desc'       => 'Choose how long notifications should stay on screen',
     'seconds'                   => 'seconds',
+    'settings'                  => 'Settings',
+
+    // ==================== TASK NUMBER ====================
+    'configuration'             => 'Configuration',
+    'task_numbers_interventions' => 'Task numbers for interventions',
+    'task_numbers_preventive'   => 'Task numbers for preventive maintenance',
+    'prefix'                    => 'Prefix',
+    'max_4_chars'               => 'max 4 characters',
+    'include_year'              => 'Include year (2 digits)',
+    'include_month'             => 'Include month (2 digits) – requires year',
+    'digits_counter'            => 'Number of digits for increment',
+    'digits'                    => 'digits',
+    'preview_next'              => 'Preview next number',
+    'month_requires_year'       => 'Month can only be included if year is also included',
+    'reset_counter_on_year'     => 'Reset counter on year change',
+    'reset_counter_on_month'    => 'Reset counter on month change',
+    'reset_counter_now'         => 'Reset counter now',
+    'enter_password_to_reset'   => 'Enter your password to reset the counter',
+    'counter_reset'             => 'Counter reset successfully',
+    'reset_counter_on_year_change' => 'Reset counter on year change',
+    'reset_counter_on_month_change' => 'Reset counter on month change',
+    'reset_info'                => 'When these options are enabled, the increment counter automatically resets to 1 if the year (or month) changes.',
+    'reset_counter'             => 'Reset counter',
+    'reset_counter_confirm'     => 'Counter reset confirmation',
+    'reset_counter_warning'     => 'This action will reset the increment counter to zero. Please confirm with your password.',
+    'password_required'         => 'Password required to reset the counter',
 
 ];
