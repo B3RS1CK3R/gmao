@@ -177,7 +177,7 @@ $status_labels = [
                             </span>
                         </td>
                     </tr>
-                    <tr><td><strong><?php echo t('hire_date'); ?></strong></td><td><?php echo $technician['hire_date'] ? format_date_us($technician['hire_date'], false) : t('not_provided'); ?></td></tr>
+                    <tr><td><strong><?php echo t('hire_date'); ?></strong></td><td><?php echo $technician['hire_date'] ? format_date_local($technician['hire_date'], 'long', false) : t('not_provided'); ?></td></tr>
                 </table>
             </div>
         </div>
@@ -295,7 +295,7 @@ $status_labels = [
                         <td><?php echo htmlspecialchars($inv['equipment_name']); ?></td>
                         <td><?php echo htmlspecialchars($inv['title']); ?></td>
                         <td><span class="badge bg-warning"><?php echo t($inv['priority']); ?></span></td>
-                        <td><?php echo format_date_us($inv['intervention_date'], false); ?></td>
+                        <td><?php echo format_date_local($inv['intervention_date'], 'long', false); ?></td>
                         <td><a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" onclick="event.stopPropagation()"><i class="fas fa-eye"></i></a></td>
                     </tr>
                     <?php endforeach; ?>
@@ -354,7 +354,7 @@ $status_labels = [
                                 echo $status_icons[$inv['task_status']] ?? $inv['task_status'];
                                 ?>
                             </td>
-                            <td><?php echo $inv['intervention_date'] ? format_date_us($inv['intervention_date'], false) : '-'; ?></td>
+                            <td><?php echo $inv['intervention_date'] ? format_date_local($inv['intervention_date'], 'long', false) : '-'; ?></td>
                             <td><?php echo $inv['duration_hours'] ? $inv['duration_hours'].'h' : '-'; ?></td>
                             <td class="text-center" onclick="event.stopPropagation()">
                                 <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
@@ -401,7 +401,7 @@ $status_labels = [
                                 echo $action_icon . t($h['action']); ?>
                             </strong>
                         </div>
-                        <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
+                        <small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                     </div>
                     <div class="small text-muted mb-2">
                         <?php echo t('by'); ?> : <?php echo htmlspecialchars($h['username'] ?? t('unknown')); ?> 

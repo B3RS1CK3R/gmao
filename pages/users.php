@@ -510,7 +510,7 @@ if(!$logs) $logs = [];
                                     <span class="status-inactive"><i class="fas fa-circle" style="font-size: 8px;"></i> <?php echo t('inactive'); ?></span>
                                 <?php endif; ?>
                             </td>
-                            <td><?php echo $user['last_login'] ? format_date_us($user['last_login'], true) : t('never'); ?></td>
+                            <td><?php echo $user['last_login'] ? format_date_local($user['last_login'], 'long', true) : t('never'); ?></td>
                             <td>
                                 <?php if($tech): ?>
                                     <a href="?page=technician_detail&id=<?php echo $tech['id']; ?>" class="btn btn-sm btn-info" style="white-space: nowrap;">
@@ -684,7 +684,7 @@ if(!$logs) $logs = [];
                                 }
                             ?>
                             <tr>
-                                <td class="log-date"><small><?php echo format_date_us($log['created_at'], true); ?></small></td>
+                                <td class="log-date"><small><?php echo format_date_local($log['created_at'], 'long', true); ?></small></td>
                                 <td class="log-user">
                                     <strong><?php echo htmlspecialchars($log['username'] ?? 'System'); ?></strong>
                                     <?php if(isset($log['username']) && $log['username'] == 'admin'): ?>

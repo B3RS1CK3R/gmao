@@ -132,14 +132,14 @@ $status_labels = [
                 <table class="table table-sm table-borderless mb-0">
                     <!-- Purchase Date -->
                     <tr><td style="width: 50%;"><strong><?php echo t('purchase_date'); ?></strong></span>
-                    <td><?php echo format_date_local($equipment['purchase_date'], false); ?></span>
+                    <td><?php echo format_date_local($equipment['purchase_date'], 'long', false); ?></span>
                 </tr>
                     <!-- Warranty End Date with expiration warnings -->
                     <tr>
                         <td><strong><?php echo t('warranty_end'); ?></strong></span>
                         <td>
                             <?php if($equipment['warranty_end']): ?>
-                                <?php echo format_date_local($equipment['warranty_end'], false); ?>
+                                <?php echo format_date_local($equipment['warranty_end'], 'long', false); ?>
                                 <?php if(strtotime($equipment['warranty_end']) < time()): ?>
                                     <span class="badge bg-danger ms-2"><?php echo t('expired'); ?></span>
                                 <?php elseif(strtotime($equipment['warranty_end']) < strtotime('+30 days')): ?>
@@ -152,7 +152,7 @@ $status_labels = [
                     </tr>
                     <!-- Record creation timestamp -->
                     <tr><td><strong><?php echo t('created_at'); ?></strong></span>
-                    <td><?php echo format_date_local($equipment['created_at'], true); ?></span>
+                    <td><?php echo format_date_local($equipment['created_at'], 'long', true); ?></span>
                 </tr>
                 </table>
             </div>
@@ -270,9 +270,9 @@ $status_labels = [
                             <?php foreach($preventives as $pm): ?>
                             <tr>
                                 <td><?php echo t('every') . ' ' . $pm['frequency_days'] . ' ' . t('days_s'); ?></span>
-                                <td><?php echo $pm['last_done'] ? format_date_local($pm['last_done'], false) : t('never'); ?></span>
+                                <td><?php echo $pm['last_done'] ? format_date_local($pm['last_done'], 'long', false) : t('never'); ?></span>
                                 <td>
-                                    <?php echo format_date_local($pm['next_due'], false); ?>
+                                    <?php echo format_date_local($pm['next_due'], 'long', false); ?>
                                     <?php if(strtotime($pm['next_due']) < time()): ?>
                                         <span class="badge bg-danger ms-2"><?php echo t('overdue'); ?></span>
                                     <?php endif; ?>
@@ -344,7 +344,7 @@ $status_labels = [
                                         else echo t('closed');
                                         ?>
                                     </span>
-                                    <td><?php echo format_date_local($inv['created_at'], false); ?></span>
+                                    <td><?php echo format_date_local($inv['created_at'], 'long', false); ?></span>
                                     <td><?php echo $inv['duration_hours'] ? $inv['duration_hours'] . 'h' : '-'; ?></span>
                                     <td><a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a></span>
                                 </tr>
@@ -378,7 +378,7 @@ $status_labels = [
                                         ?>
                                     </strong>
                                 </div>
-                                <small class="text-muted"><?php echo format_date_local($h['created_at'], true); ?></small>
+                                <small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                             </div>
                             <small class="text-muted"><?php echo t('by'); ?> : <?php echo htmlspecialchars($h['username'] ?? t('unknown')); ?> (IP: <?php echo htmlspecialchars($h['ip_address'] ?? '-'); ?>)</small>
                             <div class="mt-2">

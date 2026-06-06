@@ -148,7 +148,7 @@ foreach($equipments as $eq) {
                             <td class="text-center"><span class="badge bg-<?php echo $criticalityClass; ?>"><?php echo $criticality; ?></span></td>
                             <td style="max-width: 200px;">
                                 <?php if(!empty($history[$eq['id']])): ?>
-                                    <div class="history-item"><small class="text-muted"><?php echo format_date_local($history[$eq['id']][0]['created_at'], 'full', true); ?></small></div>
+                                    <div class="history-item"><small class="text-muted"><?php echo format_date_local($history[$eq['id']][0]['created_at'], 'long', true); ?></small></div>
                                 <?php else: ?>
                                     <small class="text-muted">-</small>
                                 <?php endif; ?>

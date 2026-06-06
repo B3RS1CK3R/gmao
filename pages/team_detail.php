@@ -14,8 +14,8 @@ if(!$team_id) {
 // Récupérer les infos de l'équipe
 $stmt = $pdo->prepare("
     SELECT t.*, 
-           CONCAT(leader.firstname, ' ', leader.lastname) as leader_name,
-           leader.id as leader_id
+            CONCAT(leader.firstname, ' ', leader.lastname) as leader_name,
+            leader.id as leader_id
     FROM teams t
     LEFT JOIN technicians leader ON t.leader_id = leader.id
     WHERE t.id = ?
@@ -67,7 +67,7 @@ $members = $stmt->fetchAll();
                         <tr><td><strong>Nom :</strong></td><td><?php echo htmlspecialchars($team['name']); ?></td></tr>
                         <tr><td><strong>Leader :</strong></td><td><?php echo $team['leader_name'] ? htmlspecialchars($team['leader_name']) : 'Aucun'; ?></td></tr>
                         <tr><td><strong>Description :</strong></td><td><?php echo nl2br(htmlspecialchars($team['description'] ?: '-')); ?></td></tr>
-                        <tr><td><strong>Date de création :</strong></td><td><?php echo format_date_us($team['created_at'], true); ?></td></tr>
+                        <tr><td><strong>Date de création :</strong></td><td><?php echo format_date_local($team['created_at'], 'long', true); ?></td></tr>
                     </table>
                 </div>
             </div>

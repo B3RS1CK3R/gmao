@@ -53,7 +53,7 @@ if($equipment_id > 0) {
                     <div style="flex:1;">
                         <div><strong><?php echo htmlspecialchars($att['original_name']); ?></strong></div>
                         <div class="small text-muted"><?php echo htmlspecialchars($att['equipment_name']) . ' (' . htmlspecialchars($att['equipment_code']) . ')'; ?></div>
-                        <div class="small text-muted"><?php echo format_date_local($att['created_at'], true); ?></div>
+                        <div class="small text-muted"><?php echo format_date_local($att['created_at'], 'long', true); ?></div>
                             <div class="mt-2">
                                 <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-sm btn-secondary"><?php echo t('view'); ?></a>
                                 <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" download class="btn btn-sm btn-info"><?php echo t('download'); ?></a>

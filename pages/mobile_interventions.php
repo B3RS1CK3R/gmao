@@ -204,7 +204,7 @@ $completed_count = count(array_filter($interventions, function($i) { return $i['
                 </div>
                 <?php if($inv['intervention_date']): ?>
                     <div class="intervention-date">
-                        <i class="fas fa-calendar-alt"></i> <?php echo format_date_us($inv['intervention_date'], false); ?>
+                        <i class="fas fa-calendar-alt"></i> <?php echo format_date_local($inv['intervention_date'], 'long', false); ?>
                         <?php if($inv['scheduled_time']): ?>
                             <i class="fas fa-clock ms-2"></i> <?php echo date('H:i', strtotime($inv['scheduled_time'])); ?>
                         <?php endif; ?>

@@ -130,14 +130,14 @@ $teams = $pdo->query("
                             <td><?php echo htmlspecialchars($tech['firstname']); ?></td>
                             <td><?php echo htmlspecialchars($tech['specialty'] ?: '-'); ?></td>
                             <td><span class="status-badge status-<?php echo $tech['status']; ?>"><?php if($tech['status'] == 'active') echo '🟢 '.t('active'); elseif($tech['status'] == 'inactive') echo '⚫ '.t('inactive'); else echo '🟡 '.t('on_leave'); ?></span></td>
-                            <td><?php echo $tech['hire_date'] ? format_date_us($tech['hire_date'], false) : '-'; ?></td>
+                            <td><?php echo $tech['hire_date'] ? format_date_local($tech['hire_date'], 'long', false) : '-'; ?></td>
                             <td><?php $count = $interventions_count[$tech['id']] ?? 0; if($count > 0) echo '<span class="badge bg-warning text-dark">'.$count.'</span>'; else echo '<span class="text-muted">0</span>'; ?></td>
                             <td style="max-width: 120px;">
                                 <?php if(!empty($history[$tech['id']])): ?>
                                     <?php foreach(array_slice($history[$tech['id']], 0, 2) as $h): ?>
                                     <div class="history-item">
                                         <?php $icons = ['technician_created'=>'🟢 '.t('created'), 'technician_updated'=>'✏️ '.t('modified'), 'technician_deleted'=>'🗑️ '.t('deactivated'), 'technician_restored'=>'🔄 '.t('restored')]; echo $icons[$h['action']] ?? $h['action']; ?>
-                                        <br><small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
+                                        <br><small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                                     </div>
                                     <?php endforeach; ?>
                                 <?php else: ?><small class="text-muted">-</small><?php endif; ?>

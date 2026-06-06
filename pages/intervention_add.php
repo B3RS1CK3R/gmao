@@ -159,7 +159,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <label class="form-label"><?php echo t('created_at'); ?></label>
                                 <div>
                                     <span class="task-number-display" style="background: #edf2f7; color: #4a5568;">
-                                        <?php echo format_date_local(date('Y-m-d H:i:s'), true); ?>
+                                        <?php echo format_date_local(date('Y-m-d H:i:s'), 'long', true); ?>
                                     </span>
                                 </div>
                                 <small class="text-muted"><?php echo t('current_datetime'); ?></small>

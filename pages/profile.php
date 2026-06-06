@@ -171,11 +171,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             <hr class="bg-light">
             <div class="small">
                 <i class="fas fa-calendar"></i> <?php echo t('member_since'); ?><br>
-                <?php echo $user['created_at'] ? format_date_us($user['created_at'], true) : '-'; ?>
+                <?php echo $user['created_at'] ? format_date_local($user['created_at'], 'long', true) : '-'; ?>
             </div>
             <div class="small mt-2">
                 <i class="fas fa-clock"></i> <?php echo t('last_connection'); ?><br>
-                <?php echo $user['last_login'] ? format_date_us($user['last_login'], true) : t('never'); ?>
+                <?php echo $user['last_login'] ? format_date_local($user['last_login'], 'long', true) : t('never'); ?>
             </div>
         </div>
     </div>
@@ -282,7 +282,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="row">
                         <div class="col-md-6">
                             <h6><i class="fas fa-calendar-alt"></i> Dernière sauvegarde</h6>
-                            <p><?php echo $last_backup ? format_date_us($last_backup, true) : 'Aucune sauvegarde effectuée'; ?></p>
+                            <p><?php echo $last_backup ? format_date_local($last_backup, 'long', true) : 'Aucune sauvegarde effectuée'; ?></p>
                             <!-- Bouton export avec rafraîchissement automatique -->
                             <a href="javascript:void(0)" onclick="exportAndRefresh()" class="btn btn-primary">
                                 <i class="fas fa-download"></i> Exporter la base de données

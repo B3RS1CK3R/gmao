@@ -283,17 +283,6 @@ function getEquipmentDetails($id) {
 }
 
 /**
- * Format a database datetime string into a US-style date (MM/DD/YYYY).
- * Optionally includes the time (HH:MM).
- */
-function format_date_us($datetime, $withTime = true) {
-    if(empty($datetime) || in_array($datetime, ['0000-00-00', '0000-00-00 00:00:00'])) return t('not_specified');
-    $ts = strtotime($datetime);
-    if($ts === false) return htmlspecialchars($datetime);
-    return $withTime ? date('m/d/Y H:i', $ts) : date('m/d/Y', $ts);
-}
-
-/**
  * Format a date according to the current language/locale.
  * component: 'weekday_short', 'month_short', 'day_num', 'full', 'long'
  * if component == 'full' or 'long', $withTime controls inclusion of time.

@@ -330,7 +330,7 @@ $intervention_status_map = [
                                         }
                                     ?>
                                     <tr>
-                                        <td><?php echo format_date_local($m['created_at'], false); ?></td>
+                                        <td><?php echo format_date_local($m['created_at'], 'long', false); ?></td>
                                         <td><?php echo htmlspecialchars($m['title']); ?></td>
                                         <td>
                                             <span class="priority-badge <?php echo $priority_class; ?>">

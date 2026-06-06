@@ -793,7 +793,7 @@ endif;
                                         ];
                                         echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
                                         ?>
-                                        <br><small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
+                                        <br><small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                                     </div>
                                     <?php endforeach; ?>
                                 <?php else: ?>

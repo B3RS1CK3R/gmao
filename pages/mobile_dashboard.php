@@ -248,7 +248,7 @@ if($_SESSION['role'] == 'technician') {
             </div>
         </div>
         <div class="mt-3">
-            <div class="small">📅 <?php echo date('l d F Y', time()); ?></div>
+            <div class="small">📅 <?php echo format_date_local(date('Y-m-d'), 'full', false); ?></div>
         </div>
     </div>
     
@@ -295,7 +295,7 @@ if($_SESSION['role'] == 'technician') {
         <?php else: ?>
             <?php foreach($my_interventions as $interv): ?>
                 <div class="intervention-item <?php echo $interv['priority'] == 'critical' ? 'intervention-critical' : ''; ?>" 
-                     onclick="window.location.href='?page=mobile_intervention_detail&id=<?php echo $interv['id']; ?>'">
+                    onclick="window.location.href='?page=mobile_intervention_detail&id=<?php echo $interv['id']; ?>'">
                     <div class="intervention-title"><?php echo htmlspecialchars($interv['title']); ?></div>
                     <div class="small text-muted">
                         <i class="fas fa-microchip"></i> <?php echo htmlspecialchars($interv['equipment_name']); ?>
@@ -306,7 +306,7 @@ if($_SESSION['role'] == 'technician') {
                                 ($interv['priority'] == 'high' ? 'warning' : 'secondary'); ?>">
                             <?php echo t($interv['priority']); ?>
                         </span>
-                        <span><?php echo $interv['intervention_date'] ? format_date_us($interv['intervention_date'], false) : t('not_planned'); ?></span>
+                        <span><?php echo $interv['intervention_date'] ? format_date_local($interv['intervention_date'], 'long', false) : t('not_planned'); ?></span>
                     </div>
                 </div>
             <?php endforeach; ?>

@@ -194,7 +194,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                         </tr>
                         <tr>
                             <td><strong><?php echo t('created_at'); ?></strong></td>
-                            <td><?php echo format_date_us($intervention['created_at'], true); ?></td>
+                            <td><?php echo format_date_local($intervention['created_at'], 'long', true); ?></td>
                         </tr>
                         <tr>
                             <td><strong><?php echo t('created_by'); ?></strong></td>
@@ -334,7 +334,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                         <tr>
                             <td><strong><?php echo t('planned_date'); ?></strong></td>
                             <td>
-                                <?php echo $intervention['intervention_date'] ? format_date_us($intervention['intervention_date'], false) : 'Not planned'; ?>
+                                <?php echo $intervention['intervention_date'] ? format_date_local($intervention['intervention_date'], 'long', false) : 'Not planned'; ?>
                                 <?php if(strtotime($intervention['intervention_date']) < time() && $intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee'): ?>
                                     <span class="badge bg-danger ms-2"><?php echo t('overdue'); ?></span>
                                 <?php endif; ?>
@@ -353,7 +353,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                         <?php if($intervention['completed_date']): ?>
                         <tr>
                             <td><strong><?php echo t('completion_date'); ?></strong></td>
-                            <td><?php echo format_date_us($intervention['completed_date'], true); ?></td>
+                            <td><?php echo format_date_local($intervention['completed_date'], 'long', true); ?></td>
                         </tr>
                         <?php endif; ?>
                     </table>
@@ -433,7 +433,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                     <div class="history-item">
                         <div class="d-flex justify-content-between">
                             <span><?php echo $h['action']; ?></span>
-                            <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
+                            <small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                         </div>
                         <div class="small text-muted mt-1"><?php echo htmlspecialchars($h['details']); ?></div>
                     </div>

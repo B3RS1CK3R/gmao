@@ -27,7 +27,7 @@ foreach($criticalInterventions as $inv) {
         'priority' => 'critical',
         'title' => t('critical_intervention'),
         'message' => $inv['title'] . ' - ' . $inv['equipment_name'] . ' (' . $inv['equipment_code'] . ')',
-        'details' => t('created_on') . ' : ' . format_date_us($inv['created_at'], true) . '<br>' . nl2br(htmlspecialchars(substr($inv['description'], 0, 200))),
+        'details' => t('created_on') . ' : ' . format_date_local($inv['created_at'], 'long', true) . '<br>' . nl2br(htmlspecialchars(substr($inv['description'], 0, 200))),
         'url' => '?page=intervention_view&id=' . $inv['id'],
         'date' => $inv['created_at'],
         'status' => $inv['task_status']
@@ -78,7 +78,7 @@ foreach($upcomingMaintenances as $pm) {
         'priority' => 'info',
         'title' => t('maintenance_upcoming'),
         'message' => $pm['equipment_name'] . ' (' . $pm['equipment_code'] . ') - ' . t('in') . ' ' . $pm['days_left'] . ' ' . t('days'),
-        'details' => t('planned_date') . ' : ' . format_date_us($pm['next_due'], false) . '<br>' . t('instructions') . ' : ' . nl2br(htmlspecialchars($pm['instructions'])),
+        'details' => t('planned_date') . ' : ' . format_date_local($pm['next_due'], 'long', false) . '<br>' . t('instructions') . ' : ' . nl2br(htmlspecialchars($pm['instructions'])),
         'url' => '?page=preventive',
         'date' => $pm['next_due'],
         'days_left' => $pm['days_left']
@@ -128,7 +128,7 @@ foreach($warrantyExpiring as $eq) {
             'priority' => 'critical',
             'title' => t('warranty_expired'),
             'message' => $eq['name'] . ' (' . $eq['code'] . ') - ' . t('expired_since') . ' ' . abs($eq['days_left']) . ' ' . t('days'),
-            'details' => t('purchase_date') . ' : ' . format_date_us($eq['purchase_date'], false) . '<br>' . t('warranty_end') . ' : ' . format_date_us($eq['warranty_end'], false),
+            'details' => t('purchase_date') . ' : ' . format_date_local($eq['purchase_date'], 'long', false) . '<br>' . t('warranty_end') . ' : ' . format_date_local($eq['warranty_end'], 'long', false),
             'url' => '?page=equipment_detail&id=' . $eq['id'],
             'date' => $eq['warranty_end'],
             'days_overdue' => abs($eq['days_left'])
@@ -140,7 +140,7 @@ foreach($warrantyExpiring as $eq) {
             'priority' => 'warning',
             'title' => t('warranty_upcoming'),
             'message' => $eq['name'] . ' (' . $eq['code'] . ') - ' . t('expires_in') . ' ' . $eq['days_left'] . ' ' . t('days'),
-            'details' => t('purchase_date') . ' : ' . format_date_us($eq['purchase_date'], false) . '<br>' . t('warranty_end') . ' : ' . format_date_us($eq['warranty_end'], false),
+            'details' => t('purchase_date') . ' : ' . format_date_local($eq['purchase_date'], 'long', false) . '<br>' . t('warranty_end') . ' : ' . format_date_local($eq['warranty_end'], 'long', false),
             'url' => '?page=equipment_detail&id=' . $eq['id'],
             'date' => $eq['warranty_end'],
             'days_left' => $eq['days_left']
@@ -189,7 +189,7 @@ if ($_SESSION['role'] === 'admin') {
             'priority' => 'warning',
             'title' => t('backup_reminder_title'),
             'message' => t('backup_reminder_message') . ' ' . $days_since . ' ' . t('days'),
-            'details' => t('last_backup') . ' : ' . format_date_us($last_backup, false) . '<br>' . t('backup_advice'),
+            'details' => t('last_backup') . ' : ' . format_date_local($last_backup, 'long', false) . '<br>' . t('backup_advice'),
             'url' => '?page=profile',
             'date' => $last_backup,
             'days_since' => $days_since
@@ -466,7 +466,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
                         <div class="fw-bold"><?php echo $alert['title']; ?></div>
                         <div class="small text-muted mt-1"><?php echo $alert['message']; ?></div>
                         <div class="small text-muted mt-1">
-                            <i class="fas fa-calendar-alt"></i> <?php echo format_date_us($alert['date'], true); ?>
+                            <i class="fas fa-calendar-alt"></i> <?php echo format_date_local($alert['date'], 'long', true); ?>
                         </div>
                         <?php if(isset($alert['details'])): ?>
                         <div class="small text-muted mt-1">

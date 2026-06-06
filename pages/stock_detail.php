@@ -205,7 +205,7 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
                     </tr>
                     <tr>
                         <td><strong>Dernier réapprov.</strong></td>
-                        <td><?php echo $part['last_restock'] ? format_date_us($part['last_restock'], false) : 'Non renseigné'; ?></td>
+                        <td><?php echo $part['last_restock'] ? format_date_local($part['last_restock'], 'long', false) : 'Non renseigné'; ?></td>
                     </tr>
                 </table>
             </div>
@@ -222,7 +222,7 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
                 </div>
                 <div class="progress mb-3">
                     <div class="progress-bar progress-bar-custom bg-<?php echo $stock_class == 'danger' ? 'danger' : ($stock_class == 'warning' ? 'warning' : 'success'); ?>" 
-                         style="width: <?php echo $percentage; ?>%">
+                        style="width: <?php echo $percentage; ?>%">
                         <?php echo $percentage; ?>%
                     </div>
                 </div>
@@ -323,7 +323,7 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
                             <tbody>
                                 <?php foreach($movements as $mov): ?>
                                 <tr>
-                                    <td><?php echo format_date_us($mov['movement_date'], true); ?></td>
+                                    <td><?php echo format_date_local($mov['movement_date'], 'long', true); ?></td>
                                     <td>
                                         <?php if($mov['movement_type'] == 'in'): ?>
                                             <span class="badge bg-success">📥 Entrée</span>
@@ -364,7 +364,7 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
                             echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
                             ?>
                         </span>
-                        <small class="text-muted"><?php echo format_date_us($h['created_at'], true); ?></small>
+                        <small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                     </div>
                     <small class="text-muted">
                         Par : <?php echo htmlspecialchars($h['username'] ?? 'Inconnu'); ?> 
