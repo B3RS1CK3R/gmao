@@ -88,6 +88,37 @@ if ($page === 'logout') {
     header('Location: index.php?page=login');
     exit();
 }
+
+// ====================== TRAITEMENT DES ACTIONS POST (avant tout affichage) ======================
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Équipements
+    if ($page === 'equipment_add') {
+        require_once 'actions/equipment_add_action.php';
+        exit();
+    }
+    if ($page === 'equipment_edit' && isset($_GET['id'])) {
+        require_once 'actions/equipment_edit_action.php';
+        exit();
+    }
+    // Maintenances préventives
+    if ($page === 'preventive_add') {
+        require_once 'actions/preventive_add_action.php';
+        exit();
+    }
+    if ($page === 'preventive_edit' && isset($_GET['id'])) {
+        require_once 'actions/preventive_edit_action.php';
+        exit();
+    }
+    // Techniciens
+    if ($page === 'technician_add') {
+        require_once 'actions/technician_add_action.php';
+        exit();
+    }
+    if ($page === 'technician_edit' && isset($_GET['id'])) {
+        require_once 'actions/technician_edit_action.php';
+        exit();
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -149,8 +180,20 @@ if ($page === 'logout') {
                         require_once 'pages/team_add.php';
                         break;
                     
+                    case 'team_detail':
+                        require_once 'pages/team_detail.php';
+                        break;
+                    
+                    case 'team_delete':
+                        require_once 'pages/team_delete.php';
+                        break;
+                    
                     case 'technician_detail':
                         require_once 'pages/technician_detail.php';
+                        break;
+                    
+                    case 'technicians_restore':
+                        require_once 'pages/technicians_restore.php';
                         break;
                     
                     case 'alerts':
@@ -189,6 +232,22 @@ if ($page === 'logout') {
                         require_once 'pages/preventive.php';
                         break;
                     
+                    case 'preventive_add':
+                        require_once 'pages/preventive_add.php';
+                        break;
+                    
+                    case 'preventive_edit':
+                        require_once 'pages/preventive_edit.php';
+                        break;
+                    
+                    case 'preventive_delete':
+                        require_once 'pages/preventive_delete.php';
+                        break;
+                    
+                    case 'preventive_complete':
+                        require_once 'pages/preventive_complete.php';
+                        break;
+                    
                     case 'interventions_assign':
                         require_once 'pages/interventions_assign.php';
                         break;
@@ -223,6 +282,22 @@ if ($page === 'logout') {
                     
                     case 'equipment_qr':
                         require_once 'pages/equipment_qr.php';
+                        break;
+                    
+                    case 'equipment_add':
+                        require_once 'pages/equipment_add.php';
+                        break;
+                    
+                    case 'equipment_edit':
+                        require_once 'pages/equipment_edit.php';
+                        break;
+                    
+                    case 'equipment_delete':
+                        require_once 'pages/equipment_delete.php';
+                        break;
+                    
+                    case 'equipment_restore':
+                        require_once 'pages/equipment_restore.php';
                         break;
                     
                     case 'stock_detail':
