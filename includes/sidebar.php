@@ -152,6 +152,39 @@
     </div>
 </div>
 
+<script>
+// Fonction pour mettre à jour le badge d'alertes
+function updateAlertBadge() {
+    fetch('api/count_alerts.php')
+        .then(response => response.json())
+        .then(data => {
+            const badge = document.querySelector('.notification-badge .badge-count');
+            if (badge) {
+                if (data.count > 0) {
+                    badge.textContent = data.count;
+                    badge.style.display = 'inline-block';
+                    // Optionnel : modifier le titre de la page
+                    if (document.title.indexOf('(') !== 0) {
+                        document.title = '(' + data.count + ') ' + document.title;
+                    }
+                } else {
+                    badge.style.display = 'none';
+                    // Retirer le compteur du titre si présent
+                    if (document.title.match(/^\(\d+\)/)) {
+                        document.title = document.title.replace(/^\(\d+\)\s/, '');
+                    }
+                }
+            }
+        })
+        .catch(err => console.error('Erreur chargement alertes:', err));
+}
+
+// Exécuter au chargement
+document.addEventListener('DOMContentLoaded', updateAlertBadge);
+// Puis toutes les 30 secondes (ou 60)
+setInterval(updateAlertBadge, 30000);
+</script>
+
 <style>
     /* Structure principale */
     .sidebar {

@@ -105,7 +105,18 @@ $recentInterventions = getRecentInterventions(5);
                                                 <?php echo t($interv['priority'] ?? 'medium'); ?>
                                             </span>
                                         </td>
-                                        <td><?php echo t($interv['task_status'] ?? $interv['status'] ?? 'pending'); ?></td>
+                                        <td>
+                                            <?php 
+                                            $status_map = [
+                                                'a_faire' => 'to_do',
+                                                'en_cours' => 'in_progress',
+                                                'termine' => 'completed',
+                                                'cloturee' => 'closed'
+                                            ];
+                                            $status_key = $status_map[$interv['task_status']] ?? 'to_do';
+                                            echo t($status_key);
+                                            ?>
+                                        </td>
                                         <td><?php echo date('d/m/Y', strtotime($interv['created_at'] ?? 'now')); ?></td>
                                     </tr>
                                     <?php endforeach; ?>
