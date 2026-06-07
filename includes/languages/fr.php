@@ -68,6 +68,7 @@ return [
     'preventive_edit'           => 'Modifier Préventif',
     'technician_edit'           => 'Modifier Technicien',
     'stock_detail'              => 'Détail Stock',
+    'assignment'                => 'Assignation',
 
     // ==================== DASHBOARD ====================
     'view_performance'          => 'Voir l\'Analyse de Performance',
@@ -110,6 +111,9 @@ return [
     'assign_info'               => 'Vous pouvez assigner une équipe, un technicien, ou les deux.',
     'assign_success'            => 'Assignation effectuée avec succès',
     'team_assigned'             => 'Équipe assignée',
+    'select_team'               => 'Sélectionner une équipe',
+    'team_overrides_technician' => 'L\'assignation d\'une équipe prendra le pas sur l\'assignation d\'un technicien individuel.',
+    
 
     'skills'                    => 'Compétences',
     'no_skills'                 => 'Aucune compétence enregistrée',
@@ -279,6 +283,25 @@ return [
     'delete_confirm_equipment'  => 'Êtes-vous sûr de vouloir supprimer cet équipement ?',
     'warranty_expired'          => 'Garantie expirée',
     'warranty_expiring_soon'    => 'Garantie expire bientôt',
+    'doc_path_help'             => 'Vous pouvez ajouter un document (fichier local ou lien URL) après la création de l\'équipement.',
+    'doc_path_placeholder'      => 'Ex: C:\Documents\manuel.pdf ou https://example.com/doc.pdf',
+    'browse'                    => 'Parcourir',
+    'add_document_after_creation' => 'Ajouter ce document après la création',
+    'add_document_info'         => 'Le document sera associé automatiquement à l\'équipement une fois créé.',
+    'equipment_created'         => 'Création de l\'équipement',
+    'equipment_updated'         => 'Modification de l\'équipement',
+    'equipment_deleted'         => 'Désactivation de l\'équipement',
+    'equipment_restored'        => 'Réactivation de l\'équipement',
+    'equipment_updated_detail'  => 'Équipement ID {id} mis à jour.',
+    'equipment_created_detail'  => 'Équipement créé : {code}',
+    'equipment_deleted_detail'  => 'Équipement ID {id} désactivé.',
+    'equipment_restored_detail' => 'Équipement ID {id} réactivé.',
+    'history_equipment_updated' => "L'équipement « {name} » (ID {id}) a été modifié.",
+    'history_equipment_created' => "L'équipement « {name} » (Code: {code}, ID: {id}) a été créé.",
+    'history_equipment_deactivated' => "L'équipement « {name} » (ID {id}) a été désactivé.",
+    'history_equipment_reactivated' => "L'équipement « {name} » (ID {id}) a été réactivé.",
+    'history_equipment_fallback' => "Équipement « {name} » (ID {id}) : {details}",
+
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'Nouvelle Intervention',
@@ -323,6 +346,7 @@ return [
     'inspection'                => 'Inspection',
     'other'                     => 'Autre',
     'cancel_intervention'       => 'Annuler l\'intervention',
+    'no_description'            => 'Aucune description fournie',
 
     // ==================== PREVENTIVE MAINTENANCE ====================
     'frequency_days'            => 'Fréquence (jours)',
@@ -331,6 +355,9 @@ return [
     'instructions'              => 'Instructions',
     'every'                     => 'Tous les',
     'add_maintenance'           => 'Ajouter une maintenance préventive',
+    'team_placeholder'          => 'Ex. Équipe A, Équipe B, etc.',
+    'instructions_placeholder'  => 'Ex. Vérifier les niveaux d\'huile, Nettoyer les filtres, etc.',
+    'frequency_help'            => 'Entrez la fréquence de maintenance en jours. Le système calculera automatiquement les prochaines dates d\'intervention basées sur la dernière intervention effectuée.',
 
     // ==================== STOCK ====================
     'part_number'               => 'N° pièce',
@@ -370,6 +397,8 @@ return [
     'inactive_desc'             => 'Niveau de stock inactif - réviser et prendre les mesures nécessaires',
     'edit_part'                 => 'Modifier la pièce',
     'last_restock'              => 'Dernier réapprovisionnement',
+    'no_documents'              => 'Aucun document disponible',
+    'not_specified'             => 'Non spécifié',
 
     // ==================== USERS & LANGUAGE ====================
     'profile'                   => 'Mon Profil',

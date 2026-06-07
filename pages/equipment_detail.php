@@ -81,7 +81,7 @@ $status_labels = [
                     <td><?php echo htmlspecialchars($equipment['code']); ?></span>
                 </tr>
                     <!-- Equipment Name -->
-                    <tr><td><strong><?php echo t('name'); ?></strong></td>
+                    <tr><td><strong><?php echo t('name'); ?></strong></span>
                     <td><?php echo htmlspecialchars($equipment['name']); ?></span>
                 </tr>
                     <!-- Type (or fallback message) -->
@@ -131,14 +131,14 @@ $status_labels = [
             <div class="card-body">
                 <table class="table table-sm table-borderless mb-0">
                     <!-- Purchase Date -->
-                    <tr><td style="width: 50%;"><strong><?php echo t('purchase_date'); ?></strong></span>
-                    <td><?php echo format_date_local($equipment['purchase_date'], 'long', false); ?></span>
-                </tr>
+                    <tr>
+                        <td style="width: 40%;"><strong><?php echo t('purchase_date'); ?></strong></td>
+                        <td><?php echo format_date_local($equipment['purchase_date'], 'long', false); ?></td>
+                    </tr>
                     <!-- Warranty End Date with expiration warnings -->
                     <tr>
-                        <td><strong><?php echo t('warranty_end'); ?></strong></span>
-                        <td>
-                            <?php if($equipment['warranty_end']): ?>
+                        <td style="width: 40%;"><strong><?php echo t('warranty_end'); ?></strong></td>
+                        <td><?php if($equipment['warranty_end']): ?>
                                 <?php echo format_date_local($equipment['warranty_end'], 'long', false); ?>
                                 <?php if(strtotime($equipment['warranty_end']) < time()): ?>
                                     <span class="badge bg-danger ms-2"><?php echo t('expired'); ?></span>
@@ -148,12 +148,13 @@ $status_labels = [
                             <?php else: ?>
                                 <?php echo t('not_specified'); ?>
                             <?php endif; ?>
-                        </span>
+                        </td>
                     </tr>
                     <!-- Record creation timestamp -->
-                    <tr><td><strong><?php echo t('created_at'); ?></strong></span>
-                    <td><?php echo format_date_local($equipment['created_at'], 'long', true); ?></span>
-                </tr>
+                    <tr>
+                        <td style="width: 40%;"><strong><?php echo t('created_at'); ?></strong></td>
+                        <td><?php echo format_date_local($equipment['created_at'], 'long', true); ?></td>
+                    </tr>
                 </table>
             </div>
         </div>
@@ -185,20 +186,16 @@ $status_labels = [
                                         </div>
                                         <div class="btn-group btn-group-sm" role="group">
                                             <?php if(!empty($att['external_path'])): ?>
-                                                <!-- External link: Open link button -->
                                                 <a href="<?php echo htmlspecialchars($att['external_path']); ?>" target="_blank" class="btn btn-info" title="<?php echo t('open_document'); ?>">
                                                     <i class="fas fa-external-link-alt"></i>
                                                 </a>
-                                                <!-- Copy link button -->
                                                 <button type="button" class="btn btn-secondary" title="Copy link to clipboard" onclick="copyToClipboard('<?php echo htmlspecialchars($att['external_path']); ?>')">
                                                     <i class="fas fa-copy"></i>
                                                 </button>
                                             <?php else: ?>
-                                                <!-- Local file: View button -->
                                                 <a href="<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/<?php echo htmlspecialchars($att['filename']); ?>" target="_blank" class="btn btn-secondary" title="<?php echo t('view'); ?>">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
-                                                <!-- Copy folder path button (replaces Download) -->
                                                 <button type="button" class="btn btn-info" title="Copy folder path to clipboard" onclick="copyToClipboard('<?php echo $baseUrl; ?>/uploads/attachments/equipment/<?php echo $att['parent_id']; ?>/')">
                                                     <i class="fas fa-copy"></i>
                                                 </button>
@@ -207,7 +204,6 @@ $status_labels = [
                                     </div>
                                     <div class="mt-2 small text-truncate" style="max-width:200px;"><?php echo htmlspecialchars($att['external_path'] ?? ''); ?></div>
                                     
-                                    <!-- Delete button - only for admin/supervisor or original creator -->
                                     <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor' || $_SESSION['user_id'] == $att['created_by']): ?>
                                         <div class="mt-2">
                                             <form action="api/delete_attachment.php" method="post" style="display:inline-block;" onsubmit="return confirm('<?php echo t('delete_confirm'); ?>');">
@@ -223,7 +219,7 @@ $status_labels = [
                     </div>
                 <?php endif; ?>
 
-                <!-- Add new document link form - only for admin/supervisor -->
+                <!-- Add new document link form - only for admin/supervisor (with browse button) -->
                 <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
                     <hr>
                     <div class="mb-2">
@@ -237,9 +233,15 @@ $status_labels = [
                             </div>
                             <div class="mb-2">
                                 <label class="form-label small"><?php echo t('document_path'); ?></label>
-                                <input type="text" name="external_path" class="form-control form-control-sm" placeholder="https://... or C:\\path\\to\\file.pdf" required>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" name="external_path" id="external_path" class="form-control" placeholder="https://... or C:\\path\\to\\file.pdf" required>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="browseFile()">
+                                        <i class="fas fa-folder-open"></i> <?php echo t('browse'); ?>
+                                    </button>
+                                </div>
+                                <small class="text-muted"><?php echo t('doc_path_placeholder'); ?></small>
                             </div>
-                            <button class="btn btn-sm btn-primary" type="submit"><?php echo t('add_link'); ?></button>
+                            <button class="btn btn-sm btn-primary" type="submit"><?php echo t('save'); ?></button>
                         </form>
                     </div>
                 <?php endif; ?>
@@ -269,16 +271,16 @@ $status_labels = [
                         <tbody>
                             <?php foreach($preventives as $pm): ?>
                             <tr>
-                                <td><?php echo t('every') . ' ' . $pm['frequency_days'] . ' ' . t('days_s'); ?></span>
-                                <td><?php echo $pm['last_done'] ? format_date_local($pm['last_done'], 'long', false) : t('never'); ?></span>
+                                <td><?php echo t('every') . ' ' . $pm['frequency_days'] . ' ' . t('days_s'); ?></td>
+                                <td><?php echo $pm['last_done'] ? format_date_local($pm['last_done'], 'long', false) : t('never'); ?></td>
                                 <td>
                                     <?php echo format_date_local($pm['next_due'], 'long', false); ?>
                                     <?php if(strtotime($pm['next_due']) < time()): ?>
                                         <span class="badge bg-danger ms-2"><?php echo t('overdue'); ?></span>
                                     <?php endif; ?>
-                                </span>
-                                <td><?php echo nl2br(htmlspecialchars($pm['instructions'])); ?></span>
-                                <td><?php echo htmlspecialchars($pm['assigned_team'] ?: '-'); ?></span>
+                                </td>
+                                <td><?php echo nl2br(htmlspecialchars($pm['instructions'])); ?></td>
+                                <td><?php echo htmlspecialchars($pm['assigned_team'] ?: '-'); ?></td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -333,9 +335,9 @@ $status_labels = [
                             <tbody>
                                 <?php foreach($interventions as $inv): ?>
                                 <tr>
-                                    <td><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></span>
-                                    <td><?php echo htmlspecialchars($inv['title']); ?></span>
-                                    <td><span class="badge bg-<?php echo $inv['priority'] == 'critical' ? 'danger' : ($inv['priority'] == 'high' ? 'warning' : 'secondary'); ?>"><?php echo t($inv['priority']); ?></span></span>
+                                    <td><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars($inv['title']); ?></td>
+                                    <td><span class="badge bg-<?php echo $inv['priority'] == 'critical' ? 'danger' : ($inv['priority'] == 'high' ? 'warning' : 'secondary'); ?>"><?php echo t($inv['priority']); ?></span></td>
                                     <td>
                                         <?php 
                                         if($inv['task_status'] == 'a_faire') echo t('pending');
@@ -343,10 +345,10 @@ $status_labels = [
                                         elseif($inv['task_status'] == 'termine') echo t('completed');
                                         else echo t('closed');
                                         ?>
-                                    </span>
-                                    <td><?php echo format_date_local($inv['created_at'], 'long', false); ?></span>
-                                    <td><?php echo $inv['duration_hours'] ? $inv['duration_hours'] . 'h' : '-'; ?></span>
-                                    <td><a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a></span>
+                                    </td>
+                                    <td><?php echo format_date_local($inv['created_at'], 'long', false); ?></td>
+                                    <td><?php echo $inv['duration_hours'] ? $inv['duration_hours'] . 'h' : '-'; ?></td>
+                                    <td><a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a></td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -367,23 +369,59 @@ $status_labels = [
                 <?php if(empty($history)): ?>
                     <div class="text-muted"><?php echo t('no_history'); ?></div>
                 <?php else: ?>
-                    <?php foreach($history as $h): ?>
+                    <?php foreach($history as $h):
+                        // Récupérer le nom de l'équipement si présent dans le log ou via requête
+                        $equipment_name = null;
+                        if (preg_match('/Name: ([^,]+)/', $h['details'], $name_match)) {
+                            $equipment_name = $name_match[1];
+                        } elseif (preg_match('/Equipment ID: (\d+)/', $h['details'], $id_match)) {
+                            // Ancien log : chercher le nom en base
+                            $stmt_name = $pdo->prepare("SELECT name FROM equipment WHERE id = ?");
+                            $stmt_name->execute([$id_match[1]]);
+                            $equipment_name = $stmt_name->fetchColumn();
+                        }
+
+                        // Déterminer l'action et l'icône
+                        $icon = '';
+                        $action_key = '';
+                        switch($h['action']) {
+                            case 'equipment_created':
+                                $icon = '🟢 ';
+                                $action_key = 'equipment_created';
+                                break;
+                            case 'equipment_updated':
+                                $icon = '✏️ ';
+                                $action_key = 'equipment_updated';
+                                break;
+                            case 'equipment_deleted':
+                                $icon = '🗑️ ';
+                                $action_key = 'equipment_deleted';
+                                break;
+                            case 'equipment_restored':
+                                $icon = '🔄 ';
+                                $action_key = 'equipment_restored';
+                                break;
+                            default:
+                                $icon = '📌 ';
+                                $action_key = 'modified_short';
+                        }
+
+                        // Construire le message
+                        if ($equipment_name) {
+                            $message = t($action_key) . ' : ' . htmlspecialchars($equipment_name);
+                        } else {
+                            $message = t($action_key);
+                        }
+                    ?>
                         <div class="history-item mb-3">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <strong>
-                                        <?php
-                                        $icon = ($h['action'] == 'equipment_updated') ? '✏️ ' : (($h['action']=='equipment_created') ? '🟢 ' : '🔄 ');
-                                        echo $icon . t('modified_short');
-                                        ?>
-                                    </strong>
+                                    <strong><?php echo $icon . $message; ?></strong>
                                 </div>
                                 <small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                             </div>
                             <small class="text-muted"><?php echo t('by'); ?> : <?php echo htmlspecialchars($h['username'] ?? t('unknown')); ?> (IP: <?php echo htmlspecialchars($h['ip_address'] ?? '-'); ?>)</small>
-                            <div class="mt-2">
-                                <div><?php echo nl2br(htmlspecialchars($h['details'])); ?></div>
-                            </div>
+                            <!-- On n'affiche pas les détails bruts pour éviter le texte technique -->
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -395,19 +433,27 @@ $status_labels = [
 
 <script>
 function copyToClipboard(text) {
-    // Create a temporary textarea element
     const textarea = document.createElement('textarea');
     textarea.value = text;
     document.body.appendChild(textarea);
-    
-    // Select and copy
     textarea.select();
     document.execCommand('copy');
-    
-    // Remove temporary element
     document.body.removeChild(textarea);
-    
-    // Show notification
     alert('✓ Path copied to clipboard:\n' + text + '\n\nYou can now paste this path into File Explorer to open the folder.');
+}
+
+// Function to open file browser and fill the path field
+function browseFile() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = function(e) {
+        var file = e.target.files[0];
+        if (file) {
+            // Some browsers expose file.path, others only name.
+            var path = file.path || file.name;
+            document.getElementById('external_path').value = path;
+        }
+    };
+    input.click();
 }
 </script>

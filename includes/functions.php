@@ -245,6 +245,17 @@ function getRecentInterventions($limit = 5) {
     return $stmt->fetchAll();
 }
 
+/**
+ * Format message.
+ */
+function format_message($key, $params = []) {
+    $msg = t($key);
+    foreach ($params as $placeholder => $value) {
+        $msg = str_replace('{' . $placeholder . '}', $value, $msg);
+    }
+    return $msg;
+}
+
 // ========== QR CODE FUNCTIONS ==========
 
 /**

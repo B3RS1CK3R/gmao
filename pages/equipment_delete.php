@@ -28,7 +28,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_password'])) {
     if(password_verify($_POST['confirm_password'], $user['password'])) {
         $stmt2 = $pdo->prepare("UPDATE equipment SET status = 'retired' WHERE id = ?");
         $stmt2->execute([$id]);
-        logUserAction($_SESSION['user_id'], 'equipment_deleted', "Equipment ID: {$id} deactivated");
+        logUserAction($_SESSION['user_id'], 'equipment_deleted', "Equipment ID: {$id}, Name: {$eq['name']} deactivated");
         header('Location: ?page=equipment&msg=' . urlencode(t('save_success')));
         exit();
     } else {

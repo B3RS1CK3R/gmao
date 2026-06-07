@@ -77,6 +77,22 @@ foreach($equipments as $eq) {
     .legend-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; background: #f8f9fa; border-radius: 10px; }
     @media (max-width: 768px) { .legend-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 480px) { .legend-grid { grid-template-columns: 1fr; } }
+
+    /* Columns width */
+    .col-code { width: 8%; }
+    .col-name { width: 17%; }
+    .col-type { width: 10%; }
+    .col-location { width: 10%; }
+    .col-status { width: 12%; }
+    .col-criticality { width: 8%; text-align: center; }
+    .col-lastmod { width: 10%; }
+    .col-actions { width: 15%; }
+
+    @media (max-width: 768px) {
+        .col-code, .col-name, .col-type, .col-location, .col-status, .col-criticality, .col-lastmod, .col-actions {
+            width: auto;
+        }
+}
 </style>
 
 <div class="container-fluid">
@@ -103,9 +119,14 @@ foreach($equipments as $eq) {
                 <table class="table table-hover mb-0">
                     <thead class="table-dark">
                         <tr>
-                            <th><?php echo t('code'); ?></th><th><?php echo t('name'); ?></th><th><?php echo t('type'); ?></th>
-                            <th><?php echo t('location'); ?></th><th><?php echo t('status'); ?></th><th><?php echo t('criticality'); ?></th>
-                            <th><?php echo t('last_modifications'); ?></th><th class="text-center"><?php echo t('actions'); ?></th>
+                            <th class="col-code"><?php echo t('code'); ?></th>
+                            <th class="col-name"><?php echo t('name'); ?></th>
+                            <th class="col-type"><?php echo t('type'); ?></th>
+                            <th class="col-location"><?php echo t('location'); ?></th>
+                            <th class="col-status"><?php echo t('status'); ?></th>
+                            <th class="col-criticality"><?php echo t('criticality'); ?></th>
+                            <th class="col-lastmod"><?php echo t('last_modifications'); ?></th>
+                            <th class="col-actions text-center"><?php echo t('actions'); ?></th>
                         </tr>
                     </thead>
                     <tbody>

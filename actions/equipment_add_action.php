@@ -21,7 +21,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]);
     
     if ($result) {
-        logUserAction($_SESSION['user_id'], 'equipment_created', "Equipment created: {$_POST['code']}");
+        $equipment_id = $pdo->lastInsertId();
+        $equipment_name = $_POST['name'];
+        logUserAction($_SESSION['user_id'], 'equipment_created', "Equipment created: {$_POST['code']} (ID: $equipment_id, Name: $equipment_name)");
+        
+        // Ajout d'un document si demandé
+        if (isset($_POST['add_document']) && $_POST['add_document'] == '1') {
+            $document_path = trim($_POST['document_path'] ?? '');
+            $document_label = trim($_POST['document_label'] ?? '');
+            if (!empty($document_path)) {
+                $mime = 'link';
+                if (preg_match('/^https?:\/\//i', $document_path)) {
+                    $mime = 'link';
+                } elseif (is_file($document_path)) {
+                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                    $mime = finfo_file($finfo, $document_path);
+                    finfo_close($finfo);
+                }
+                $stmtDoc = $pdo->prepare("INSERT INTO attachments (parent_type, parent_id, original_name, external_path, mime, created_by) 
+                                        VALUES ('equipment', ?, ?, ?, ?, ?)");
+                $stmtDoc->execute([$equipment_id, $document_label ?: basename($document_path), $document_path, $mime, $_SESSION['user_id']]);
+            }
+        }
+        
         header('Location: ?page=equipment&msg=' . urlencode(t('save_success')));
         exit();
     } else {

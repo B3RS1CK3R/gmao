@@ -69,7 +69,7 @@ return [
     'preventive_edit'           => 'Edit Preventive',
     'technician_edit'           => 'Edit Technician',
     'stock_detail'              => 'Stock Detail',
-
+    'assignment'                => 'Assignment',
     // ==================== DASHBOARD ====================
     'view_performance'          => 'View Performance Analysis',
     'alerts'                    => 'Alerts',
@@ -111,6 +111,8 @@ return [
     'assign_info'               => 'You can assign a team, a technician, or both.',
     'assign_success'            => 'Assignment successful',
     'team_assigned'             => 'Team assigned',
+    'select_team'               => 'Select a team',
+    'team_overrides_technician' => 'Assigning a team will override the assignment of an individual technician.',
 
     'skills'                    => 'Skills',
     'no_skills'                 => 'No skills recorded',
@@ -280,6 +282,24 @@ return [
     'delete_confirm_equipment'  => 'Are you sure you want to delete this equipment?',
     'warranty_expired'          => 'Warranty expired',
     'warranty_expiring_soon'    => 'Warranty expiring soon',
+    'doc_path_help'             => 'You can add a document (local file or URL link) after the equipment is created.',
+    'doc_path_placeholder'      => 'Ex: C:\Documents\manuel.pdf or https://example.com/doc.pdf',
+    'browse'                    => 'Browse',
+    'add_document_after_creation' => 'Add document after creation',
+    'add_document_info'         => 'The document will be associated automatically with the equipment once created.',
+    'equipment_created'         => 'Equipment Created',
+    'equipment_updated'         => 'Equipment Updated',
+    'equipment_deleted'         => 'Equipment Deleted',
+    'equipment_restored'        => 'Equipment Restored',
+    'equipment_updated_detail'  => 'Equipment ID {id} updated.',
+    'equipment_created_detail'  => 'Equipment created: {code}',
+    'equipment_deleted_detail'  => 'Equipment ID {id} deleted.',
+    'equipment_restored_detail' => 'Equipment ID {id} restored.',
+    'history_equipment_updated' => "The equipment « {name} » (ID {id}) has been modified.",
+    'history_equipment_created' => "The equipment « {name} » (Code: {code}, ID: {id}) has been created.",
+    'history_equipment_deactivated' => "The equipment « {name} » (ID {id}) has been deactivated.",
+    'history_equipment_reactivated' => "The equipment « {name} » (ID {id}) has been reactivated.",
+    'history_equipment_fallback' => "The equipment « {name} » (ID {id}) has been modified.",
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'New Intervention',
@@ -323,6 +343,7 @@ return [
     'inspection'                => 'Inspection',
     'other'                     => 'Other',
     'cancel_intervention'       => 'Cancel Intervention',
+    'no_description'            => 'No description provided',
 
     // ==================== PREVENTIVE MAINTENANCE ====================
     'frequency_days'            => 'Frequency (days)',
@@ -370,6 +391,8 @@ return [
     'inactive_desc'             => 'Inactive stock level - review and take necessary action',
     'edit_part'                 => 'Edit Part',
     'last_restock'              => 'Last Restock',
+    'no_documents'              => 'No documents available',
+    'not_specified'             => 'Not specified',
 
     // ==================== USERS & LANGUAGE ====================
     'profile'                   => 'My Profile',

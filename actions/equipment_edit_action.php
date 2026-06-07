@@ -1,10 +1,9 @@
 <?php
-// actions/equipment_edit_action.php - Traitement POST de la modification d'équipement
+// actions/equipment_edit_action.php
 session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-// Vérification des droits
 if ($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'supervisor') {
     die("Accès interdit");
 }
@@ -15,10 +14,19 @@ if (!$id) {
     exit();
 }
 
+// Récupérer l'ancien nom avant modification
+$stmtOld = $pdo->prepare("SELECT code, name FROM equipment WHERE id = ?");
+$stmtOld->execute([$id]);
+$old = $stmtOld->fetch();
+if (!$old) {
+    header('Location: ?page=equipment');
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $purchase_date = !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null;
     $warranty_end = !empty($_POST['warranty_end']) ? $_POST['warranty_end'] : null;
-
+    
     $sql = "UPDATE equipment SET 
             code = ?, name = ?, type = ?, location = ?, supplier = ?, 
             purchase_date = ?, warranty_end = ?, technical_specs = ?,
@@ -31,9 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_POST['probability_score'], $_POST['severity_score'], $_POST['status'],
         $id
     ]);
-
+    
     if ($result) {
-        logUserAction($_SESSION['user_id'], 'equipment_updated', "Equipment ID: {$id} updated");
+        logUserAction($_SESSION['user_id'], 'equipment_updated', "Equipment ID: $id, Name: {$old['name']} updated. New code: {$_POST['code']}, New name: {$_POST['name']}");
         header('Location: ?page=equipment&msg=' . urlencode(t('save_success')));
         exit();
     } else {

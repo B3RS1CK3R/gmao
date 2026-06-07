@@ -202,7 +202,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                         </tr>
                         <tr>
                             <td><strong><?php echo t('priority'); ?></strong></td>
-                            <td><span class="priority-badge priority-<?php echo $intervention['priority']; ?>"><?php echo ucfirst($intervention['priority']); ?></span></td>
+                            <td><span class="priority-badge priority-<?php echo $intervention['priority']; ?>"><?php echo t($intervention['priority']); ?></span></td>
                         </tr>
                         <tr>
                             <td><strong><?php echo t('status'); ?></strong></td>
@@ -210,10 +210,10 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                                 <span class="status-badge status-<?php echo $intervention['task_status']; ?>">
                                 <?php 
                                 $status_labels = [
-                                    'a_faire' => 'To Do',
-                                    'en_cours' => 'In Progress',
-                                    'termine' => 'Completed',
-                                    'cloturee' => 'Closed'
+                                    'a_faire' => t('to_do'),
+                                    'en_cours' => t('in_progress'),
+                                    'termine' => t('completed'),
+                                    'cloturee' => t('closed')
                                 ];
                                 echo $status_labels[$intervention['task_status']] ?? $intervention['task_status'];
                                 ?>
@@ -282,7 +282,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                             </tr>
                             <tr>
                                 <td><strong><?php echo t('phone'); ?></strong></td>
-                                <td><?php echo htmlspecialchars($intervention['technician_phone'] ?: 'Not provided'); ?></td>
+                                <td><?php echo htmlspecialchars($intervention['technician_phone'] ?: t('not_provided')); ?></td>
                             </tr>
                         </table>
                     <?php else: ?>
@@ -366,7 +366,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                     <i class="fas fa-clipboard-list"></i> <?php echo t('description'); ?>
                 </div>
                 <div class="card-body p-4">
-                    <p class="mb-0"><?php echo nl2br(htmlspecialchars($intervention['description'] ?: 'No description')); ?></p>
+                    <p class="mb-0"><?php echo nl2br(htmlspecialchars($intervention['description'] ?: t('no_description'))); ?></p>
                 </div>
             </div>
             
@@ -449,7 +449,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                     <a href="?page=interventions&action=complete&id=<?php echo $intervention['id']; ?>" class="btn btn-success"><?php echo t('complete'); ?></a>
                 <?php endif; ?>
                 <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                    <a href="?page=interventions&action=edit&id=<?php echo $intervention['id']; ?>" class="btn btn-warning"><?php echo t('edit'); ?></a>
+                    <a href="?page=interventions_edit&id=<?php echo $intervention['id']; ?>" class="btn btn-warning"><?php echo t('edit'); ?></a>
                     <button type="button" class="btn btn-danger" onclick="confirmCancel()"><?php echo t('cancel'); ?> </button>
                 <?php endif; ?>
             </div>
