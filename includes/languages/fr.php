@@ -301,6 +301,18 @@ return [
     'history_equipment_deactivated' => "L'équipement « {name} » (ID {id}) a été désactivé.",
     'history_equipment_reactivated' => "L'équipement « {name} » (ID {id}) a été réactivé.",
     'history_equipment_fallback' => "Équipement « {name} » (ID {id}) : {details}",
+    'document_added_success'    => 'Document ajouté avec succès.',
+    'document_add_error_invalid_parent' => 'Équipement invalide.',
+    'document_add_error_empty_path' => 'Le chemin du document ne peut pas être vide.',
+    'document_add_error_db_error' => 'Erreur lors de l\'enregistrement du document en base de données.',
+    'open_local_file_help'      => 'Si le fichier ne s\'ouvre pas, utilisez le bouton "Copier le chemin" et collez-le dans l\'explorateur de fichiers.',
+    'copy_path'                 => 'Copier le chemin',
+    'delete_document'           => 'Supprimer le document',
+    'delete_confirm_document'   => 'Confirmer la suppression du document',
+    'document'                  => 'Document',
+    'password_required_to_delete' => 'Votre mot de passe est requis pour supprimer ce document.',
+    'delete_warning'            => 'Cette action est irréversible.',
+    'confirm_delete'            => 'Êtes-vous sûr de vouloir supprimer ce document ?',
 
 
     // ==================== INTERVENTIONS ====================

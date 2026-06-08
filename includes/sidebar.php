@@ -1,6 +1,46 @@
 <?php
 // includes/sidebar.php - Menu latéral complet GMAO
+
+// Définition des groupes de pages (maître -> liste des pages dépendantes)
+$page_groups = [
+    'equipment' => [
+        'equipment', 'equipment_add', 'equipment_edit', 'equipment_delete', 
+        'equipment_detail', 'equipment_qr', 'equipment_attachments', 'equipment_restore'
+    ],
+    'interventions' => [
+        'interventions', 'intervention_add', 'intervention_edit', 'intervention_view',
+        'interventions_assign', 'interventions_complete', 'interventions_delete'
+    ],
+    'technicians' => [
+        'technicians', 'technician_add', 'technician_edit', 'technician_detail',
+        'technician_delete', 'technicians_restore', 'team_add', 'team_detail', 'team_delete'
+    ],
+    'preventive' => [
+        'preventive', 'preventive_add', 'preventive_edit', 'preventive_delete', 'preventive_complete'
+    ],
+    'planning' => ['planning'],
+    'stock' => ['stock', 'stock_detail'],
+    'users' => ['users'],
+    'profile' => ['profile'],
+    'settings' => ['settings'],
+    'alerts' => ['alerts'],
+    // Ajoutez d’autres groupes si nécessaire
+];
+
+// Déterminer la page maître active et si c’est une sous-page
+$current_page = $page ?? 'dashboard';
+$active_group = null;
+$is_child = false;
+
+foreach ($page_groups as $master => $pages) {
+    if (in_array($current_page, $pages)) {
+        $active_group = $master;
+        $is_child = ($current_page !== $master);
+        break;
+    }
+}
 ?>
+
 <!-- Sidebar -->
 <div class="col-md-3 col-lg-2 sidebar p-0 text-white">
     <div class="sidebar-content">
@@ -26,49 +66,49 @@
 
                 <!-- 2. Equipment -->
                 <li class="nav-item">
-                    <a href="index.php?page=equipment" class="nav-link <?php echo ($page ?? '') === 'equipment' ? 'active' : ''; ?>">
+                    <a href="index.php?page=equipment" class="nav-link <?php echo ($active_group === 'equipment') ? 'active' : ''; ?> <?php echo ($active_group === 'equipment' && $is_child) ? 'active-child' : ''; ?>">
                         <i class="fas fa-cogs me-2"></i> <?php echo t('equipment'); ?>
                     </a>
                 </li>
 
                 <!-- 3. Interventions -->
                 <li class="nav-item">
-                    <a href="index.php?page=interventions" class="nav-link <?php echo in_array(($page ?? ''), ['interventions', 'intervention_add', 'intervention_edit']) ? 'active' : ''; ?>">
+                    <a href="index.php?page=interventions" class="nav-link <?php echo ($active_group === 'interventions') ? 'active' : ''; ?> <?php echo ($active_group === 'interventions' && $is_child) ? 'active-child' : ''; ?>">
                         <i class="fas fa-wrench me-2"></i> <?php echo t('interventions'); ?>
                     </a>
                 </li>
 
                 <!-- 4. Preventive -->
                 <li class="nav-item">
-                    <a href="index.php?page=preventive" class="nav-link <?php echo ($page ?? '') === 'preventive' ? 'active' : ''; ?>">
+                    <a href="index.php?page=preventive" class="nav-link <?php echo ($active_group === 'preventive') ? 'active' : ''; ?> <?php echo ($active_group === 'preventive' && $is_child) ? 'active-child' : ''; ?>">
                         <i class="fas fa-calendar-check me-2"></i> <?php echo t('preventive_maintenance'); ?>
                     </a>
                 </li>
 
                 <!-- 5. Technicians -->
                 <li class="nav-item">
-                    <a href="index.php?page=technicians" class="nav-link <?php echo in_array(($page ?? ''), ['technicians', 'technician_detail']) ? 'active' : ''; ?>">
+                    <a href="index.php?page=technicians" class="nav-link <?php echo ($active_group === 'technicians') ? 'active' : ''; ?> <?php echo ($active_group === 'technicians' && $is_child) ? 'active-child' : ''; ?>">
                         <i class="fas fa-user-cog me-2"></i> <?php echo t('technicians'); ?>
                     </a>
                 </li>
 
                 <!-- 6. Planning -->
                 <li class="nav-item">
-                    <a href="index.php?page=planning" class="nav-link <?php echo ($page ?? '') === 'planning' ? 'active' : ''; ?>">
+                    <a href="index.php?page=planning" class="nav-link <?php echo ($active_group === 'planning') ? 'active' : ''; ?> <?php echo ($active_group === 'planning' && $is_child) ? 'active-child' : ''; ?>">
                         <i class="fas fa-calendar-alt me-2"></i> <?php echo t('planning'); ?>
                     </a>
                 </li>
 
                 <!-- 7. Stock -->
                 <li class="nav-item">
-                    <a href="index.php?page=stock" class="nav-link <?php echo ($page ?? '') === 'stock' ? 'active' : ''; ?>">
+                    <a href="index.php?page=stock" class="nav-link <?php echo ($active_group === 'stock') ? 'active' : ''; ?> <?php echo ($active_group === 'stock' && $is_child) ? 'active-child' : ''; ?>">
                         <i class="fas fa-boxes me-2"></i> <?php echo t('stock'); ?>
                     </a>
                 </li>
 
                 <!-- 8. Performance -->
                 <li class="nav-item">
-                    <a href="index.php?page=performance" class="nav-link <?php echo ($page ?? '') === 'performance' ? 'active' : ''; ?>">
+                    <a href="index.php?page=performance" class="nav-link <?php echo ($active_group === 'performance') ? 'active' : ''; ?> <?php echo ($active_group === 'performance' && $is_child) ? 'active-child' : ''; ?>">
                         <i class="fas fa-chart-line me-2"></i> <?php echo t('performance_analysis'); ?>
                     </a>
                 </li>
@@ -202,6 +242,13 @@ setInterval(updateAlertBadge, 30000);
         height: 100%;
     }
     
+    /* Style pour la page maître quand on est sur une sous-page */
+    .nav-link.active-child {
+        background: rgba(13, 110, 253, 0.4) !important; /* Bleu avec opacité 60% */
+        color: white !important;
+        font-weight: 500;
+    }
+
     /* Conteneur du menu avec ascenseur */
     .sidebar-menu-container {
         flex: 1;

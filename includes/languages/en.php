@@ -300,6 +300,18 @@ return [
     'history_equipment_deactivated' => "The equipment « {name} » (ID {id}) has been deactivated.",
     'history_equipment_reactivated' => "The equipment « {name} » (ID {id}) has been reactivated.",
     'history_equipment_fallback' => "The equipment « {name} » (ID {id}) has been modified.",
+    'document_added_success'    => 'Document added successfully.',
+    'document_add_error_invalid_parent' => 'Invalid equipment.',
+    'document_add_error_empty_path' => 'The document path cannot be empty.',
+    'document_add_error_db_error' => 'Error occurred while saving the document to the database.',
+    'open_local_file_help'      => 'If the file does not open, use the "Copy Path" button and paste it into the file explorer.',
+    'copy_path'                 => 'Copy Path',
+    'delete_document'           => 'Delete Document',
+    'delete_confirm_document'   => 'Confirm Document Deletion',
+    'document'                  => 'Document',
+    'password_required_to_delete' => 'Your password is required to delete this document.',
+    'delete_warning'            => 'This action is irreversible.',
+    'confirm_delete'            => 'Are you sure you want to delete this document? This action cannot be undone.',
 
     // ==================== INTERVENTIONS ====================
     'new_intervention'          => 'New Intervention',
