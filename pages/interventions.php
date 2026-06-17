@@ -36,10 +36,14 @@ if($action == 'change_status' && isset($_GET['id']) && isset($_GET['status'])) {
 // Fetch technicians list (pour les besoins de l'affichage)
 $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
 
-/// Fetch interventions with all details - INCLUT L'ÉQUIPE
+// Fetch interventions with all details - INCLUT L'ÉQUIPE
 $interventions = $pdo->query("
-    SELECT i.*, e.name as equipment_name, e.code as equipment_code, e.location as equipment_location,
-            t.id as technician_id, t.firstname, t.lastname, t.specialty,
+    SELECT i.*,
+            e.name as equipment_name,
+            e.code as equipment_code,
+            e.location as equipment_location,
+            t.id as technician_id,
+            t.firstname, t.lastname, t.specialty,
             team.name as team_name
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
@@ -70,7 +74,7 @@ foreach($interventions as $inv) {
     $stmt = $pdo->prepare("
         SELECT * FROM user_logs 
         WHERE action IN ('intervention_created', 'intervention_updated', 'intervention_status_change', 
-                         'intervention_assigned', 'intervention_completed', 'intervention_deleted')
+                        'intervention_assigned', 'intervention_completed', 'intervention_deleted')
         AND details LIKE ?
         ORDER BY created_at DESC
         LIMIT 3
@@ -81,7 +85,6 @@ foreach($interventions as $inv) {
 ?>
 
 <style>
-    /* Tous les styles identiques à l'original */
     .info-card {
         background: white;
         border-radius: 15px;
@@ -387,11 +390,11 @@ foreach($interventions as $inv) {
                                 }
                                 ?>
                             </td>
+                            <!-- Date prévue - CORRECTION : utilisation de format_date_local -->
                             <td>
-                                <?php echo $inv['intervention_date'] ? date('m/d/Y', strtotime($inv['intervention_date'])) : '-'; ?>
+                                <?php echo $inv['intervention_date'] ? format_date_local($inv['intervention_date'], 'short', false) : '-'; ?>
                             </td>
                             <td style="max-width: 150px;">
-                                <!-- historique inchangé -->
                                 <?php if(!empty($history[$inv['id']])): ?>
                                     <?php foreach(array_slice($history[$inv['id']], 0, 1) as $h): ?>
                                     <div class="history-item">
@@ -406,7 +409,7 @@ foreach($interventions as $inv) {
                                         ];
                                         echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
                                         ?>
-                                        <br><small class="text-muted"><?php echo date('m/d/Y H:i', strtotime($h['created_at'])); ?></small>
+                                        <br><small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                                     </div>
                                     <?php endforeach; ?>
                                 <?php else: ?>
@@ -414,7 +417,6 @@ foreach($interventions as $inv) {
                                 <?php endif; ?>
                             </td>
                             <td class="text-center action-buttons" onclick="event.stopPropagation()">
-                                <!-- boutons d'action inchangés -->
                                 <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
                                     <i class="fas fa-eye"></i>
                                 </a>

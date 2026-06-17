@@ -112,6 +112,7 @@ return [
     'assign_success'            => 'Assignation effectuée avec succès',
     'team_assigned'             => 'Équipe assignée',
     'select_team'               => 'Sélectionner une équipe',
+    'select_technician'         => 'Sélectionner un technicien',
     'team_overrides_technician' => 'L\'assignation d\'une équipe prendra le pas sur l\'assignation d\'un technicien individuel.',
     
 
@@ -215,6 +216,11 @@ return [
     'day_view'                  => 'Vue quotidienne',
     'week'                      => 'Semaine',
     'current_week'              => 'Semaine actuelle',
+    'timezone_settings'         => 'Paramètres de fuseau horaire',
+    'select_timezone'           => 'Sélectionnez votre fuseau horaire',
+    'timezone_help'             => 'Ce fuseau sera utilisé pour l\'enregistrement et l\'affichage des dates/heures.',
+    'current_server_time'       => 'Heure actuelle (après application)',
+    'invalid_timezone'          => 'Fuseau horaire invalide.',
 
     // ==================== COMMON MODULES ====================
     'technicians'               => 'Techniciens',
@@ -359,6 +365,25 @@ return [
     'other'                     => 'Autre',
     'cancel_intervention'       => 'Annuler l\'intervention',
     'no_description'            => 'Aucune description fournie',
+    'intervention_created'      => 'Création intervention',
+    'intervention_updated'      => 'Modification intervention',
+    'intervention_completed'    => 'Intervention terminée',
+    'intervention_status_changed' => 'Changement de statut',
+    'intervention_assigned'     => 'Assignation technicien',
+    'intervention_cancelled'    => 'Intervention annulée',
+    'intervention_updated_detail' => 'Intervention ID {id} modifiée.',
+    'intervention_status_changed_detail' => 'Statut changé pour : {status}',
+    'intervention_assigned_detail' => 'Technicien assigné à l\'intervention ID {id}.',
+    'intervention_completed_detail' => 'Intervention ID {id} terminée.',
+    'intervention_created_detail' => 'Intervention ID {id} créée.',
+    'intervention_status_changed_detail' => 'Statut de l\'intervention ID {id} changé en {status}.',
+    'intervention_cancelled_detail' => 'Intervention ID {id} annulée.',
+    'by'                        => 'par',
+    'unknown'                   => 'Inconnu',
+    'maintenance_upcoming_title' => 'Maintenance à programmer bientôt',
+    'auto_calculated'           => 'Calculé automatiquement',
+    'in'                       => 'dans',
+
 
     // ==================== PREVENTIVE MAINTENANCE ====================
     'frequency_days'            => 'Fréquence (jours)',
@@ -370,6 +395,21 @@ return [
     'team_placeholder'          => 'Ex. Équipe A, Équipe B, etc.',
     'instructions_placeholder'  => 'Ex. Vérifier les niveaux d\'huile, Nettoyer les filtres, etc.',
     'frequency_help'            => 'Entrez la fréquence de maintenance en jours. Le système calculera automatiquement les prochaines dates d\'intervention basées sur la dernière intervention effectuée.',
+    'assign_preventive_maintenance' => 'Assigner une maintenance préventive',
+    'task_details'                  => 'Détails de la tâche',
+    'assign_to'                     => 'Assigner à',
+    'current_assignment'            => 'Assignation actuelle',
+    'scheduled_date'                => 'Date prévue',
+    'comments'                      => 'Commentaires',
+    'optional_instructions'         => 'Instructions optionnelles',
+    'assign'                        => 'Assigner',
+    'assign_success'                => 'Assignation enregistrée avec succès.',
+    'assign_technician_or_team'     => 'Veuillez choisir soit un technicien, soit une équipe, pas les deux.',
+    'select_technician_or_team'     => 'Veuillez sélectionner un technicien ou une équipe.',
+    'team_overrides_technician'     => 'Si une équipe est sélectionnée, le technicien individuel est ignoré.',
+    'csrf_invalid'                  => 'Jeton de sécurité invalide. Veuillez recharger la page.',
+    'not_found'                     => 'Tâche non trouvée.',
+    'edit_maintenance'              => 'Modifier la maintenance préventive',
 
     // ==================== STOCK ====================
     'part_number'               => 'N° pièce',

@@ -1,56 +1,53 @@
 <?php
-// actions/equipment_add_action.php
-session_start();
+// actions/preventive_add_action.php
+if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 if ($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'supervisor') {
-    die("Accès interdit");
+    header('Location: index.php?page=preventive&err=' . urlencode(t('access_denied')));
+    exit();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $purchase_date = !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null;
-    $warranty_end = !empty($_POST['warranty_end']) ? $_POST['warranty_end'] : null;
-    
-    $sql = "INSERT INTO equipment (code, name, type, location, supplier, purchase_date, warranty_end, technical_specs, probability_score, severity_score) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    $stmt = $pdo->prepare($sql);
-    $result = $stmt->execute([
-        $_POST['code'], $_POST['name'], $_POST['type'], $_POST['location'], $_POST['supplier'],
-        $purchase_date, $warranty_end, $_POST['technical_specs'], $_POST['probability_score'], $_POST['severity_score']
-    ]);
-    
-    if ($result) {
-        $equipment_id = $pdo->lastInsertId();
-        $equipment_name = $_POST['name'];
-        logUserAction($_SESSION['user_id'], 'equipment_created', "Equipment created: {$_POST['code']} (ID: $equipment_id, Name: $equipment_name)");
-        
-        // Ajout d'un document si demandé
-        if (isset($_POST['add_document']) && $_POST['add_document'] == '1') {
-            $document_path = trim($_POST['document_path'] ?? '');
-            $document_label = trim($_POST['document_label'] ?? '');
-            if (!empty($document_path)) {
-                $mime = 'link';
-                if (preg_match('/^https?:\/\//i', $document_path)) {
-                    $mime = 'link';
-                } elseif (is_file($document_path)) {
-                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                    $mime = finfo_file($finfo, $document_path);
-                    finfo_close($finfo);
-                }
-                $stmtDoc = $pdo->prepare("INSERT INTO attachments (parent_type, parent_id, original_name, external_path, mime, created_by) 
-                                        VALUES ('equipment', ?, ?, ?, ?, ?)");
-                $stmtDoc->execute([$equipment_id, $document_label ?: basename($document_path), $document_path, $mime, $_SESSION['user_id']]);
-            }
-        }
-        
-        header('Location: ?page=equipment&msg=' . urlencode(t('save_success')));
-        exit();
-    } else {
-        header('Location: ?page=equipment_add&error=' . urlencode(t('save_error')));
+    $equipment_id = intval($_POST['equipment_id'] ?? 0);
+    $frequency_days = intval($_POST['frequency_days'] ?? 0);
+    $last_done = !empty($_POST['last_done']) ? $_POST['last_done'] : date('Y-m-d');
+    $title = trim($_POST['title'] ?? '');
+    $instructions = trim($_POST['instructions'] ?? '');
+    if ($title) {
+        $instructions = $title . "\n\n" . $instructions;
+    }
+    $technician_id = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
+    $team_id = (isset($_POST['team_id']) && $_POST['team_id'] !== '') ? intval($_POST['team_id']) : null;
+    if ($team_id) $technician_id = null;
+
+    if ($equipment_id <= 0 || $frequency_days <= 0) {
+        header('Location: index.php?page=preventive_add&err=' . urlencode("Données invalides"));
         exit();
     }
-} else {
-    header('Location: ?page=equipment');
-    exit();
+
+    $next_due = date('Y-m-d', strtotime($last_done . ' + ' . $frequency_days . ' days'));
+    $reference = generateTaskNumber($pdo, 'preventive', false);
+
+    $sql = "INSERT INTO preventive_maintenance 
+            (reference, equipment_id, frequency_days, last_done, next_due, instructions, technician_id, team_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    
+    $stmt = $pdo->prepare($sql);
+    $result = $stmt->execute([$reference, $equipment_id, $frequency_days, $last_done, $next_due, $instructions, $technician_id, $team_id]);
+
+    if ($result) {
+        logUserAction($_SESSION['user_id'], 'preventive_created', "Ref: $reference | Eq: $equipment_id | Team: $team_id");
+        header('Location: index.php?page=preventive&msg=' . urlencode(t('save_success')));
+        exit();
+    } else {
+        header('Location: index.php?page=preventive_add&err=' . urlencode(t('save_error') . ' ' . implode(' ', $stmt->errorInfo())));
+        exit();
+    }
 }
+
+// Si GET → redirection vers la page de formulaire
+header('Location: index.php?page=preventive_add');
+exit();
+?>

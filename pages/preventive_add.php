@@ -1,55 +1,55 @@
 <?php
-// pages/preventive_add.php - Formulaire d'ajout de maintenance préventive (harmonisé)
-if ($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'supervisor') {
-    echo "<div class='alert alert-danger'>" . t('access_denied') . "</div>";
-    return;
-}
+// pages/preventive_add.php - Formulaire complet d'ajout de maintenance préventive
+$equipment_id_param = isset($_GET['equipment_id']) ? intval($_GET['equipment_id']) : 0;
 
+// Récupérer les données
 $equipments = $pdo->query("SELECT id, code, name, location, zone FROM equipment WHERE status IN ('active', 'maintenance') ORDER BY name")->fetchAll();
 $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
 $teams = $pdo->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
 
-$error = isset($_GET['error']) ? $_GET['error'] : '';
+// Générer le prochain numéro de tâche (aperçu)
+$next_task_number = generateTaskNumber($pdo, 'preventive', true);
+
 $message = '';
+$error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $technician_id = !empty($_POST['technician_id']) ? $_POST['technician_id'] : null;
-    $team_id = !empty($_POST['team_id']) ? $_POST['team_id'] : null;
+    $task_number = generateTaskNumber($pdo, 'preventive', false);
+    $technician_id = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
+    $team_id = !empty($_POST['team_id']) ? intval($_POST['team_id']) : null;
     if ($team_id) $technician_id = null;
 
+    // Recalcul de next_due côté serveur pour éviter les incohérences
     $last_done = $_POST['last_done'] ?: date('Y-m-d');
-    $next_due = date('Y-m-d', strtotime($last_done . ' + ' . $_POST['frequency_days'] . ' days'));
+    $frequency_days = intval($_POST['frequency_days']);
+    $next_due = date('Y-m-d', strtotime($last_done . ' + ' . $frequency_days . ' days'));
 
-    // Générer le vrai numéro de tâche selon la configuration
-    $task_reference = generateTaskNumber($pdo, 'preventive', false);
-    // On stocke ce numéro dans une colonne si elle existe, sinon on le met dans instructions ou on crée une colonne ?
-    // Actuellement, la table preventive_maintenance n'a pas de champ pour stocker la référence.
-    // On peut soit ajouter une colonne 'reference', soit utiliser 'instructions' pour l'instant.
-    // Pour simplifier, je l'ajoute dans le champ instructions (ou on crée une colonne). Je vais plutôt stocker dans une nouvelle colonne.
-    // Mais pour éviter de modifier la structure, on peut ne pas stocker (la référence est générée à la validation). Cependant l'utilisateur veut voir la référence. Je vais créer une colonne 'reference' dans preventive_maintenance.
-    // Exécutez préalablement : ALTER TABLE preventive_maintenance ADD COLUMN reference VARCHAR(50) NULL;
-    // Si la colonne n'existe pas, on ignore.
+    $sql = "INSERT INTO preventive_maintenance (
+        task_number, equipment_id, frequency_days, last_done, next_due, title, instructions,
+        technician_id, team_id, priority, planned_duration
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    $sql = "INSERT INTO preventive_maintenance (equipment_id, frequency_days, last_done, next_due, instructions, technician_id, team_id, reference) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $pdo->prepare($sql);
     $result = $stmt->execute([
+        $task_number,
         $_POST['equipment_id'],
-        $_POST['frequency_days'],
+        $frequency_days,
         $last_done,
         $next_due,
+        $_POST['title'],
         $_POST['instructions'],
         $technician_id,
         $team_id,
-        $task_reference
+        $_POST['priority'],
+        $_POST['planned_duration']
     ]);
 
     if ($result) {
-        logUserAction($_SESSION['user_id'], 'preventive_created', "Preventive maintenance created for equipment ID: {$_POST['equipment_id']} - Reference: $task_reference");
-        header('Location: ?page=preventive&msg=' . urlencode(t('save_success')));
-        exit();
+        logUserAction($_SESSION['user_id'], 'preventive_created', "Preventive created: $task_number");
+        $message = "✅ " . t('preventive_created') . " " . t('task_number') . ": <strong>$task_number</strong>";
+        echo "<script>setTimeout(() => { window.location.href = '?page=preventive'; }, 2000);</script>";
     } else {
-        $error = t('save_error');
+        $error = "❌ " . t('save_error');
     }
 }
 ?>
@@ -74,19 +74,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <?php endif; ?>
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-plus-circle text-success"></i> <?php echo t('add_maintenance'); ?></h2>
+        <h2><i class="fas fa-plus-circle text-primary"></i> <?php echo t('add_maintenance'); ?></h2>
         <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-arrow-left me-2"></i> <?php echo t('back_to_list'); ?></a>
     </div>
 
     <form method="POST">
         <!-- Ligne 1 : Identification (pleine largeur) -->
         <div class="info-card">
-            <div class="card-header-custom"><i class="fas fa-tag me-2"></i> Identification</div>
+            <div class="card-header-custom"><i class="fas fa-tag me-2"></i> <?php echo t('identification'); ?></div>
             <div class="card-body p-4">
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Référence</label>
-                        <div><span class="task-number-display"><?php echo generateTaskNumber($pdo, 'preventive', true); ?></span></div>
+                        <label class="form-label"><?php echo t('task_number'); ?></label>
+                        <div><span class="task-number-display"><?php echo $next_task_number; ?></span></div>
                         <small class="text-muted"><?php echo t('auto_increment'); ?></small>
                     </div>
                     <div class="col-md-6 mb-3">
@@ -110,7 +110,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <select name="equipment_id" id="equipment_id" class="form-select" required>
                                 <option value="">-- <?php echo t('select_equipment'); ?> --</option>
                                 <?php foreach ($equipments as $eq): ?>
-                                <option value="<?php echo $eq['id']; ?>" data-zone="<?php echo htmlspecialchars($eq['zone'] ?? ''); ?>" data-location="<?php echo htmlspecialchars($eq['location'] ?? ''); ?>">
+                                <option value="<?php echo $eq['id']; ?>" 
+                                        data-zone="<?php echo htmlspecialchars($eq['zone'] ?? ''); ?>"
+                                        data-location="<?php echo htmlspecialchars($eq['location'] ?? ''); ?>" <?php echo ($equipment_id_param == $eq['id']) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($eq['code'] . ' - ' . $eq['name']); ?>
                                 </option>
                                 <?php endforeach; ?>
@@ -128,8 +130,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="info-card">
                     <div class="card-header-custom"><i class="fas fa-clipboard-list me-2"></i> <?php echo t('instructions'); ?></div>
                     <div class="card-body p-4">
-                        <div class="mb-3"><label class="form-label">Titre de l'instruction <span class="text-danger">*</span></label><input type="text" name="title" class="form-control" required placeholder="Ex: Inspection annuelle"></div>
-                        <div class="mb-3"><label class="form-label">Détails</label><textarea name="instructions" class="form-control" rows="3" placeholder="<?php echo t('instructions_placeholder'); ?>"></textarea></div>
+                        <div class="mb-3">
+                            <label class="form-label"><?php echo t('title'); ?> <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" required placeholder="Ex: Inspection annuelle">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label"><?php echo t('description'); ?></label>
+                            <textarea name="instructions" class="form-control" rows="3" placeholder="<?php echo t('description_placeholder'); ?>"></textarea>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -142,17 +150,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="info-card">
                     <div class="card-header-custom"><i class="fas fa-calendar-alt me-2"></i> <?php echo t('planning'); ?></div>
                     <div class="card-body p-4">
-                        <div class="mb-3">
-                            <label class="form-label"><?php echo t('frequency_days'); ?> <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <input type="number" name="frequency_days" class="form-control" min="1" required>
-                                <span class="input-group-text"><?php echo t('days_s'); ?></span>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label"><?php echo t('frequency_days'); ?> <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="number" name="frequency_days" id="frequency_days" class="form-control" min="1" required>
+                                    <span class="input-group-text"><?php echo t('days_s'); ?></span>
+                                </div>
+                                <small class="text-muted"><?php echo t('frequency_help'); ?></small>
                             </div>
-                            <small class="text-muted"><?php echo t('frequency_help'); ?></small>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label"><?php echo t('priority'); ?></label>
+                                <select name="priority" class="form-select">
+                                    <option value="low"><?php echo t('low'); ?></option>
+                                    <option value="medium" selected><?php echo t('medium'); ?></option>
+                                    <option value="high"><?php echo t('high'); ?></option>
+                                    <option value="critical"><?php echo t('critical'); ?></option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label"><?php echo t('last_done'); ?></label>
-                            <input type="date" name="last_done" class="form-control" value="<?php echo date('Y-m-d'); ?>">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label"><?php echo t('last_done'); ?></label>
+                                <input type="date" name="last_done" id="last_done" class="form-control" value="<?php echo date('Y-m-d'); ?>">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label"><?php echo t('planned_date'); ?></label>
+                                <input type="date" name="next_due" id="next_due" class="form-control" readonly style="background-color: #e9ecef;">
+                                <small class="text-muted"><?php echo t('auto_calculated'); ?></small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -236,4 +262,27 @@ document.getElementById('equipment_id').addEventListener('change', function() {
 if (document.getElementById('equipment_id').value) {
     document.getElementById('equipment_id').dispatchEvent(new Event('change'));
 }
+
+// Fonction pour mettre à jour la date prévue automatiquement
+function updateDueDate() {
+    const lastDone = document.getElementById('last_done').value;
+    const frequency = parseInt(document.getElementById('frequency_days').value);
+    
+    if (lastDone && !isNaN(frequency) && frequency > 0) {
+        const date = new Date(lastDone);
+        date.setDate(date.getDate() + frequency);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        document.getElementById('next_due').value = `${year}-${month}-${day}`;
+    } else {
+        document.getElementById('next_due').value = '';
+    }
+}
+
+const lastDoneInput = document.getElementById('last_done');
+const frequencyInput = document.getElementById('frequency_days');
+if (lastDoneInput) lastDoneInput.addEventListener('change', updateDueDate);
+if (frequencyInput) frequencyInput.addEventListener('input', updateDueDate);
+updateDueDate();
 </script>

@@ -1,52 +1,45 @@
 <?php
-// pages/intervention_add.php - Formulaire complet d'ajout d'intervention
+// pages/preventive_add.php - Ajout d'une maintenance préventive
 $equipment_id_param = isset($_GET['equipment_id']) ? intval($_GET['equipment_id']) : 0;
 
-// Récupérer les données
-$equipments = $pdo->query("SELECT id, code, name, location, zone FROM equipment WHERE status = 'active' ORDER BY name")->fetchAll();
+// Fetch necessary data for the form
+$equipments = $pdo->query("SELECT id, code, name, location, zone FROM equipment WHERE status IN ('active', 'maintenance') ORDER BY name")->fetchAll();
 $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
 $teams = $pdo->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
 
-// Générer le prochain numéro de tâche (aperçu)
-$next_task_number = generateTaskNumber($pdo, 'intervention', true);
+// Generate the next task number for display
+$next_task_number = generateTaskNumber($pdo, 'preventive', true);
 
 $message = '';
 $error = '';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $task_number = generateTaskNumber($pdo, 'intervention', false);
-    $technician_id = !empty($_POST['technician_id']) ? $_POST['technician_id'] : null;
-    $team_id = !empty($_POST['team_id']) ? $_POST['team_id'] : null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $task_number = generateTaskNumber($pdo, 'preventive', false);
+    $technician_id  = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
+    $team_id        = !empty($_POST['team_id']) ? $_POST['team_id'] : null;
     if ($team_id) $technician_id = null;
 
-    $sql = "INSERT INTO interventions (
-        task_number, equipment_id, type, priority, title, description, reported_by,
-        technician_id, team_id, task_status, intervention_date, task_type, zone, localisation, planned_duration
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $sql = "INSERT INTO preventive_maintenance (
+        task_number, equipment_id, frequency_days, last_done, next_due, title, instructions, technician_id, team_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     $stmt = $pdo->prepare($sql);
     $result = $stmt->execute([
         $task_number,
         $_POST['equipment_id'],
-        $_POST['type'],
-        $_POST['priority'],
+        $_POST['frequency_days'],
+        $_POST['last_done'],
+        $_POST['next_due'],
         $_POST['title'],
-        $_POST['description'],
-        $_SESSION['username'],
+        $_POST['instructions'],
         $technician_id,
-        $team_id,
-        $_POST['task_status'],
-        !empty($_POST['intervention_date']) ? $_POST['intervention_date'] : null,
-        $_POST['task_type'],
-        $_POST['zone'],
-        $_POST['localisation'],
-        $_POST['planned_duration']
+        $team_id
     ]);
 
     if ($result) {
-        logUserAction($_SESSION['user_id'], 'intervention_created', "Intervention created: $task_number");
-        $message = "✅ " . t('intervention_created') . " " . t('task_number') . ": <strong>$task_number</strong>";
-        echo "<script>setTimeout(() => { window.location.href = '?page=interventions'; }, 2000);</script>";
+        logUserAction($_SESSION['user_id'], 'preventive_created', "Preventive created: $task_number");
+        $message = "✅ " . t('preventive_created') . " " . t('task_number') . ": <strong>$task_number</strong>";
+        echo "<script>setTimeout(() => { window.location.href = '?page=preventive'; }, 2000);</script>";
     } else {
         $error = "❌ " . t('save_error');
     }
@@ -55,13 +48,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <style>
     .info-card { background: white; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; overflow: hidden; }
-    .card-header-custom { background: #667eea; color: white; padding: 12px 20px; font-weight: bold; }
-    .task-number-display { font-size: 20px; font-weight: bold; color: #667eea; background: #f0f4ff; padding: 8px 15px; border-radius: 10px; display: inline-block; }
+    .card-header-custom { background: #28a745; color: white; padding: 12px 20px; font-weight: bold; }
+    .task-number-display { font-size: 20px; font-weight: bold; color: #28a745; background: #e8f5e9; padding: 8px 15px; border-radius: 10px; display: inline-block; }
     .form-label { font-weight: 500; margin-bottom: 5px; color: #4a5568; }
     .form-control, .form-select { border-radius: 8px; border: 1px solid #e2e8f0; padding: 10px 12px; }
-    .btn-primary { background: #667eea; border: none; border-radius: 8px; padding: 10px 25px; font-weight: 600; }
+    .btn-success { background: #28a745; border: none; border-radius: 8px; padding: 10px 25px; font-weight: 600; }
     .btn-secondary { background: #718096; border: none; border-radius: 8px; padding: 10px 25px; }
-    .alert-fixed { position: fixed; top: 80px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
 </style>
 
 <div class="container-fluid">
@@ -73,9 +65,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <?php endif; ?>
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-plus-circle text-primary"></i> <?php echo t('new_intervention'); ?></h2>
-        <a href="?page=interventions" class="btn btn-secondary"><i class="fas fa-arrow-left me-2"></i> <?php echo t('back_to_list'); ?></a>
+        <h2><i class="fas fa-plus-circle text-primary"></i> <?php echo t('add_maintenance'); ?></h2>
+        <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-arrow-left me-2"></i> <?php echo t('back_to_list'); ?></a>
     </div>
+
+    <?php if ($error): ?>
+        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
 
     <form method="POST">
         <!-- Ligne 1 : Identification (pleine largeur) -->
@@ -97,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
 
-        <!-- Ligne 2 : deux colonnes -->
+        <!-- Ligne 2 : Two columns -->
         <div class="row">
             <div class="col-md-6">
                 <!-- Equipment and Location -->
@@ -109,8 +105,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <select name="equipment_id" id="equipment_id" class="form-select" required>
                                 <option value="">-- <?php echo t('select_equipment'); ?> --</option>
                                 <?php foreach ($equipments as $eq): ?>
-                                <option value="<?php echo $eq['id']; ?>"
-                                        data-zone="<?php echo htmlspecialchars($eq['zone'] ?? ''); ?>"
+                                <option value="<?php echo $eq['id']; ?>" 
+                                        data-zone="<?php echo htmlspecialchars($eq['zone'] ?? ''); ?>" 
                                         data-location="<?php echo htmlspecialchars($eq['location'] ?? ''); ?>" <?php echo ($equipment_id_param == $eq['id']) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($eq['code'] . ' - ' . $eq['name']); ?>
                                 </option>
@@ -125,23 +121,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
             </div>
             <div class="col-md-6">
-                <!-- Description -->
+                <!-- Instruction -->
                 <div class="info-card">
-                    <div class="card-header-custom"><i class="fas fa-clipboard-list me-2"></i> <?php echo t('description'); ?></div>
+                    <div class="card-header-custom"><i class="fas fa-clipboard-list me-2"></i> <?php echo t('instruction'); ?></div>
                     <div class="card-body p-4">
                         <div class="mb-3">
                             <label class="form-label"><?php echo t('title'); ?> <span class="text-danger">*</span></label>
                             <input type="text" name="title" class="form-control" required placeholder="Ex: Remplacement filtre"></div>
                         <div class="mb-3">
                             <label class="form-label"><?php echo t('description'); ?></label>
-                            <textarea name="description" class="form-control" rows="3" placeholder="<?php echo t('description_placeholder'); ?>"></textarea>
+                            <textarea name="instructions" class="form-control" rows="3" placeholder="<?php echo t('description_placeholder'); ?>"></textarea>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Ligne 3 : deux colonnes -->
+        <!-- Ligne 3 : Two columns -->
         <div class="row">
             <div class="col-md-6">
                 <!-- Planning -->
@@ -150,8 +146,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="card-body p-4">
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label"><?php echo t('planned_date'); ?></label>
-                                <input type="date" name="intervention_date" class="form-control" value="<?php echo date('Y-m-d', strtotime('+7 days')); ?>">
+                                <label class="form-label"><?php echo t('frequency_days'); ?> <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="number" name="frequency_days" class="form-control" min="1" required>
+                                    <span class="input-group-text"><?php echo t('days_s'); ?></span>
+                                </div>
                             </div>
                             <div class="col-md-6 mb-3"><label class="form-label"><?php echo t('priority'); ?></label>
                                 <select name="priority" class="form-select">
@@ -159,18 +158,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     <option value="high"><?php echo t('high'); ?></option><option value="critical"><?php echo t('critical'); ?></option>
                                 </select>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label"><?php echo t('status'); ?></label>
-                                <select name="task_status" class="form-select">
-                                    <option value="a_faire"><?php echo t('to_do'); ?></option><option value="en_cours"><?php echo t('in_progress'); ?></option><option value="termine"><?php echo t('completed'); ?></option>
-                                </select>
-                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label"><?php echo t('last_done'); ?></label>
+                            <input type="date" name="last_done" class="form-control" value="<?php echo date('Y-m-d'); ?>">
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
-                <!-- Assignation -->
+                <!-- Assignment -->
                 <div class="info-card">
                     <div class="card-header-custom"><i class="fas fa-users me-2"></i> <?php echo t('assignment'); ?></div>
                     <div class="card-body p-4">
@@ -200,41 +197,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
 
-        <!-- Ligne 4 : Paramètres (pleine largeur) -->
-        <div class="info-card">
-            <div class="card-header-custom"><i class="fas fa-cog me-2"></i> <?php echo t('settings'); ?></div>
-            <div class="card-body p-4">
-                <div class="row">
-                    <div class="col-md-4 mb-3"><label class="form-label"><?php echo t('task_type'); ?></label>
-                        <select name="task_type" class="form-select">
-                            <option value="revision">📋 <?php echo t('revision'); ?></option>
-                            <option value="depannage">🔧 <?php echo t('repair'); ?></option>
-                            <option value="installation">📦 <?php echo t('installation'); ?></option>
-                            <option value="maintenance_preventive">🔄 <?php echo t('preventive_maintenance'); ?></option>
-                            <option value="controle">🔍 <?php echo t('inspection'); ?></option>
-                            <option value="autre">📌 <?php echo t('other'); ?></option>
-                        </select>
-                    </div>
-                    <div class="col-md-4 mb-3"><label class="form-label"><?php echo t('intervention_type'); ?></label>
-                        <select name="type" class="form-select">
-                            <option value="corrective">⚠️ <?php echo t('corrective'); ?></option>
-                            <option value="preventive">📅 <?php echo t('preventive'); ?></option>
-                            <option value="emergency">🚨 <?php echo t('emergency'); ?></option>
-                        </select>
-                    </div>
-                    <div class="col-md-4 mb-3"><label class="form-label"><?php echo t('planned_duration'); ?></label>
-                        <select name="planned_duration" class="form-select">
-                            <option value="1h">1h</option><option value="2h">2h</option><option value="2h30">2h30</option><option value="3h">3h</option>
-                            <option value="4h" selected>4h</option><option value="6h">6h</option><option value="8h">8h</option><option value="1j">1j</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="mt-4 mb-5 text-center">
-            <button type="submit" class="btn btn-primary btn-lg px-5"><i class="fas fa-save me-2"></i> <?php echo t('create_intervention'); ?></button>
-            <a href="?page=interventions" class="btn btn-secondary btn-lg ms-3 px-5"><i class="fas fa-times me-2"></i> <?php echo t('cancel'); ?></a>
+            <button type="submit" class="btn btn-success btn-lg px-5"><i class="fas fa-save me-2"></i> Créer</button>
+            <a href="?page=preventive" class="btn btn-secondary btn-lg ms-3 px-5"><i class="fas fa-times me-2"></i> Annuler</a>
         </div>
     </form>
 </div>

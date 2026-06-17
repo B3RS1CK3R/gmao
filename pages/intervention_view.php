@@ -1,6 +1,6 @@
 <?php
 // pages/intervention_view.php - Fiche détaillée d'une intervention
-    // auth handled centrally in index.php
+// auth handled centrally in index.php
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if($id == 0) {
@@ -166,8 +166,6 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <a href="?page=interventions" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> <?php echo t('back'); ?>
             </a>
-            <?php if($intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee' && ($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor')): ?>
-            <?php endif; ?>
         </div>
     </div>
 
@@ -220,7 +218,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                                 </span>
                             </td>
                         </tr>
-                    </table>
+                    <tr>
                 </div>
             </div>
             
@@ -316,16 +314,16 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                             <td>
                                 <?php 
                                 $type_labels = [
-                                    'revision' => 'Revision',
-                                    'depannage' => 'Repair',
-                                    'installation' => 'Installation',
-                                    'maintenance_preventive' => 'Preventive',
-                                    'controle' => 'Inspection',
-                                    'autre' => 'Other'
+                                    'revision' => t('revision'),
+                                    'depannage' => t('repair'),
+                                    'installation' => t('installation'),
+                                    'maintenance_preventive' => t('preventive_maintenance_short'),
+                                    'controle' => t('inspection'),
+                                    'autre' => t('other')
                                 ];
                                 $type_text = $type_labels[$intervention['task_type']] ?? '';
                                 if(!$type_text) {
-                                    $type_text = $intervention['type'] == 'corrective' ? 'Corrective' : ($intervention['type'] == 'preventive' ? 'Preventive' : 'Emergency');
+                                    $type_text = $intervention['type'] == 'corrective' ? t('corrective') : ($intervention['type'] == 'preventive' ? t('preventive') : t('emergency'));
                                 }
                                 echo $type_text;
                                 ?>
@@ -334,7 +332,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                         <tr>
                             <td><strong><?php echo t('planned_date'); ?></strong></td>
                             <td>
-                                <?php echo $intervention['intervention_date'] ? format_date_local($intervention['intervention_date'], 'long', false) : 'Not planned'; ?>
+                                <?php echo $intervention['intervention_date'] ? format_date_local($intervention['intervention_date'], 'long', false) : t('not_planned'); ?>
                                 <?php if(strtotime($intervention['intervention_date']) < time() && $intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee'): ?>
                                     <span class="badge bg-danger ms-2"><?php echo t('overdue'); ?></span>
                                 <?php endif; ?>
@@ -342,12 +340,12 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                         </tr>
                         <tr>
                             <td><strong><?php echo t('planned_duration'); ?></strong></td>
-                            <td><?php echo htmlspecialchars($intervention['planned_duration'] ?? 'Not specified'); ?></td>
+                            <td><?php echo htmlspecialchars($intervention['planned_duration'] ?? t('not_specified')); ?></td>
                         </tr>
                         <?php if($intervention['duration_hours']): ?>
                         <tr>
                             <td><strong><?php echo t('actual_duration'); ?></strong></td>
-                            <td><?php echo $intervention['duration_hours']; ?>h</td>
+                            <td><?php echo $intervention['duration_hours']; ?>h</span>
                         </tr>
                         <?php endif; ?>
                         <?php if($intervention['completed_date']): ?>
@@ -393,7 +391,7 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                         <table class="table table-sm mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Part Number</th><th>Name</th><th>Qty</th><th>Unit Price</th><th>Total</th>
+                                    <th><?php echo t('part_number'); ?></th><th><?php echo t('name'); ?></th><th><?php echo t('quantity'); ?></th><th><?php echo t('unit_price'); ?></th><th><?php echo t('total'); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -407,13 +405,13 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                                     <td><?php echo htmlspecialchars($part['part_number']); ?></td>
                                     <td><?php echo htmlspecialchars($part['name']); ?></td>
                                     <td><?php echo $part['quantity']; ?></td>
-                                    <td><?php echo number_format($part['unit_price'], 2); ?> €</td>
-                                    <td><?php echo number_format($subtotal, 2); ?> €</td>
+                                    <td><?php echo number_format($part['unit_price'], 2); ?> €</span>
+                                    <td><?php echo number_format($subtotal, 2); ?> €</span>
                                 </tr>
                                 <?php endforeach; ?>
                                 <tr class="table-active">
-                                    <td colspan="4" class="text-end"><strong>Total</strong></td>
-                                    <td><strong><?php echo number_format($total_cost, 2); ?> €</strong></td>
+                                    <td colspan="4" class="text-end"><strong><?php echo t('total'); ?></strong></span>
+                                    <td><strong><?php echo number_format($total_cost, 2); ?> €</strong></span>
                                 </tr>
                             </tbody>
                         </table>
@@ -422,21 +420,60 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             </div>
             <?php endif; ?>
             
-            <!-- Card: History -->
-            <?php if(!empty($history)): ?>
+            <!-- Card: History (améliorée avec task_number) -->
+            <?php if(!empty($history)): 
+                // Récupérer les numéros de tâche pour tous les IDs d'intervention
+                $task_numbers = [];
+                foreach($history as $h) {
+                    if (preg_match('/ID: (\d+)/', $h['details'], $matches)) {
+                        $interv_id = $matches[1];
+                        if (!isset($task_numbers[$interv_id])) {
+                            $stmt = $pdo->prepare("SELECT task_number FROM interventions WHERE id = ?");
+                            $stmt->execute([$interv_id]);
+                            $task_numbers[$interv_id] = $stmt->fetchColumn();
+                        }
+                    }
+                }
+            ?>
             <div class="info-card">
                 <div class="card-header-custom">
                     <i class="fas fa-history"></i> <?php echo t('modification_history'); ?>
                 </div>
                 <div class="card-body p-3">
-                    <?php foreach($history as $h): ?>
-                    <div class="history-item">
-                        <div class="d-flex justify-content-between">
-                            <span><?php echo $h['action']; ?></span>
-                            <small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
+                    <?php foreach($history as $h):
+                        $icon = '';
+                        $action_text = '';
+                        $task_info = '';
+                        
+                        // Extraire l'ID de l'intervention
+                        if (preg_match('/ID: (\d+)/', $h['details'], $matches)) {
+                            $interv_id = $matches[1];
+                            $task_info = $task_numbers[$interv_id] ?? 'ID ' . $interv_id;
+                        } elseif (preg_match('/(TASK-\d+)/', $h['details'], $matches)) {
+                            $task_info = $matches[1];
+                        }
+                        
+                        switch($h['action']) {
+                            case 'intervention_created': $icon = '🟢 '; $action_text = t('intervention_created'); break;
+                            case 'intervention_updated': $icon = '✏️ '; $action_text = t('intervention_updated'); break;
+                            case 'intervention_status_change': $icon = '📊 '; $action_text = t('intervention_status_changed'); break;
+                            case 'intervention_assigned': $icon = '👤 '; $action_text = t('intervention_assigned'); break;
+                            case 'intervention_completed': $icon = '✅ '; $action_text = t('intervention_completed'); break;
+                            case 'intervention_deleted': $icon = '🗑️ '; $action_text = t('intervention_cancelled'); break;
+                            default: $icon = '📌 '; $action_text = t('modified_short');
+                        }
+                        
+                        $message = $action_text . ($task_info ? ' : ' . $task_info : '');
+                        $username = $h['username'] ?? t('system');
+                        if ($username === 'system') $username = t('system');
+                    ?>
+                        <div class="history-item">
+                            <div class="d-flex justify-content-between">
+                                <span><strong><?php echo $icon . $message; ?></strong></span>
+                                <small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
+                            </div>
+                            <div class="small text-muted mt-1"><?php echo t('by'); ?> : <?php echo htmlspecialchars($username); ?> (IP: <?php echo htmlspecialchars($h['ip_address'] ?? '-'); ?>)</div>
                         </div>
-                        <div class="small text-muted mt-1"><?php echo htmlspecialchars($h['details']); ?></div>
-                    </div>
                     <?php endforeach; ?>
                 </div>
             </div>
@@ -446,11 +483,11 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
             <?php if($intervention['task_status'] != 'termine' && $intervention['task_status'] != 'cloturee'): ?>
             <div class="action-buttons">
                 <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor' || $_SESSION['role'] == 'technician'): ?>
-                    <a href="?page=interventions&action=complete&id=<?php echo $intervention['id']; ?>" class="btn btn-success"><?php echo t('complete'); ?></a>
+                    <a href="?page=interventions_complete&id=<?php echo $intervention['id']; ?>" class="btn btn-success"><?php echo t('complete'); ?></a>
                 <?php endif; ?>
                 <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
                     <a href="?page=interventions_edit&id=<?php echo $intervention['id']; ?>" class="btn btn-warning"><?php echo t('edit'); ?></a>
-                    <button type="button" class="btn btn-danger" onclick="confirmCancel()"><?php echo t('cancel'); ?> </button>
+                    <a href="?page=interventions_delete&id=<?php echo $intervention['id']; ?>" class="btn btn-danger"><?php echo t('cancel'); ?></a>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
@@ -465,16 +502,16 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header" style="background: #17a2b8; color: white;">
-                <h5 class="modal-title">Assign Technician</h5>
+                <h5 class="modal-title"><?php echo t('assign_technician'); ?></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="?page=interventions&action=assign&id=<?php echo $intervention['id']; ?>">
+            <form method="POST" action="?page=interventions_assign&id=<?php echo $intervention['id']; ?>">
                 <div class="modal-body">
-                    <p><strong>Intervention:</strong> <?php echo htmlspecialchars($intervention['title']); ?></p>
+                    <p><strong><?php echo t('intervention'); ?> :</strong> <?php echo htmlspecialchars($intervention['title']); ?></p>
                     <div class="mb-3">
-                        <label class="form-label">Technician</label>
+                        <label class="form-label"><?php echo t('technician'); ?></label>
                         <select name="technician_id" class="form-select" required>
-                            <option value="">-- Select a technician --</option>
+                            <option value="">-- <?php echo t('select_technician'); ?> --</option>
                             <?php foreach($technicians as $tech): ?>
                             <option value="<?php echo $tech['id']; ?>">
                                 <?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname'] . ' (' . $tech['specialty'] . ')'); ?>
@@ -484,30 +521,10 @@ $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-info">Assign</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo t('cancel'); ?></button>
+                    <button type="submit" class="btn btn-info"><?php echo t('assign'); ?></button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
-<script>
-function confirmCancel() {
-    if(confirm('Are you sure you want to cancel this intervention?')) {
-        var password = prompt('Please enter your password to confirm:');
-        if(password) {
-            var form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '?page=interventions&action=delete&id=<?php echo $intervention['id']; ?>';
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'confirm_password';
-            input.value = password;
-            form.appendChild(input);
-            document.body.appendChild(form);
-            form.submit();
-        }
-    }
-}
-</script>

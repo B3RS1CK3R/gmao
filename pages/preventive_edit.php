@@ -1,5 +1,9 @@
 <?php
-// pages/preventive_edit.php - Formulaire d'édition (sans traitement POST)
+// pages/preventive_edit.php - Édition d'une maintenance préventive
+if (session_status() === PHP_SESSION_NONE) session_start();
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/functions.php';
+
 if ($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'supervisor') {
     echo "<div class='alert alert-danger'>" . t('access_denied') . "</div>";
     return;
@@ -11,16 +15,85 @@ if (!$id) {
     exit();
 }
 
-$stmt = $pdo->prepare("SELECT * FROM preventive_maintenance WHERE id = ?");
+$stmt = $pdo->prepare("
+    SELECT pm.*, 
+           e.name as equipment_name, 
+           e.code as equipment_code,
+           t.id as technician_id, 
+           t.firstname, 
+           t.lastname,
+           team.id as team_id, 
+           team.name as team_name
+    FROM preventive_maintenance pm
+    JOIN equipment e ON pm.equipment_id = e.id
+    LEFT JOIN technicians t ON pm.technician_id = t.id
+    LEFT JOIN teams team ON pm.team_id = team.id
+    WHERE pm.id = ?
+");
 $stmt->execute([$id]);
 $pm = $stmt->fetch();
+
 if (!$pm) {
     echo "<div class='alert alert-danger'>" . t('not_found') . "</div>";
     return;
 }
 
-$equipments = $pdo->query("SELECT id, code, name FROM equipment WHERE status != 'retired' ORDER BY name")->fetchAll();
-$error = isset($_GET['error']) ? $_GET['error'] : '';
+$equipments = $pdo->query("SELECT id, code, name FROM equipment WHERE status IN ('active', 'maintenance') ORDER BY name")->fetchAll();
+$technicians = $pdo->query("SELECT id, firstname, lastname FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
+$teams = $pdo->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $equipment_id   = intval($_POST['equipment_id']);
+    $frequency_days = intval($_POST['frequency_days']);
+    $last_done      = !empty($_POST['last_done']) ? $_POST['last_done'] : date('Y-m-d');
+    $title          = trim($_POST['title'] ?? '');
+    $instructions   = trim($_POST['instructions'] ?? '');
+    $technician_id  = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
+    $team_id        = (isset($_POST['team_id']) && $_POST['team_id'] !== '') ? intval($_POST['team_id']) : null;
+    
+    if ($team_id) $technician_id = null;
+
+    if ($equipment_id <= 0 || empty($title)) {
+        $error = "Veuillez sélectionner un équipement et renseigner un titre.";
+    } elseif ($frequency_days < 1) {
+        $error = "La fréquence doit être d'au moins 1 jour.";
+    } else {
+        $next_due = date('Y-m-d', strtotime($last_done . ' + ' . $frequency_days . ' days'));
+
+        $sql = "UPDATE preventive_maintenance SET 
+                equipment_id = ?, 
+                frequency_days = ?, 
+                last_done = ?, 
+                next_due = ?, 
+                title = ?, 
+                instructions = ?, 
+                technician_id = ?, 
+                team_id = ? 
+                WHERE id = ?";
+        
+        $stmt = $pdo->prepare($sql);
+        $result = $stmt->execute([
+            $equipment_id, 
+            $frequency_days, 
+            $last_done, 
+            $next_due, 
+            $title, 
+            $instructions, 
+            $technician_id, 
+            $team_id, 
+            $id
+        ]);
+
+        if ($result) {
+            logUserAction($_SESSION['user_id'], 'preventive_updated', "ID: {$id} - Ref: {$pm['task_number']}");
+            header('Location: ?page=preventive&msg=' . urlencode(t('save_success')));
+            exit();
+        } else {
+            $error = t('save_error');
+        }
+    }
+}
 ?>
 
 <style>
@@ -34,7 +107,7 @@ $error = isset($_GET['error']) ? $_GET['error'] : '';
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-edit"></i> <?php echo t('edit_maintenance'); ?></h2>
+        <h2><i class="fas fa-edit"></i> <?php echo t('edit_maintenance'); ?> : <?php echo htmlspecialchars($pm['equipment_name']); ?></h2>
         <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> <?php echo t('back'); ?></a>
     </div>
 
@@ -48,13 +121,26 @@ $error = isset($_GET['error']) ? $_GET['error'] : '';
             <form method="POST">
                 <div class="row">
                     <div class="col-md-6 mb-3">
+                        <label class="form-label"><?php echo t('task_number'); ?></label>
+                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($pm['task_number'] ?? ''); ?>" readonly style="background-color: #e9ecef; cursor: not-allowed;">
+                    </div>
+                    <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('equipment'); ?> <span class="text-danger">*</span></label>
                         <select name="equipment_id" class="form-select" required>
                             <option value="">-- <?php echo t('select_equipment'); ?> --</option>
-                            <?php foreach($equipments as $eq): ?>
-                            <option value="<?php echo $eq['id']; ?>" <?php if($pm['equipment_id'] == $eq['id']) echo 'selected'; ?>><?php echo htmlspecialchars($eq['code'] . ' - ' . $eq['name']); ?></option>
+                            <?php foreach ($equipments as $eq): ?>
+                                <option value="<?php echo $eq['id']; ?>" <?php if ($pm['equipment_id'] == $eq['id']) echo 'selected'; ?>>
+                                    <?php echo htmlspecialchars($eq['code'] . ' - ' . $eq['name']); ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Titre de la tâche <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control" value="<?php echo htmlspecialchars($pm['title'] ?? ''); ?>" required>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('frequency_days'); ?> <span class="text-danger">*</span></label>
@@ -63,25 +149,52 @@ $error = isset($_GET['error']) ? $_GET['error'] : '';
                             <span class="input-group-text"><?php echo t('days_s'); ?></span>
                         </div>
                     </div>
+                </div>
+
+                <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('last_done'); ?></label>
                         <input type="date" name="last_done" class="form-control" value="<?php echo $pm['last_done']; ?>">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('next_due'); ?></label>
-                        <input type="date" name="next_due" class="form-control" value="<?php echo $pm['next_due']; ?>" readonly>
-                        <small class="text-muted"><?php echo t('calculated_automatically'); ?></small>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label"><?php echo t('assigned_team'); ?></label>
-                        <input type="text" name="assigned_team" class="form-control" value="<?php echo htmlspecialchars($pm['assigned_team']); ?>">
-                    </div>
-                    <div class="col-md-12 mb-3">
-                        <label class="form-label"><?php echo t('instructions'); ?></label>
-                        <textarea name="instructions" class="form-control" rows="4"><?php echo htmlspecialchars($pm['instructions']); ?></textarea>
+                        <input type="date" class="form-control" value="<?php echo $pm['next_due']; ?>" readonly>
                     </div>
                 </div>
-                <div class="mt-3">
+
+                <div class="mb-3">
+                    <label class="form-label"><?php echo t('instructions'); ?></label>
+                    <textarea name="instructions" class="form-control" rows="4"><?php echo htmlspecialchars($pm['instructions'] ?? ''); ?></textarea>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><?php echo t('technician'); ?></label>
+                        <select name="technician_id" class="form-select">
+                            <option value="">-- <?php echo t('unassigned'); ?> --</option>
+                            <?php foreach ($technicians as $tech): ?>
+                                <option value="<?php echo $tech['id']; ?>" <?php if ($pm['technician_id'] == $tech['id']) echo 'selected'; ?>>
+                                    <?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><?php echo t('team'); ?></label>
+                        <select name="team_id" class="form-select">
+                            <option value="">-- <?php echo t('select_team'); ?> --</option>
+                            <?php foreach ($teams as $team): ?>
+                                <option value="<?php echo $team['id']; ?>" <?php if ($pm['team_id'] == $team['id']) echo 'selected'; ?>>
+                                    <?php echo htmlspecialchars($team['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small class="text-muted"><?php echo t('team_overrides_technician'); ?></small>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <?= csrf_input() ?>
                     <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> <?php echo t('save'); ?></button>
                     <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
                 </div>

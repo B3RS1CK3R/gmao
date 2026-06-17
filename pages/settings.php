@@ -8,13 +8,33 @@ if ($_SESSION['role'] !== 'admin') {
 $message = '';
 $error = '';
 
+// S'assurer que la table system_settings existe
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `system_settings` (
+        `setting_key` VARCHAR(50) PRIMARY KEY,
+        `setting_value` TEXT NOT NULL,
+        `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+} catch (PDOException $e) {
+    // Ignorer si déjà existante
+}
+
+$stmt = $pdo->query("SELECT setting_value FROM system_settings WHERE setting_key = 'timezone_offset'");
+$current_offset = $stmt->fetchColumn();
+if (!$current_offset) {
+    $current_offset = '+02:00'; // défaut été
+}
+
+// Récupérer les formats de numéros de tâches
 $stmt = $pdo->query("SELECT * FROM task_format_settings");
 $formats = [];
 while ($row = $stmt->fetch()) {
     $formats[$row['type']] = $row;
 }
 
+// Traitement des formulaires
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Sauvegarde des formats d'interventions
     if (isset($_POST['save_interv'])) {
         $interv_prefix = trim($_POST['interv_prefix']);
         $interv_year = isset($_POST['interv_use_year']) ? 1 : 0;
@@ -26,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$interv_prefix, $interv_year, $interv_month, $interv_digits, $reset_year, $reset_month]);
         $message = t('save_success');
     }
+    // Sauvegarde des formats de préventives
     if (isset($_POST['save_prev'])) {
         $prev_prefix = trim($_POST['prev_prefix']);
         $prev_year = isset($_POST['prev_use_year']) ? 1 : 0;
@@ -37,7 +58,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$prev_prefix, $prev_year, $prev_month, $prev_digits, $reset_year, $reset_month]);
         $message = t('save_success');
     }
-    // Recharger les données
+    // Sauvegarde du fuseau horaire
+    if (isset($_POST['save_timezone_offset'])) {
+        $new_offset = $_POST['timezone_offset'];
+        // Validation simple : format +/-HH:MM
+        if (preg_match('/^[+-]\d{2}:\d{2}$/', $new_offset)) {
+            $stmt = $pdo->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES ('timezone_offset', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+            $stmt->execute([$new_offset, $new_offset]);
+            $message = "Offset horaire mis à jour : $new_offset";
+            // Appliquer immédiatement
+            $pdo->exec("SET time_zone = '$new_offset'");
+            $current_offset = $new_offset;
+        } else {
+            $error = "Offset invalide. Utilisez le format +/-HH:MM";
+        }
+    }
+
+    // Recharger les données après sauvegarde
     $stmt = $pdo->query("SELECT * FROM task_format_settings");
     $formats = [];
     while ($row = $stmt->fetch()) $formats[$row['type']] = $row;
@@ -52,15 +89,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; padding: 8px 20px; }
     .preview-code { background: #f8f9fa; padding: 8px 12px; border-radius: 8px; font-family: monospace; font-size: 14px; margin-top: 10px; }
     .info-text { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 8px 12px; border-radius: 8px; margin: 10px 0; font-size: 13px; }
+    .btn-success { background: #28a745; border: none; border-radius: 8px; padding: 8px 20px; }
 </style>
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-cog"></i> <?php echo t('configuration'); ?></h2>
     </div>
+
     <?php if ($message): ?>
         <div class="alert alert-success alert-dismissible fade show"><?php echo $message; ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
     <?php endif; ?>
+    <?php if ($error): ?>
+        <div class="alert alert-danger alert-dismissible fade show"><?php echo $error; ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    <?php endif; ?>
+
     <div class="row">
         <!-- Interventions -->
         <div class="col-md-6">
@@ -115,9 +158,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
+
+    <!-- Module de fuseau horaire (avec offsets) -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="config-card">
+                <div class="config-header" style="background: linear-gradient(135deg, #28a745, #1e7e34);">
+                    <i class="fas fa-globe"></i> Paramètres de fuseau horaire (MySQL)
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Décalage horaire (MySQL)</label>
+                                <select name="timezone_offset" class="form-select" required>
+                                    <option value="+00:00" <?php echo ($current_offset == '+00:00') ? 'selected' : ''; ?>>UTC (+00:00)</option>
+                                    <option value="+01:00" <?php echo ($current_offset == '+01:00') ? 'selected' : ''; ?>>UTC+01:00 (heure normale d'Europe centrale)</option>
+                                    <option value="+02:00" <?php echo ($current_offset == '+02:00') ? 'selected' : ''; ?>>UTC+02:00 (heure d'été d'Europe centrale)</option>
+                                    <option value="-05:00" <?php echo ($current_offset == '-05:00') ? 'selected' : ''; ?>>UTC-05:00 (heure normale de l'Est US)</option>
+                                    <option value="-04:00" <?php echo ($current_offset == '-04:00') ? 'selected' : ''; ?>>UTC-04:00 (heure d'été de l'Est US)</option>
+                                </select>
+                                <small class="text-muted">Choisissez l'offset correspondant à votre fuseau horaire actuel. Pour la France métropolitaine, utilisez +02:00 en été, +01:00 en hiver. Vous pouvez changer manuellement.</small>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button type="submit" name="save_timezone_offset" class="btn btn-success"><i class="fas fa-save"></i> Enregistrer</button>
+                            </div>
+                        </div>
+                    </form>
+                    <div class="info-text mt-3">
+                        <i class="fas fa-info-circle"></i> Heure actuelle (MySQL) : <strong><?php
+                            $stmt = $pdo->query("SELECT NOW()");
+                            echo $stmt->fetchColumn();
+                        ?></strong><br>
+                        Heure actuelle (PHP) : <strong><?php echo date('Y-m-d H:i:s'); ?></strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- Modal pour réinitialisation -->
+<!-- Modal pour réinitialisation du compteur -->
 <div class="modal fade" id="resetModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -171,7 +252,7 @@ document.getElementById('confirmResetBtn').addEventListener('click', function() 
     .catch(err => { alert('Erreur réseau'); });
 });
 
-// Aperçu dynamique
+// Aperçu dynamique des numéros de tâches
 document.addEventListener('DOMContentLoaded', function() {
     function getBasePath() {
         let path = window.location.pathname;

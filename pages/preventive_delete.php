@@ -1,39 +1,37 @@
 <?php
-// pages/preventive_delete.php - Suppression d'une maintenance préventive
-if($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'supervisor') {
+// pages/preventive_delete.php - Formulaire de confirmation de suppression
+ob_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/functions.php';
+
+if (!in_array($_SESSION['role'], ['admin', 'supervisor'])) {
     echo "<div class='alert alert-danger'>" . t('access_denied') . "</div>";
+    ob_end_flush();
     return;
 }
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-if(!$id) {
+if (!$id) {
     header('Location: ?page=preventive');
     exit();
 }
 
-$stmt = $pdo->prepare("SELECT pm.*, e.name as equipment_name FROM preventive_maintenance pm JOIN equipment e ON pm.equipment_id = e.id WHERE pm.id = ?");
+$stmt = $pdo->prepare("SELECT pm.*, e.name as equipment_name 
+                       FROM preventive_maintenance pm 
+                       JOIN equipment e ON pm.equipment_id = e.id 
+                       WHERE pm.id = ?");
 $stmt->execute([$id]);
 $pm = $stmt->fetch();
-if(!$pm) {
+
+if (!$pm) {
     echo "<div class='alert alert-danger'>" . t('not_found') . "</div>";
+    ob_end_flush();
     return;
 }
 
-$error = '';
-
-if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_password'])) {
-    $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
-    $stmt->execute([$_SESSION['user_id']]);
-    $user = $stmt->fetch();
-    if(password_verify($_POST['confirm_password'], $user['password'])) {
-        $pdo->prepare("DELETE FROM preventive_maintenance WHERE id = ?")->execute([$id]);
-        logUserAction($_SESSION['user_id'], 'preventive_deleted', "Preventive maintenance ID: {$id} deleted");
-        header('Location: ?page=preventive&msg=' . urlencode(t('save_success')));
-        exit();
-    } else {
-        $error = t('password_error');
-    }
-}
+$error = $_GET['error'] ?? '';
+ob_end_flush();
 ?>
 
 <style>
@@ -49,12 +47,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_password'])) {
             <div class="form-card">
                 <div class="form-card-header"><i class="fas fa-trash-alt"></i> <?php echo t('delete_maintenance'); ?></div>
                 <div class="card-body p-4">
-                    <?php if($error): ?>
-                        <div class="alert alert-danger"><?php echo $error; ?></div>
+                    <?php if ($error == 'wrong_password'): ?>
+                        <div class="alert alert-danger"><?php echo t('password_error'); ?></div>
                     <?php endif; ?>
-                    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> <?php echo t('delete_confirm'); ?> : <strong><?php echo htmlspecialchars($pm['equipment_name']); ?></strong></div>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <?php echo t('delete_confirm'); ?> : <strong><?php echo htmlspecialchars($pm['equipment_name']); ?></strong>
+                    </div>
                     <p><?php echo t('delete_warning'); ?></p>
-                    <form method="POST">
+
+                    <form method="POST" action="?page=preventive_delete_action&id=<?php echo $id; ?>">
+                        <?= csrf_input(); ?>
                         <div class="mb-3">
                             <label class="form-label"><?php echo t('confirm_password'); ?></label>
                             <input type="password" name="confirm_password" class="form-control" required>

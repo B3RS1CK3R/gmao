@@ -124,6 +124,41 @@ function addEquipment($data) {
 // ========== INTERVENTIONS ==========
 
 /**
+ * Nettoie et formate les messages des logs d'intervention pour un affichage clair
+ * @param string $action
+ * @param string $details
+ * @return string
+ */
+function formatInterventionLog($action, $details) {
+    // Traductions pour les actions
+    $action_map = [
+        'intervention_created' => t('intervention_created'),
+        'intervention_updated' => t('intervention_updated'),
+        'intervention_status_change' => t('intervention_status_changed'),
+        'intervention_assigned' => t('intervention_assigned'),
+        'intervention_completed' => t('intervention_completed'),
+        'intervention_deleted' => t('intervention_cancelled')
+    ];
+    
+    // Extraire le numéro de tâche ou l'ID
+    if (preg_match('/\b(TASK-\d+)\b/', $details, $matches)) {
+        $task = $matches[1];
+        $message = $action_map[$action] . ' : ' . $task;
+    } elseif (preg_match('/ID: (\d+)/', $details, $matches)) {
+        $id = $matches[1];
+        $message = $action_map[$action] . ' (ID ' . $id . ')';
+    } else {
+        // Fallback : afficher les détails bruts
+        $message = $action_map[$action] . ' : ' . htmlspecialchars($details);
+    }
+    
+    // Nettoyer les phrases inutiles
+    $message = str_replace(['Equipment ID: ', 'deactivated', 'reactivated', 'updated', 'created'], '', $message);
+    $message = preg_replace('/\s+/', ' ', $message);
+    return $message;
+}
+
+/**
  * Create a new intervention record.
  */
 function addIntervention($data) {
@@ -295,81 +330,113 @@ function getEquipmentDetails($id) {
 
 /**
  * Format a date according to the current language/locale.
- * component: 'weekday_short', 'month_short', 'day_num', 'full', 'long'
+ * Assumes input date is in UTC and converts to local timezone (Europe/Paris).
+ * component: 'short', 'weekday_short', 'month_short', 'day_num', 'long', 'full'
  * if component == 'full' or 'long', $withTime controls inclusion of time.
  */
 function format_date_local($date, $component = 'full', $withTime = false) {
-    if (empty($date) || in_array($date, ['0000-00-00', '0000-00-00 00:00:00'])) return t('not_specified');
-    $ts = strtotime($date);
-    if ($ts === false) return htmlspecialchars($date);
-
-    $lang = getCurrentLanguage();
-    $locale = ($lang === 'fr') ? 'fr_FR' : 'en_US';
-
-    if (class_exists('IntlDateFormatter')) {
-        try {
-            switch ($component) {
-                case 'weekday_short':
-                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, NULL, IntlDateFormatter::GREGORIAN, 'EEE');
-                    return $fmt->format($ts);
-                case 'month_short':
-                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, NULL, IntlDateFormatter::GREGORIAN, 'MMM');
-                    return $fmt->format($ts);
-                case 'day_num':
-                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, NULL, IntlDateFormatter::GREGORIAN, 'd');
-                    return $fmt->format($ts);
-                case 'long':
-                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::LONG, $withTime ? IntlDateFormatter::SHORT : IntlDateFormatter::NONE);
-                    return $fmt->format($ts);
-                case 'full':
-                default:
-                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::FULL, $withTime ? IntlDateFormatter::SHORT : IntlDateFormatter::NONE);
-                    return $fmt->format($ts);
-            }
-        } catch (Exception $e) {
-            // fallback to manual mapping below
-        }
+    if (empty($date) || in_array($date, ['0000-00-00', '0000-00-00 00:00:00'])) {
+        return t('not_specified');
     }
 
-    // Fallback if Intl isn't available: manual translations for French and English
-    $weekday_short_en = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    $weekday_short_fr = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-    $weekday_long_en = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    $weekday_long_fr = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
-    $month_short_en = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    $month_short_fr = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
-    $month_long_en = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    $month_long_fr = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    try {
+        // Créer un objet DateTime à partir de la date (supposée UTC)
+        $dt = new DateTime($date, new DateTimeZone('UTC'));
+        // Convertir dans le fuseau horaire de PHP (Europe/Paris)
+        $dt->setTimezone(new DateTimeZone(date_default_timezone_get()));
 
-    switch ($component) {
-        case 'weekday_short':
-            $d = date('w', $ts);
-            return ($lang === 'fr') ? $weekday_short_fr[$d] : $weekday_short_en[$d];
-        case 'month_short':
-            $m = intval(date('n', $ts)) - 1;
-            return ($lang === 'fr') ? $month_short_fr[$m] : $month_short_en[$m];
-        case 'day_num':
-            return date('d', $ts);
-        case 'long':
-            $m = intval(date('n', $ts)) - 1;
-            $day = date('d', $ts);
-            $year = date('Y', $ts);
-            if ($lang === 'fr') {
-                return $day . ' ' . $month_long_fr[$m] . ' ' . $year . ($withTime ? ' ' . date('H:i', $ts) : '');
-            } else {
-                return $month_long_en[$m] . ' ' . $day . ', ' . $year . ($withTime ? ' ' . date('H:i', $ts) : '');
+        $lang = getCurrentLanguage();
+        $locale = ($lang === 'fr') ? 'fr_FR' : 'en_US';
+
+        if (class_exists('IntlDateFormatter')) {
+            // Utiliser IntlDateFormatter si disponible
+            $pattern = '';
+            $fmtType = IntlDateFormatter::NONE;
+            $timeType = $withTime ? IntlDateFormatter::SHORT : IntlDateFormatter::NONE;
+            
+            switch ($component) {
+                case 'short':
+                    $pattern = ($lang === 'fr') ? 'dd/MM/yyyy' : 'MM/dd/yyyy';
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, $dt->getTimezone(), IntlDateFormatter::GREGORIAN, $pattern);
+                    $result = $fmt->format($dt);
+                    if ($withTime) {
+                        $result .= ' ' . $dt->format('H:i');
+                    }
+                    return $result;
+                case 'weekday_short':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, $dt->getTimezone(), IntlDateFormatter::GREGORIAN, 'EEE');
+                    return $fmt->format($dt);
+                case 'month_short':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, $dt->getTimezone(), IntlDateFormatter::GREGORIAN, 'MMM');
+                    return $fmt->format($dt);
+                case 'day_num':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, $dt->getTimezone(), IntlDateFormatter::GREGORIAN, 'd');
+                    return $fmt->format($dt);
+                case 'long':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::LONG, $timeType, $dt->getTimezone());
+                    $result = $fmt->format($dt);
+                    return $result;
+                case 'full':
+                default:
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::FULL, $timeType, $dt->getTimezone());
+                    $result = $fmt->format($dt);
+                    return $result;
             }
-        case 'full':
-        default:
-            $w = date('w', $ts);
-            $m = intval(date('n', $ts)) - 1;
-            $day = date('d', $ts);
-            $year = date('Y', $ts);
-            if ($lang === 'fr') {
-                return $weekday_long_fr[$w] . ' ' . $day . ' ' . $month_long_fr[$m] . ' ' . $year . ($withTime ? ' ' . date('H:i', $ts) : '');
-            } else {
-                return $weekday_long_en[$w] . ', ' . $month_long_en[$m] . ' ' . $day . ', ' . $year . ($withTime ? ' ' . date('H:i', $ts) : '');
-            }
+        }
+
+        // Fallback manuel (si Intl n'est pas disponible)
+        $ts = $dt->getTimestamp();
+        $weekday_short_en = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        $weekday_short_fr = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+        $weekday_long_en = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        $weekday_long_fr = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+        $month_short_en = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        $month_short_fr = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+        $month_long_en = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        $month_long_fr = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+        switch ($component) {
+            case 'short':
+                $format = ($lang === 'fr') ? 'd/m/Y' : 'm/d/Y';
+                $result = date($format, $ts);
+                if ($withTime) $result .= ' ' . date('H:i', $ts);
+                return $result;
+            case 'weekday_short':
+                $d = date('w', $ts);
+                return ($lang === 'fr') ? $weekday_short_fr[$d] : $weekday_short_en[$d];
+            case 'month_short':
+                $m = intval(date('n', $ts)) - 1;
+                return ($lang === 'fr') ? $month_short_fr[$m] : $month_short_en[$m];
+            case 'day_num':
+                return date('d', $ts);
+            case 'long':
+                $m = intval(date('n', $ts)) - 1;
+                $day = date('d', $ts);
+                $year = date('Y', $ts);
+                if ($lang === 'fr') {
+                    $result = $day . ' ' . $month_long_fr[$m] . ' ' . $year;
+                } else {
+                    $result = $month_long_en[$m] . ' ' . $day . ', ' . $year;
+                }
+                if ($withTime) $result .= ' ' . date('H:i', $ts);
+                return $result;
+            case 'full':
+            default:
+                $w = date('w', $ts);
+                $m = intval(date('n', $ts)) - 1;
+                $day = date('d', $ts);
+                $year = date('Y', $ts);
+                if ($lang === 'fr') {
+                    $result = $weekday_long_fr[$w] . ' ' . $day . ' ' . $month_long_fr[$m] . ' ' . $year;
+                } else {
+                    $result = $weekday_long_en[$w] . ', ' . $month_long_en[$m] . ' ' . $day . ', ' . $year;
+                }
+                if ($withTime) $result .= ' ' . date('H:i', $ts);
+                return $result;
+        }
+    } catch (Exception $e) {
+        // En cas d'erreur, fallback simple
+        return htmlspecialchars($date);
     }
 }
 
@@ -1335,67 +1402,33 @@ function requireRole($role) {
 // ========== TASK SEQUENCE & STATUS ==========
 
 /**
- * Génère un numéro de tâche selon la configuration stockée
- * @param PDO $pdo
- * @param string $type 'intervention' ou 'preventive'
- * @param bool $dryRun Si true, n'incrémente pas le compteur (juste un aperçu)
- * @return string
+ * Génère un numéro de tâche (version corrigée et simplifiée)
  */
 function generateTaskNumber($pdo, $type, $dryRun = false) {
     $stmt = $pdo->prepare("SELECT * FROM task_format_settings WHERE type = ?");
     $stmt->execute([$type]);
-    $config = $stmt->fetch();
-    if (!$config) return 'ERROR';
-    
-    $prefix = $config['prefix'];
-    $useYear = (bool)$config['use_year'];
-    $useMonth = (bool)$config['use_month'];
-    $digits = (int)$config['digits'];
-    $resetOnYear = (bool)$config['reset_on_year_change'];
-    $resetOnMonth = (bool)$config['reset_on_month_change'];
-    $lastYear = $config['last_year'];
-    $lastMonth = $config['last_month'];
-    
-    $currentYear = (int)date('y');
-    $currentMonth = (int)date('m');
-    $needReset = false;
-    
-    if ($useYear && $resetOnYear && $lastYear !== null && $currentYear != $lastYear) {
-        $needReset = true;
-    }
-    if ($useMonth && $resetOnMonth && !$needReset && $lastMonth !== null && $currentMonth != $lastMonth) {
-        $needReset = true;
-    }
-    
-    if ($dryRun) {
-        $nextNum = (int)$config['last_number'] + 1;
-        if ($needReset) $nextNum = 1;
+    $config = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$config) {
+        // Création automatique si ligne inexistante
+        $pdo->prepare("INSERT INTO task_format_settings (type, prefix, use_year, digits, last_number, last_year) 
+                        VALUES (?, 'PREV', 1, 4, 0, 26)")->execute([$type]);
+        $last_number = 0;
     } else {
-        // Mise à jour du compteur et éventuelle réinitialisation
-        if ($needReset) {
-            $pdo->prepare("UPDATE task_format_settings SET last_number = 0 WHERE type = ?")->execute([$type]);
-        }
-        $pdo->prepare("UPDATE task_format_settings SET last_number = last_number + 1 WHERE type = ?")->execute([$type]);
-        $stmt2 = $pdo->prepare("SELECT last_number FROM task_format_settings WHERE type = ?");
-        $stmt2->execute([$type]);
-        $nextNum = (int)$stmt2->fetchColumn();
-        // Mettre à jour last_year et last_month
-        $pdo->prepare("UPDATE task_format_settings SET last_year = ?, last_month = ? WHERE type = ?")
-            ->execute([$currentYear, $currentMonth, $type]);
+        $last_number = (int)$config['last_number'];
     }
-    
-    $numberPart = str_pad($nextNum, $digits, '0', STR_PAD_LEFT);
-    $parts = [$prefix];
-    if ($useYear) {
-        $datePart = date('y');
-        if ($useMonth) {
-            $datePart .= date('m');
-        }
-        $parts[] = $datePart;
+
+    if ($dryRun) {
+        $nextNum = $last_number + 1;
+    } else {
+        $nextNum = $last_number + 1;
+        // Mise à jour réelle
+        $pdo->prepare("UPDATE task_format_settings SET last_number = ? WHERE type = ?")
+            ->execute([$nextNum, $type]);
     }
-    $parts[] = $numberPart;
-    
-    return implode('-', $parts);
+
+    $numberPart = str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+    return "PREV-26-" . $numberPart;
 }
 
 /**

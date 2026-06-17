@@ -50,6 +50,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+date_default_timezone_set('Europe/Paris');
+
 // ====================== GESTION LANGUE ======================
 if (isset($_GET['setlang'])) {
     require_once 'includes/lang.php';
@@ -90,16 +92,8 @@ if ($page === 'logout') {
 }
 
 // ====================== TRAITEMENT DES ACTIONS POST (avant tout affichage) ======================
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Équipements
-    if ($page === 'equipment_add') {
-        require_once 'actions/equipment_add_action.php';
-        exit();
-    }
-    if ($page === 'equipment_edit' && isset($_GET['id'])) {
-        require_once 'actions/equipment_edit_action.php';
-        exit();
-    }
+if ($_SERVER['REQUEST_METHOD'] === 'POST' || $page === 'preventive_delete_action') {
+    
     // Maintenances préventives
     if ($page === 'preventive_add') {
         require_once 'actions/preventive_add_action.php';
@@ -107,6 +101,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($page === 'preventive_edit' && isset($_GET['id'])) {
         require_once 'actions/preventive_edit_action.php';
+        exit();
+    }
+    if ($page === 'preventive_delete_action' || ($page === 'preventive_delete' && $_SERVER['REQUEST_METHOD'] === 'POST')) {
+        require_once 'actions/preventive_delete_action.php';
+        exit();
+    }
+    
+    // Maintenances préventives
+    if ($page === 'preventive_add') {
+        require_once 'actions/preventive_add_action.php';
+        exit();
+    }
+    if ($page === 'preventive_delete' && isset($_GET['id'])) {
+        require_once 'actions/preventive_delete_action.php';
         exit();
     }
     // Techniciens
@@ -232,6 +240,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         require_once 'pages/preventive.php';
                         break;
                     
+                    case 'preventive_assign':
+                        require_once 'pages/preventive_assign.php';
+                        break;
+                    
                     case 'preventive_add':
                         require_once 'pages/preventive_add.php';
                         break;
@@ -315,7 +327,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     case 'settings':
                         require_once 'pages/settings.php';
                         break;
-
+                    
+                    case 'preventive_delete_action':
+                        require_once 'actions/preventive_delete_action.php';
+                        break;
+                    
+                    case 'preventive_debug':
+                        require_once 'pages/preventive_debug.php';
+                        break;
+                    
                     // Autres pages existantes
                     case 'equipment':
                     case 'interventions':
