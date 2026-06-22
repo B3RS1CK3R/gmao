@@ -5,103 +5,182 @@ if(!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Redirection vers les pages dédiées
 $action = $_GET['action'] ?? 'list';
-if ($action == 'add') {
-    header('Location: ?page=equipment_add');
-    exit();
-}
-if ($action == 'edit' && isset($_GET['id'])) {
-    header('Location: ?page=equipment_edit&id=' . intval($_GET['id']));
-    exit();
-}
-if ($action == 'delete' && isset($_GET['id'])) {
-    header('Location: ?page=equipment_delete&id=' . intval($_GET['id']));
-    exit();
-}
-if ($action == 'restore' && isset($_GET['id'])) {
-    header('Location: ?page=equipment_restore&id=' . intval($_GET['id']));
-    exit();
-}
-if ($action == 'delete_confirm' && isset($_GET['id'])) {
-    header('Location: ?page=equipment_delete&id=' . intval($_GET['id']));
-    exit();
+$active_filter = isset($_GET['filter']) ? $_GET['filter'] : 'active';
+
+// Redirections
+if ($action == 'add') { header('Location: ?page=equipment_add'); exit(); }
+if ($action == 'edit' && isset($_GET['id'])) { header('Location: ?page=equipment_edit&id=' . intval($_GET['id'])); exit(); }
+if ($action == 'delete' && isset($_GET['id'])) { header('Location: ?page=equipment_delete&id=' . intval($_GET['id'])); exit(); }
+if ($action == 'restore' && isset($_GET['id'])) { header('Location: ?page=equipment_restore&id=' . intval($_GET['id'])); exit(); }
+
+// Récupération de tous les équipements
+$all_equipments = $pdo->query("SELECT * FROM equipment ORDER BY name")->fetchAll();
+
+// Statistiques
+$stats = [
+    'all' => count($all_equipments),
+    'active' => 0,
+    'maintenance' => 0,
+    'broken' => 0,
+    'retired' => 0
+];
+foreach($all_equipments as $eq) {
+    if (isset($stats[$eq['status']])) {
+        $stats[$eq['status']]++;
+    }
 }
 
-// Récupération des équipements
-if($_SESSION['role'] == 'admin') {
-    $equipments = $pdo->query("SELECT * FROM equipment ORDER BY name")->fetchAll();
-} else {
-    $equipments = $pdo->query("SELECT * FROM equipment WHERE status != 'retired' ORDER BY name")->fetchAll();
-}
+// Filtrer
+$equipments = array_filter($all_equipments, function($eq) use ($active_filter) {
+    if ($active_filter == 'all') return true;
+    return $eq['status'] == $active_filter;
+});
 
-// Comptage des pièces jointes
+// Libellés des filtres
+$filter_labels = [
+    'all' => t('all'),
+    'active' => t('active'),
+    'maintenance' => t('maintenance'),
+    'broken' => t('broken'),
+    'retired' => t('deleted')
+];
+$filter_icons = [
+    'all' => '',
+    'active' => '🟢',
+    'maintenance' => '🟡',
+    'broken' => '🔴',
+    'retired' => '⚫'
+];
+$filter_colors = [
+    'all' => '#667eea',
+    'active' => '#28a745',
+    'maintenance' => '#ffc107',
+    'broken' => '#dc3545',
+    'retired' => '#6c757d'
+];
+
+// Attachments
 $attachmentCounts = [];
 try {
     $stmt = $pdo->query("SELECT parent_id, COUNT(*) as c FROM attachments WHERE parent_type='equipment' GROUP BY parent_id");
     foreach($stmt->fetchAll() as $r) { $attachmentCounts[$r['parent_id']] = $r['c']; }
-} catch (PDOException $e) {
-    $attachmentCounts = [];
-}
+} catch (PDOException $e) {}
 
-// Historique des modifications
+// Historique
 $history = [];
-foreach($equipments as $eq) {
-    $stmt = $pdo->prepare("
-        SELECT * FROM user_logs 
-        WHERE action IN ('equipment_created', 'equipment_updated', 'equipment_deleted', 'equipment_restored')
-        AND details LIKE ?
-        ORDER BY created_at DESC
-        LIMIT 3
-    ");
+foreach($all_equipments as $eq) {
+    $stmt = $pdo->prepare("SELECT * FROM user_logs WHERE action IN ('equipment_created', 'equipment_updated', 'equipment_deleted', 'equipment_restored') AND details LIKE ? ORDER BY created_at DESC LIMIT 3");
     $stmt->execute(["%ID: {$eq['id']}%"]);
     $history[$eq['id']] = $stmt->fetchAll();
 }
 ?>
 
 <style>
-    .info-card { background: white; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; overflow: hidden; }
-    .card-header-custom { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; font-weight: bold; }
-    .status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .card-header-custom {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
+    }
+    .card-header-custom i {
+        margin-right: 8px;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .stats-card {
+        text-align: center;
+        padding: 15px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.2s;
+        cursor: pointer;
+        border: 3px solid transparent;
+    }
+    .stats-card:hover {
+        transform: translateY(-3px);
+    }
+    .stats-card.active {
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    .stats-number {
+        font-size: 28px;
+        font-weight: bold;
+    }
+    .stats-label {
+        font-size: 13px;
+        color: #6c757d;
+        margin-top: 4px;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
     .status-active { background: #28a745; color: white; }
     .status-maintenance { background: #ffc107; color: #333; }
     .status-broken { background: #dc3545; color: white; }
     .status-retired { background: #6c757d; color: white; }
+    
     .action-buttons { white-space: nowrap; }
     .action-buttons .btn { padding: 4px 8px; margin: 0 2px; border-radius: 6px; }
     .table-row-clickable { cursor: pointer; transition: background 0.2s; }
     .table-row-clickable:hover { background: #f8f9fa; }
     .history-item { padding: 5px 0; font-size: 11px; border-bottom: 1px solid #eee; }
     .badge.bg-orange { background-color: #fd7e14 !important; color: white; }
-    .legend-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; text-align: center; }
-    .legend-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; background: #f8f9fa; border-radius: 10px; }
-    @media (max-width: 768px) { .legend-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 480px) { .legend-grid { grid-template-columns: 1fr; } }
-
-    /* Columns width */
-    .col-code { width: 8%; }
-    .col-name { width: 17%; }
-    .col-type { width: 10%; }
-    .col-location { width: 10%; }
-    .col-status { width: 12%; }
-    .col-criticality { width: 8%; text-align: center; }
-    .col-lastmod { width: 10%; }
-    .col-actions { width: 15%; }
-
+    
+    .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 15px;
+        text-align: center;
+    }
+    .legend-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 10px;
+    }
+    .legend-item:hover {
+        transform: translateY(-2px);
+        background: #e9ecef;
+    }
+    
     @media (max-width: 768px) {
-        .col-code, .col-name, .col-type, .col-location, .col-status, .col-criticality, .col-lastmod, .col-actions {
-            width: auto;
-        }
-}
+        .stats-grid { grid-template-columns: repeat(3, 1fr); }
+        .legend-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 480px) {
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .legend-grid { grid-template-columns: repeat(2, 1fr); }
+    }
 </style>
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-microchip"></i> <?php echo t('equipment'); ?></h2>
         <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-        <a href="?page=equipment_add" class="btn btn-primary">
-            <i class="fas fa-plus"></i> <?php echo t('add_equipment'); ?>
-        </a>
+        <a href="?page=equipment_add" class="btn btn-primary"><i class="fas fa-plus"></i> <?php echo t('add_equipment'); ?></a>
         <?php endif; ?>
     </div>
     
@@ -112,6 +191,18 @@ foreach($equipments as $eq) {
         <div class="alert alert-danger alert-dismissible fade show"><?php echo htmlspecialchars($_GET['err']); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
     <?php endif; ?>
     
+    <!-- Statistiques (filtres) -->
+    <div class="stats-grid">
+        <?php foreach($stats as $key => $value): ?>
+        <div class="stats-card <?php echo ($active_filter == $key) ? 'active' : ''; ?>" 
+             onclick="window.location.href='?page=equipment&filter=<?php echo $key; ?>'">
+            <div class="stats-number" style="color: <?php echo $filter_colors[$key] ?? '#667eea'; ?>;"><?php echo $value; ?></div>
+            <div class="stats-label"><?php echo $filter_icons[$key] ?? ''; ?> <?php echo $filter_labels[$key] ?? $key; ?></div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    
+    <!-- Liste -->
     <div class="info-card">
         <div class="card-header-custom"><i class="fas fa-list"></i> <?php echo t('equipment_list'); ?></div>
         <div class="card-body p-0">
@@ -119,14 +210,14 @@ foreach($equipments as $eq) {
                 <table class="table table-hover mb-0">
                     <thead class="table-dark">
                         <tr>
-                            <th class="col-code"><?php echo t('code'); ?></th>
-                            <th class="col-name"><?php echo t('name'); ?></th>
-                            <th class="col-type"><?php echo t('type'); ?></th>
-                            <th class="col-location"><?php echo t('location'); ?></th>
-                            <th class="col-status"><?php echo t('status'); ?></th>
-                            <th class="col-criticality"><?php echo t('criticality'); ?></th>
-                            <th class="col-lastmod"><?php echo t('last_modifications'); ?></th>
-                            <th class="col-actions text-center"><?php echo t('actions'); ?></th>
+                            <th><?php echo t('code'); ?></th>
+                            <th><?php echo t('name'); ?></th>
+                            <th><?php echo t('type'); ?></th>
+                            <th><?php echo t('location'); ?></th>
+                            <th><?php echo t('status'); ?></th>
+                            <th><?php echo t('criticality'); ?></th>
+                            <th><?php echo t('last_modifications'); ?></th>
+                            <th class="text-center"><?php echo t('actions'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -140,30 +231,18 @@ foreach($equipments as $eq) {
                         <tr class="table-row-clickable" onclick="window.location.href='?page=equipment_detail&id=<?php echo $eq['id']; ?>'">
                             <td>
                                 <strong><?php echo htmlspecialchars($eq['code']); ?></strong>
-                                <?php
-                                $warranty_end = $eq['warranty_end'];
-                                $now = time();
-                                if ($warranty_end && strtotime($warranty_end) < $now) {
-                                    echo ' <span class="badge bg-danger">' . t('warranty_expired') . '</span>';
-                                } elseif ($warranty_end && strtotime($warranty_end) < strtotime('+30 days')) {
-                                    echo ' <span class="badge bg-warning text-dark">' . t('warranty_expiring_soon') . '</span>';
-                                }
-                                ?>
+                                <?php if($eq['warranty_end'] && strtotime($eq['warranty_end']) < time()): ?>
+                                    <span class="badge bg-danger"><?php echo t('warranty_expired'); ?></span>
+                                <?php elseif($eq['warranty_end'] && strtotime($eq['warranty_end']) < strtotime('+30 days')): ?>
+                                    <span class="badge bg-warning text-dark"><?php echo t('warranty_expiring_soon'); ?></span>
+                                <?php endif; ?>
                             </td>
                             <td><?php echo htmlspecialchars($eq['name']); ?></td>
                             <td><?php echo htmlspecialchars($eq['type']); ?></td>
                             <td><?php echo htmlspecialchars($eq['location']); ?></td>
                             <td>
                                 <span class="status-badge status-<?php echo $eq['status']; ?>">
-                                    <?php
-                                    $status_labels = [
-                                        'active' => '🟢 ' . t('active'),
-                                        'maintenance' => '🟡 ' . t('maintenance'),
-                                        'broken' => '🔴 ' . t('broken'),
-                                        'retired' => '⚫ ' . t('retired')
-                                    ];
-                                    echo $status_labels[$eq['status']] ?? $eq['status'];
-                                    ?>
+                                    <?php echo $filter_icons[$eq['status']] ?? ''; ?> <?php echo $filter_labels[$eq['status']] ?? $eq['status']; ?>
                                 </span>
                             </td>
                             <td class="text-center"><span class="badge bg-<?php echo $criticalityClass; ?>"><?php echo $criticality; ?></span></td>
@@ -221,26 +300,29 @@ foreach($equipments as $eq) {
                             </div>
                         </div>
                         <?php endforeach; ?>
+                        <?php if(count($equipments) == 0): ?>
+                        <tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x d-block mb-2"></i><?php echo t('no_equipment_found'); ?></td></tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
     
+    <!-- Légende -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="info-card">
-                <div class="card-header-custom"><i class="fas fa-info-circle"></i> <?php echo t('legend'); ?></div>
+                <div class="card-header-custom" style="background: linear-gradient(135deg, #6c757d, #495057);">
+                    <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
+                </div>
                 <div class="card-body p-3">
                     <div class="legend-grid">
                         <div class="legend-item"><span class="status-badge status-active">🟢 <?php echo t('active'); ?></span><small><?php echo t('active_description'); ?></small></div>
                         <div class="legend-item"><span class="status-badge status-maintenance">🟡 <?php echo t('maintenance'); ?></span><small><?php echo t('maintenance_description'); ?></small></div>
                         <div class="legend-item"><span class="status-badge status-broken">🔴 <?php echo t('broken'); ?></span><small><?php echo t('broken_description'); ?></small></div>
-                        <div class="legend-item"><span class="status-badge status-retired">⚫ <?php echo t('retired'); ?></span><small><?php echo t('retired_description'); ?></small></div>
-                        <div class="legend-item"><span class="badge bg-success">1-5</span><small><?php echo t('low_criticality'); ?></small></div>
-                        <div class="legend-item"><span class="badge bg-warning">6-10</span><small><?php echo t('medium_criticality'); ?></small></div>
-                        <div class="legend-item"><span class="badge bg-orange">11-15</span><small><?php echo t('high_criticality'); ?></small></div>
-                        <div class="legend-item"><span class="badge bg-danger">16-25</span><small><?php echo t('very_high_criticality'); ?></small></div>
+                        <div class="legend-item"><span class="status-badge status-retired">⚫ <?php echo t('deleted'); ?></span><small><?php echo t('retired_description'); ?></small></div>
+                        <div class="legend-item"><span class="badge bg-secondary">📊</span><small><?php echo t('click_stats_to_filter'); ?></small></div>
                     </div>
                 </div>
             </div>

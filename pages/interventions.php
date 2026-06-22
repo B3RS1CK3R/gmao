@@ -3,10 +3,18 @@
 // auth handled centrally in index.php
 
 $action = $_GET['action'] ?? 'list';
-$message = '';
-$error = '';
+$active_filter = isset($_GET['filter']) ? $_GET['filter'] : 'a_faire';
 
-// Rediriger vers les pages spécifiques pour les actions
+// ========== CORRECTION AUTOMATIQUE DES STATUTS ==========
+try {
+    $check = $pdo->query("SHOW COLUMNS FROM interventions LIKE 'task_status'");
+    if ($check->rowCount() > 0) {
+        $pdo->exec("ALTER TABLE interventions MODIFY task_status ENUM('a_faire', 'en_cours', 'termine', 'cloturee', 'cancelled') DEFAULT 'a_faire'");
+        $pdo->exec("UPDATE interventions SET task_status = 'cancelled' WHERE task_status NOT IN ('a_faire', 'en_cours', 'termine', 'cloturee') OR task_status IS NULL OR task_status = ''");
+    }
+} catch (PDOException $e) {}
+
+// ========== REDIRECTIONS ==========
 if($action == 'assign' && isset($_GET['id'])) {
     header('Location: ?page=interventions_assign&id=' . intval($_GET['id']));
     exit();
@@ -24,20 +32,17 @@ if($action == 'delete' && isset($_GET['id'])) {
     exit();
 }
 
-// Quick status change (inline sans formulaire)
+// Quick status change
 if($action == 'change_status' && isset($_GET['id']) && isset($_GET['status'])) {
     $stmt = $pdo->prepare("UPDATE interventions SET task_status = ? WHERE id = ?");
     $stmt->execute([$_GET['status'], $_GET['id']]);
     logUserAction($_SESSION['user_id'], 'intervention_status_change', "Status changed for ID: {$_GET['id']} to {$_GET['status']}");
     $message = "✅ " . t('status_updated');
-    echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
+    echo "<meta http-equiv='refresh' content='1;url=?page=interventions&filter=" . $_GET['status'] . "'>";
 }
 
-// Fetch technicians list (pour les besoins de l'affichage)
-$technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
-
-// Fetch interventions with all details - INCLUT L'ÉQUIPE
-$interventions = $pdo->query("
+// Fetch all interventions
+$all_interventions = $pdo->query("
     SELECT i.*,
             e.name as equipment_name,
             e.code as equipment_code,
@@ -51,26 +56,72 @@ $interventions = $pdo->query("
     LEFT JOIN teams team ON i.team_id = team.id
     ORDER BY 
         CASE i.task_status 
+            WHEN 'cancelled' THEN 5
             WHEN 'a_faire' THEN 1
             WHEN 'en_cours' THEN 2
             WHEN 'termine' THEN 3
             WHEN 'cloturee' THEN 4
-            ELSE 5
+            ELSE 6
         END,
         COALESCE(i.intervention_date, i.created_at) ASC,
         i.created_at DESC
 ")->fetchAll();
 
-// Intervention statistics
-$total = count($interventions);
-$a_faire = count(array_filter($interventions, function($i) { return $i['task_status'] == 'a_faire'; }));
-$en_cours = count(array_filter($interventions, function($i) { return $i['task_status'] == 'en_cours'; }));
-$termine = count(array_filter($interventions, function($i) { return $i['task_status'] == 'termine'; }));
-$cloturee = count(array_filter($interventions, function($i) { return $i['task_status'] == 'cloturee'; }));
+// Statistiques
+$stats = [
+    'all' => count($all_interventions),
+    'a_faire' => 0,
+    'en_cours' => 0,
+    'termine' => 0,
+    'cloturee' => 0,
+    'cancelled' => 0
+];
+foreach($all_interventions as $inv) {
+    if (isset($stats[$inv['task_status']])) {
+        $stats[$inv['task_status']]++;
+    } else {
+        $stats['a_faire']++;
+        $pdo->prepare("UPDATE interventions SET task_status = 'a_faire' WHERE id = ?")->execute([$inv['id']]);
+    }
+}
 
-// Fetch modifications history for each intervention
+// Filtrer les interventions
+$interventions = array_filter($all_interventions, function($inv) use ($active_filter) {
+    if ($active_filter == 'all') return true;
+    return $inv['task_status'] == $active_filter;
+});
+
+// Définir les libellés des filtres
+$filter_labels = [
+    'all' => t('all'),
+    'a_faire' => t('to_do'),
+    'en_cours' => t('in_progress'),
+    'termine' => t('completed'),
+    'cloturee' => t('closed'),
+    'cancelled' => t('cancelled')
+];
+
+$filter_icons = [
+    'all' => '',
+    'a_faire' => '⚪',
+    'en_cours' => '🔵',
+    'termine' => '🟢',
+    'cloturee' => '⚫',
+    'cancelled' => '🔴'
+];
+
+$filter_colors = [
+    'all' => '#667eea',
+    'a_faire' => '#6c757d',
+    'en_cours' => '#17a2b8',
+    'termine' => '#28a745',
+    'cloturee' => '#343a40',
+    'cancelled' => '#dc3545'
+];
+
+// Historique
 $history = [];
-foreach($interventions as $inv) {
+foreach($all_interventions as $inv) {
     $stmt = $pdo->prepare("
         SELECT * FROM user_logs 
         WHERE action IN ('intervention_created', 'intervention_updated', 'intervention_status_change', 
@@ -98,30 +149,45 @@ foreach($interventions as $inv) {
         padding: 15px 20px;
         font-weight: bold;
     }
+    .card-header-custom i {
+        margin-right: 8px;
+    }
+    
+    /* Cartes de statistiques */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+    }
     .stats-card {
         text-align: center;
         padding: 15px;
         background: white;
         border-radius: 15px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
+        transition: all 0.2s;
         cursor: pointer;
-        margin-bottom: 15px;
+        border: 3px solid transparent;
     }
     .stats-card:hover {
         transform: translateY(-3px);
+    }
+    .stats-card.active {
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     .stats-number {
         font-size: 28px;
         font-weight: bold;
     }
-    .filter-bar {
-        background: white;
-        border-radius: 15px;
-        padding: 15px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    .stats-label {
+        font-size: 13px;
+        color: #6c757d;
+        margin-top: 4px;
     }
+    
+    /* Badges */
     .priority-badge {
         display: inline-block;
         padding: 5px 12px;
@@ -133,6 +199,7 @@ foreach($interventions as $inv) {
     .priority-high { background: #fd7e14; color: white; }
     .priority-medium { background: #ffc107; color: #333; }
     .priority-low { background: #28a745; color: white; }
+    
     .status-badge {
         display: inline-block;
         padding: 5px 12px;
@@ -144,7 +211,9 @@ foreach($interventions as $inv) {
     .status-en_cours { background: #17a2b8; color: white; }
     .status-termine { background: #28a745; color: white; }
     .status-cloturee { background: #343a40; color: white; }
+    .status-cancelled { background: #dc3545; color: white; }
     
+    /* Actions */
     .action-buttons {
         display: flex;
         gap: 5px;
@@ -154,7 +223,7 @@ foreach($interventions as $inv) {
         max-width: 105px;
         margin: 0 auto;
     }
-    .action-buttons .btn, .action-buttons .disabled-icon {
+    .action-buttons .btn {
         padding: 5px;
         margin: 0;
         border-radius: 6px;
@@ -167,6 +236,8 @@ foreach($interventions as $inv) {
         height: 30px;
         flex: 0 0 30px;
     }
+    
+    /* Tableau */
     .table-responsive {
         overflow-x: auto;
     }
@@ -188,6 +259,8 @@ foreach($interventions as $inv) {
     .table tr:hover {
         background: #f8f9fa;
     }
+    
+    /* Historique */
     .history-item {
         padding: 5px 0;
         font-size: 10px;
@@ -196,6 +269,8 @@ foreach($interventions as $inv) {
     .history-item:last-child {
         border-bottom: none;
     }
+    
+    /* Boutons */
     .btn-primary {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border: none;
@@ -229,15 +304,24 @@ foreach($interventions as $inv) {
         border: none;
         border-radius: 6px;
     }
+    .btn-danger:hover {
+        background: #c82333;
+    }
     .btn-info {
         background: #17a2b8;
         border: none;
         border-radius: 6px;
     }
+    .btn-info:hover {
+        background: #138496;
+    }
     .btn-success {
         background: #28a745;
         border: none;
         border-radius: 6px;
+    }
+    .btn-success:hover {
+        background: #218838;
     }
     .form-select-sm {
         font-size: 12px;
@@ -245,6 +329,45 @@ foreach($interventions as $inv) {
     }
     .text-muted {
         color: #6c757d !important;
+    }
+    
+    /* Légende */
+    .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 15px;
+        text-align: center;
+    }
+    .legend-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+    .legend-item:hover {
+        transform: translateY(-2px);
+        background: #e9ecef;
+    }
+    
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .legend-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    @media (max-width: 480px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .legend-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 </style>
 
@@ -258,76 +381,32 @@ foreach($interventions as $inv) {
         <?php endif; ?>
     </div>
     
-    <?php if($message): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle"></i> <?php echo $message; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+    <?php if(isset($_GET['msg']) || !empty($message)): ?>
+        <div class="alert alert-success alert-dismissible fade show"><?php echo htmlspecialchars($_GET['msg'] ?? $message); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    <?php endif; ?>
+    <?php if(isset($_GET['err']) || !empty($error)): ?>
+        <div class="alert alert-danger alert-dismissible fade show"><?php echo htmlspecialchars($_GET['err'] ?? $error); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
     <?php endif; ?>
     
-    <?php if($error): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <!-- Statistiques (filtres) -->
+    <div class="stats-grid">
+        <?php foreach($stats as $key => $value): ?>
+        <div class="stats-card <?php echo ($active_filter == $key) ? 'active' : ''; ?>" 
+             onclick="window.location.href='?page=interventions&filter=<?php echo $key; ?>'">
+            <div class="stats-number" style="color: <?php echo $filter_colors[$key] ?? '#667eea'; ?>;"><?php echo $value; ?></div>
+            <div class="stats-label"><?php echo $filter_icons[$key] ?? ''; ?> <?php echo $filter_labels[$key] ?? $key; ?></div>
         </div>
-    <?php endif; ?>
-    
-    <!-- Statistics cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="stats-card" onclick="filterByStatus('all')">
-                <div class="stats-number" style="color: #667eea;"><?php echo $total; ?></div>
-                <div class="text-muted"><?php echo t('total'); ?></div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card" onclick="filterByStatus('a_faire')">
-                <div class="stats-number" style="color: #6c757d;"><?php echo $a_faire; ?></div>
-                <div class="text-muted"><?php echo t('to_do'); ?></div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card" onclick="filterByStatus('en_cours')">
-                <div class="stats-number" style="color: #17a2b8;"><?php echo $en_cours; ?></div>
-                <div class="text-muted"><?php echo t('in_progress'); ?></div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card" onclick="filterByStatus('termine')">
-                <div class="stats-number" style="color: #28a745;"><?php echo $termine; ?></div>
-                <div class="text-muted"><?php echo t('completed'); ?></div>
-            </div>
-        </div>
+        <?php endforeach; ?>
     </div>
     
-    <!-- Quick filters -->
-    <div class="filter-bar">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="btn-group" role="group">
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('all')"><?php echo t('all'); ?></button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('a_faire')"><?php echo t('to_do'); ?></button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('en_cours')"><?php echo t('in_progress'); ?></button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('termine')"><?php echo t('completed'); ?></button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('cloturee')"><?php echo t('closed'); ?></button>
-                </div>
-            </div>
-            <div class="col-md-4 text-end">
-                <small class="text-muted">
-                    <i class="fas fa-chart-simple"></i> <?php echo t('total'); ?>: <?php echo $total; ?> <?php echo t('interventions'); ?>
-                </small>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Interventions list -->
+    <!-- Liste -->
     <div class="info-card">
         <div class="card-header-custom">
             <i class="fas fa-list"></i> <?php echo t('intervention_list'); ?>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0" id="interventionsTable">
+                <table class="table table-hover mb-0">
                     <thead class="table-dark">
                         <tr>
                             <th><?php echo t('task_number'); ?></th>
@@ -343,7 +422,7 @@ foreach($interventions as $inv) {
                     </thead>
                     <tbody>
                         <?php foreach($interventions as $inv): ?>
-                        <tr data-status="<?php echo $inv['task_status']; ?>">
+                        <tr>
                             <td>
                                 <strong><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></strong>
                                 <?php if($inv['completion_report']): ?>
@@ -361,6 +440,9 @@ foreach($interventions as $inv) {
                                 </span>
                             </td>
                             <td>
+                                <?php if($inv['task_status'] == 'cancelled'): ?>
+                                    <span class="status-badge status-cancelled">🔴 <?php echo t('cancelled'); ?></span>
+                                <?php else: ?>
                                 <select class="form-select form-select-sm" style="width: 120px;" 
                                         onchange="if(confirm('<?php echo t('status_confirm'); ?>')) window.location.href='?page=interventions&action=change_status&id=<?php echo $inv['id']; ?>&status='+this.value"
                                         onclick="event.stopPropagation()">
@@ -369,13 +451,12 @@ foreach($interventions as $inv) {
                                     <option value="termine" <?php if($inv['task_status'] == 'termine') echo 'selected'; ?>><?php echo t('completed'); ?></option>
                                     <option value="cloturee" <?php if($inv['task_status'] == 'cloturee') echo 'selected'; ?>><?php echo t('closed'); ?></option>
                                 </select>
+                                <?php endif; ?>
                             </td>
-                            <!-- Colonne Technicien / Équipe -->
                             <td>
                                 <?php 
                                 $hasTeam = !empty($inv['team_name']);
                                 $hasTech = !empty($inv['firstname']);
-                                
                                 if($hasTeam && $hasTech) {
                                     echo '<span class="badge bg-info">' . htmlspecialchars($inv['team_name']) . '</span><br>';
                                     echo '<small>' . htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']) . '</small>';
@@ -390,7 +471,6 @@ foreach($interventions as $inv) {
                                 }
                                 ?>
                             </td>
-                            <!-- Date prévue - CORRECTION : utilisation de format_date_local -->
                             <td>
                                 <?php echo $inv['intervention_date'] ? format_date_local($inv['intervention_date'], 'short', false) : '-'; ?>
                             </td>
@@ -417,53 +497,89 @@ foreach($interventions as $inv) {
                                 <?php endif; ?>
                             </td>
                             <td class="text-center action-buttons" onclick="event.stopPropagation()">
-                                <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <?php if($inv['task_status'] != 'termine' && $inv['task_status'] != 'cloturee'): ?>
-                                    <a href="?page=interventions_complete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('complete'); ?>">
-                                        <i class="fas fa-check-circle"></i>
+                                <?php if($inv['task_status'] != 'cancelled'): ?>
+                                    <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
+                                        <i class="fas fa-eye"></i>
                                     </a>
-                                    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                        <a href="?page=interventions_assign&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
-                                            <i class="fas fa-user-plus"></i>
+                                    <?php if($inv['task_status'] != 'termine' && $inv['task_status'] != 'cloturee'): ?>
+                                        <a href="?page=interventions_complete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('complete'); ?>">
+                                            <i class="fas fa-check-circle"></i>
                                         </a>
-                                        <a href="?page=interventions_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
-                                            <i class="fas fa-pen"></i>
-                                        </a>
-                                        <a href="?page=interventions_delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </a>
+                                        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+                                            <a href="?page=interventions_assign&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
+                                                <i class="fas fa-user-plus"></i>
+                                            </a>
+                                            <a href="?page=interventions_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                                <i class="fas fa-pen"></i>
+                                            </a>
+                                            <a href="?page=interventions_delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="disabled-icon"><i class="fas fa-lock"></i></span>
+                                        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+                                            <a href="?page=interventions_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                                <i class="fas fa-pen"></i>
+                                            </a>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 <?php else: ?>
-                                    <span class="disabled-icon"><i class="fas fa-lock"></i></span>
-                                    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                        <a href="?page=interventions_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
-                                            <i class="fas fa-pen"></i>
-                                        </a>
-                                    <?php endif; ?>
+                                    <span class="text-muted"><i class="fas fa-ban"></i> <?php echo t('cancelled'); ?></span>
                                 <?php endif; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
+                        <?php if(count($interventions) == 0): ?>
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x d-block mb-2"></i>
+                                <?php echo t('no_interventions'); ?>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-function filterByStatus(status) {
-    const rows = document.querySelectorAll('#interventionsTable tbody tr');
-    rows.forEach(row => {
-        if(status === 'all') {
-            row.style.display = '';
-        } else if(row.getAttribute('data-status') === status) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-}
-</script>
+    <!-- Légende -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="info-card">
+                <div class="card-header-custom" style="background: linear-gradient(135deg, #6c757d, #495057);">
+                    <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
+                </div>
+                <div class="card-body p-3">
+                    <div class="legend-grid">
+                        <div class="legend-item">
+                            <span class="status-badge status-a_faire">⚪ <?php echo t('to_do'); ?></span>
+                            <small><?php echo t('to_do_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-en_cours">🔵 <?php echo t('in_progress'); ?></span>
+                            <small><?php echo t('in_progress_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-termine">🟢 <?php echo t('completed'); ?></span>
+                            <small><?php echo t('completed_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-cloturee">⚫ <?php echo t('closed'); ?></span>
+                            <small><?php echo t('closed_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-cancelled">🔴 <?php echo t('cancelled'); ?></span>
+                            <small><?php echo t('cancelled_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge bg-secondary">📊</span>
+                            <small><?php echo t('click_stats_to_filter'); ?></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

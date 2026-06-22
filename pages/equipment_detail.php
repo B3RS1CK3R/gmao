@@ -20,6 +20,18 @@ if(!$equipment) {
 
 $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
 
+// --- Récupérer le prestataire associé à cet équipement ---
+$contractor = null;
+$stmt = $pdo->prepare("
+    SELECT c.* 
+    FROM contractor_equipment ce
+    JOIN contractors c ON ce.contractor_id = c.id
+    WHERE ce.equipment_id = ? AND c.status = 'active'
+    LIMIT 1
+");
+$stmt->execute([$id]);
+$contractor = $stmt->fetch();
+
 // --- Load Attachments ---
 $stmt = $pdo->prepare("SELECT * FROM attachments WHERE parent_type = 'equipment' AND parent_id = ? ORDER BY created_at DESC");
 $stmt->execute([$id]);
@@ -61,26 +73,38 @@ $status_labels = [
             <div class="card-header"><i class="fas fa-info-circle"></i> <?php echo t('general_info'); ?></div>
             <div class="card-body p-4">
                 <table class="table table-sm table-borderless mb-0">
-                    <tr><td style="width: 40%;"><strong><?php echo t('code'); ?></strong></span>
-                        <td><?php echo htmlspecialchars($equipment['code']); ?></span></td>
                     <tr>
-                        <td><strong><?php echo t('name'); ?></strong></span>
-                        <td><?php echo htmlspecialchars($equipment['name']); ?></span></td>
+                        <td style="width: 40%;"><strong><?php echo t('code'); ?></strong></td>
+                        <td><?php echo htmlspecialchars($equipment['code']); ?></td>
                     </tr>
                     <tr>
-                        <td><strong><?php echo t('type'); ?></strong></span>
-                        <td><?php echo htmlspecialchars($equipment['type'] ?: t('not_specified')); ?></span></td>
+                        <td><strong><?php echo t('name'); ?></strong></td>
+                        <td><?php echo htmlspecialchars($equipment['name']); ?></td>
                     </tr>
                     <tr>
-                        <td><strong><?php echo t('location'); ?></strong></span>
-                        <td><?php echo htmlspecialchars($equipment['location'] ?: t('not_specified')); ?></span></td>
+                        <td><strong><?php echo t('type'); ?></strong></td>
+                        <td><?php echo htmlspecialchars($equipment['type'] ?: t('not_specified')); ?></td>
                     </tr>
                     <tr>
-                        <td><strong><?php echo t('supplier'); ?></strong></span>
-                        <td><?php echo htmlspecialchars($equipment['supplier'] ?: t('not_specified')); ?></span></td>
+                        <td><strong><?php echo t('location'); ?></strong></td>
+                        <td><?php echo htmlspecialchars($equipment['location'] ?: t('not_specified')); ?></td>
                     </tr>
                     <tr>
-                        <td><strong><?php echo t('status'); ?></strong></span>
+                        <td><strong><?php echo t('supplier'); ?></strong></td>
+                        <td>
+                            <?php if ($contractor): ?>
+                                <a href="?page=contractor_detail&id=<?php echo $contractor['id']; ?>" class="text-decoration-none">
+                                    <i class="fas fa-building text-primary"></i>
+                                    <?php echo htmlspecialchars($contractor['company_name']); ?>
+                                    <span class="badge bg-info ms-1"><?php echo t('contractor'); ?></span>
+                                </a>
+                            <?php else: ?>
+                                <?php echo htmlspecialchars($equipment['supplier'] ?: t('not_specified')); ?>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php echo t('status'); ?></strong></td>
                         <td><span class="status-badge status-<?php echo $equipment['status']; ?>"><?php echo $status_labels[$equipment['status']] ?? $equipment['status']; ?></span></td>
                     </tr>
                 </table>
@@ -98,11 +122,12 @@ $status_labels = [
             <div class="card-header bg-warning text-dark"><i class="fas fa-calendar-alt"></i> <?php echo t('dates'); ?></div>
             <div class="card-body">
                 <table class="table table-sm table-borderless mb-0">
-                    <tr><td style="width: 40%;"><strong><?php echo t('purchase_date'); ?></strong></span>
-                        <td><?php echo format_date_local($equipment['purchase_date'], 'long', false); ?></span></td>
+                    <tr>
+                        <td style="width: 40%;"><strong><?php echo t('purchase_date'); ?></strong></td>
+                        <td><?php echo format_date_local($equipment['purchase_date'], 'long', false); ?></td>
                     </tr>
                     <tr>
-                        <td><strong><?php echo t('warranty_end'); ?></strong></span>
+                        <td><strong><?php echo t('warranty_end'); ?></strong></td>
                         <td>
                             <?php if($equipment['warranty_end']): ?>
                                 <?php echo format_date_local($equipment['warranty_end'], 'long', false); ?>
@@ -114,11 +139,11 @@ $status_labels = [
                             <?php else: ?>
                                 <?php echo t('not_specified'); ?>
                             <?php endif; ?>
-                        </span>
+                        </td>
                     </tr>
                     <tr>
-                        <td><strong><?php echo t('created_at'); ?></strong></span>
-                        <td><?php echo format_date_local($equipment['created_at'], 'long', true); ?></span></td>
+                        <td><strong><?php echo t('created_at'); ?></strong></td>
+                        <td><?php echo format_date_local($equipment['created_at'], 'long', true); ?></td>
                     </tr>
                 </table>
             </div>
@@ -291,6 +316,11 @@ $status_labels = [
         <div class="action-buttons d-flex gap-2">
             <a href="?page=intervention_add&equipment_id=<?php echo $equipment['id']; ?>" class="btn btn-primary"><?php echo t('new_intervention'); ?></a>
             <a href="?page=preventive_add&equipment_id=<?php echo $equipment['id']; ?>" class="btn btn-warning"><?php echo t('plan_maintenance'); ?></a>
+            <?php if ($contractor): ?>
+                <a href="?page=contractor_detail&id=<?php echo $contractor['id']; ?>" class="btn btn-info">
+                    <i class="fas fa-building"></i> <?php echo t('view_contractor'); ?>
+                </a>
+            <?php endif; ?>
         </div>
     </div>
 

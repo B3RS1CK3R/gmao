@@ -11,7 +11,6 @@ if($id == 0) {
     exit();
 }
 
-// Récupération de la pièce
 $stmt = $pdo->prepare("SELECT * FROM spare_parts WHERE id = ?");
 $stmt->execute([$id]);
 $part = $stmt->fetch();
@@ -21,17 +20,12 @@ if(!$part) {
     return;
 }
 
-// Récupération de l'historique des mouvements de stock
-$stmt = $pdo->prepare("
-    SELECT * FROM stock_movements 
-    WHERE part_id = ? 
-    ORDER BY movement_date DESC 
-    LIMIT 20
-");
+// Récupération des mouvements
+$stmt = $pdo->prepare("SELECT * FROM stock_movements WHERE part_id = ? ORDER BY movement_date DESC LIMIT 20");
 $stmt->execute([$id]);
 $movements = $stmt->fetchAll();
 
-// Récupération de l'historique des modifications
+// Récupération de l'historique
 $stmt = $pdo->prepare("
     SELECT * FROM user_logs 
     WHERE action IN ('stock_created', 'stock_updated', 'stock_deleted', 'stock_restored', 'stock_movement')
@@ -42,7 +36,6 @@ $stmt = $pdo->prepare("
 $stmt->execute(["%ID: {$id}%"]);
 $history = $stmt->fetchAll();
 
-// Calcul des statistiques
 $stock_status = '';
 $stock_class = '';
 $percentage = 0;
@@ -67,93 +60,38 @@ if($part['quantity'] < 0) {
 if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
     $percentage = min(100, round(($part['quantity'] / $part['min_quantity']) * 100));
 }
+
+// Définition des icônes pour l'historique
+$action_icons = [
+    'stock_created' => '🟢 Création',
+    'stock_updated' => '✏️ Modification',
+    'stock_deleted' => '🗑️ Désactivation',
+    'stock_restored' => '🔄 Réactivation',
+    'stock_movement' => '📊 Mouvement'
+];
 ?>
 
 <style>
-    .info-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .info-card-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .info-card-header.warning {
-        background: linear-gradient(135deg, #fd7e14, #e06a0a);
-    }
-    .info-card-header.danger {
-        background: linear-gradient(135deg, #dc3545, #c82333);
-    }
-    .info-card-header.success {
-        background: linear-gradient(135deg, #28a745, #1e7e34);
-    }
-    .info-card-header.info {
-        background: linear-gradient(135deg, #17a2b8, #138496);
-    }
-    .stat-box {
-        text-align: center;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 10px;
-        margin-bottom: 10px;
-    }
-    .stat-number {
-        font-size: 28px;
-        font-weight: bold;
-        color: #667eea;
-    }
-    .stock-badge {
-        display: inline-block;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 14px;
-        font-weight: 600;
-    }
+    .info-card { background: white; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; overflow: hidden; }
+    .info-card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; font-weight: bold; }
+    .info-card-header.warning { background: linear-gradient(135deg, #fd7e14, #e06a0a); }
+    .info-card-header.danger { background: linear-gradient(135deg, #dc3545, #c82333); }
+    .info-card-header.success { background: linear-gradient(135deg, #28a745, #1e7e34); }
+    .info-card-header.info { background: linear-gradient(135deg, #17a2b8, #138496); }
+    .stat-box { text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px; margin-bottom: 10px; }
+    .stat-number { font-size: 28px; font-weight: bold; color: #667eea; }
+    .stock-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; }
     .stock-badge-danger { background: #dc3545; color: white; }
     .stock-badge-warning { background: #ffc107; color: #333; }
     .stock-badge-success { background: #28a745; color: white; }
     .stock-badge-secondary { background: #6c757d; color: white; }
-    .progress-bar-custom {
-        height: 10px;
-        border-radius: 5px;
-        transition: width 0.5s;
-    }
-    .history-item {
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
-        font-size: 13px;
-    }
-    .history-item:last-child {
-        border-bottom: none;
-    }
-    .action-buttons {
-        display: flex;
-        gap: 10px;
-        margin-top: 20px;
-    }
-    .btn-folder {
-        background: #17a2b8;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-    .btn-folder:hover {
-        background: #138496;
-    }
-    .doc-preview {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-    }
+    .progress-bar-custom { height: 10px; border-radius: 5px; transition: width 0.5s; }
+    .history-item { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+    .history-item:last-child { border-bottom: none; }
+    .action-buttons { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .btn-folder { background: #17a2b8; color: white; border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; transition: background 0.2s; }
+    .btn-folder:hover { background: #138496; }
+    .doc-preview { background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -167,7 +105,7 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
             <i class="fas fa-arrow-left"></i> Retour à la liste
         </a>
         <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-        <a href="?page=stock&action=edit&id=<?php echo $part['id']; ?>" class="btn btn-warning">
+        <a href="?page=stock_edit&id=<?php echo $part['id']; ?>" class="btn btn-warning">
             <i class="fas fa-edit"></i> Modifier
         </a>
         <?php endif; ?>
@@ -175,38 +113,20 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
 </div>
 
 <div class="row">
-    <!-- Colonne gauche - Informations générales -->
     <div class="col-md-4">
+        <!-- Informations générales -->
         <div class="info-card">
             <div class="info-card-header">
                 <i class="fas fa-info-circle"></i> Informations générales
             </div>
             <div class="card-body p-4">
                 <table class="table table-sm table-borderless">
-                    <tr>
-                        <td style="width: 40%;"><strong>Référence</strong></td>
-                        <td><?php echo htmlspecialchars($part['part_number']); ?></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Nom</strong></td>
-                        <td><?php echo htmlspecialchars($part['name']); ?></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Emplacement</strong></td>
-                        <td><?php echo htmlspecialchars($part['location'] ?: 'Non spécifié'); ?></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Fournisseur</strong></td>
-                        <td><?php echo htmlspecialchars($part['supplier'] ?: 'Non spécifié'); ?></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Prix unitaire</strong></td>
-                        <td><?php echo number_format($part['unit_price'], 2); ?> €</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Dernier réapprov.</strong></td>
-                        <td><?php echo $part['last_restock'] ? format_date_local($part['last_restock'], 'long', false) : 'Non renseigné'; ?></td>
-                    </tr>
+                    <tr><td style="width: 40%;"><strong>Référence</strong></td><td><?php echo htmlspecialchars($part['part_number']); ?></td></tr>
+                    <tr><td><strong>Nom</strong></td><td><?php echo htmlspecialchars($part['name']); ?></td></tr>
+                    <tr><td><strong>Emplacement</strong></td><td><?php echo htmlspecialchars($part['location'] ?: 'Non spécifié'); ?></td></tr>
+                    <tr><td><strong>Fournisseur</strong></td><td><?php echo htmlspecialchars($part['supplier'] ?: 'Non spécifié'); ?></td></tr>
+                    <tr><td><strong>Prix unitaire</strong></td><td><?php echo number_format($part['unit_price'], 2); ?> €</td></tr>
+                    <tr><td><strong>Dernier réapprov.</strong></td><td><?php echo $part['last_restock'] ? format_date_local($part['last_restock'], 'long', false) : 'Non renseigné'; ?></td></tr>
                 </table>
             </div>
         </div>
@@ -230,14 +150,8 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
                 <p class="text-muted">Quantité disponible</p>
                 <hr>
                 <div class="row">
-                    <div class="col-6">
-                        <small class="text-muted">Seuil minimum</small>
-                        <h4><?php echo $part['min_quantity']; ?></h4>
-                    </div>
-                    <div class="col-6">
-                        <small class="text-muted">Stock recommandé</small>
-                        <h4><?php echo $part['min_quantity'] * 2; ?></h4>
-                    </div>
+                    <div class="col-6"><small class="text-muted">Seuil minimum</small><h4><?php echo $part['min_quantity']; ?></h4></div>
+                    <div class="col-6"><small class="text-muted">Stock recommandé</small><h4><?php echo $part['min_quantity'] * 2; ?></h4></div>
                 </div>
             </div>
         </div>
@@ -262,7 +176,6 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
         <?php endif; ?>
     </div>
     
-    <!-- Colonne droite - Mouvements et historique -->
     <div class="col-md-8">
         <!-- Statistiques -->
         <div class="row mb-4">
@@ -298,78 +211,64 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
             </div>
         </div>
         
-        <!-- Mouvements de stock -->
+        <!-- Mouvements -->
         <div class="info-card">
             <div class="info-card-header info">
                 <i class="fas fa-exchange-alt"></i> Mouvements de stock
             </div>
             <div class="card-body p-0">
                 <?php if(empty($movements)): ?>
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-inbox fa-2x mb-2"></i>
-                        <p>Aucun mouvement de stock enregistré</p>
-                    </div>
+                    <div class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2"></i><p>Aucun mouvement enregistré</p></div>
                 <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Type</th>
-                                    <th>Quantité</th>
-                                    <th>Raison</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach($movements as $mov): ?>
-                                <tr>
-                                    <td><?php echo format_date_local($mov['movement_date'], 'long', true); ?></td>
-                                    <td>
-                                        <?php if($mov['movement_type'] == 'in'): ?>
-                                            <span class="badge bg-success">📥 Entrée</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-danger">📤 Sortie</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?php echo $mov['quantity']; ?></td>
-                                    <td><small><?php echo htmlspecialchars($mov['reason'] ?: '-'); ?></small></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Date</th><th>Type</th><th>Quantité</th><th>Raison</th><th>Associé à</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach($movements as $mov): 
+                                $related_label = '';
+                                if($mov['related_type'] && $mov['related_id']) {
+                                    if($mov['related_type'] == 'intervention') {
+                                        $rel = $pdo->prepare("SELECT task_number, title FROM interventions WHERE id = ?");
+                                        $rel->execute([$mov['related_id']]);
+                                        $r = $rel->fetch();
+                                        $related_label = 'Interv. ' . ($r['task_number'] ?? '#'.$mov['related_id']);
+                                    } elseif($mov['related_type'] == 'preventive') {
+                                        $rel = $pdo->prepare("SELECT task_number, title FROM preventive_maintenance WHERE id = ?");
+                                        $rel->execute([$mov['related_id']]);
+                                        $r = $rel->fetch();
+                                        $related_label = 'Prév. ' . ($r['task_number'] ?? '#'.$mov['related_id']);
+                                    }
+                                }
+                            ?>
+                            <tr>
+                                <td><?php echo format_date_local($mov['movement_date'], 'long', true); ?></td>
+                                <td><?php echo ($mov['movement_type'] == 'in') ? '<span class="badge bg-success">📥 Entrée</span>' : '<span class="badge bg-danger">📤 Sortie</span>'; ?></td>
+                                <td><?php echo $mov['quantity']; ?></td>
+                                <td><small><?php echo htmlspecialchars($mov['reason'] ?: '-'); ?></small></td>
+                                <td><?php echo $related_label ?: '-'; ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
                 <?php endif; ?>
             </div>
         </div>
         
-        <!-- Historique des modifications -->
+        <!-- Historique -->
         <?php if(!empty($history)): ?>
         <div class="info-card">
-            <div class="info-card-header">
-                <i class="fas fa-history"></i> Historique des modifications
-            </div>
+            <div class="info-card-header"><i class="fas fa-history"></i> Historique des modifications</div>
             <div class="card-body p-3">
                 <?php foreach($history as $h): ?>
                 <div class="history-item">
                     <div class="d-flex justify-content-between">
-                        <span>
-                            <?php
-                            $action_icons = [
-                                'stock_created' => '🟢 Création',
-                                'stock_updated' => '✏️ Modification',
-                                'stock_deleted' => '🗑️ Désactivation',
-                                'stock_restored' => '🔄 Réactivation',
-                                'stock_movement' => '📊 Mouvement'
-                            ];
-                            echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
-                            ?>
-                        </span>
+                        <span><?php echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action']; ?></span>
                         <small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                     </div>
-                    <small class="text-muted">
-                        Par : <?php echo htmlspecialchars($h['username'] ?? 'Inconnu'); ?> 
-                        (IP: <?php echo htmlspecialchars($h['ip_address']); ?>)
-                    </small>
+                    <small class="text-muted">Par : <?php echo htmlspecialchars($h['username'] ?? 'Inconnu'); ?> (IP: <?php echo htmlspecialchars($h['ip_address']); ?>)</small>
                     <div class="small text-muted mt-1"><?php echo htmlspecialchars($h['details']); ?></div>
                 </div>
                 <?php endforeach; ?>
@@ -391,7 +290,7 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
     </div>
 </div>
 
-<!-- Modal entrée de stock -->
+<!-- Modale entrée -->
 <div class="modal fade" id="movementInModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -409,8 +308,8 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
                         <input type="number" name="quantity" class="form-control" min="1" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Raison / Bon de commande</label>
-                        <textarea name="reason" class="form-control" rows="2" placeholder="Ex: Commande n°1234, Retour SAV..."></textarea>
+                        <label class="form-label">Raison</label>
+                        <textarea name="reason" class="form-control" rows="2" placeholder="Ex: Commande n°1234..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -422,7 +321,7 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
     </div>
 </div>
 
-<!-- Modal sortie de stock -->
+<!-- Modale sortie avec association -->
 <div class="modal fade" id="movementOutModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -440,8 +339,39 @@ if($part['min_quantity'] > 0 && $part['quantity'] >= 0) {
                         <input type="number" name="quantity" class="form-control" min="1" max="<?php echo $part['quantity']; ?>" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Raison / Intervention</label>
-                        <textarea name="reason" class="form-control" rows="2" placeholder="Ex: Intervention n°..., Utilisation maintenance..."></textarea>
+                        <label class="form-label">Raison</label>
+                        <textarea name="reason" class="form-control" rows="2" placeholder="Ex: Utilisation maintenance..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Associer à (intervention / maintenance)</label>
+                        <select name="related_type" class="form-select">
+                            <option value="">-- Aucune --</option>
+                            <?php
+                            $invStmt = $pdo->query("SELECT id, task_number, title FROM interventions WHERE task_status NOT IN ('completed', 'closed') ORDER BY task_number");
+                            $interventions = $invStmt->fetchAll();
+                            if ($interventions): ?>
+                                <optgroup label="Interventions">
+                                <?php foreach ($interventions as $inv): ?>
+                                    <option value="intervention_<?php echo $inv['id']; ?>">
+                                        <?php echo htmlspecialchars($inv['task_number'] . ' - ' . $inv['title']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                                </optgroup>
+                            <?php endif; ?>
+                            <?php
+                            $prevStmt = $pdo->query("SELECT id, task_number, title FROM preventive_maintenance WHERE task_status != 'completed' ORDER BY task_number");
+                            $preventives = $prevStmt->fetchAll();
+                            if ($preventives): ?>
+                                <optgroup label="Maintenances préventives">
+                                <?php foreach ($preventives as $prev): ?>
+                                    <option value="preventive_<?php echo $prev['id']; ?>">
+                                        <?php echo htmlspecialchars($prev['task_number'] . ' - ' . $prev['title']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                                </optgroup>
+                            <?php endif; ?>
+                        </select>
+                        <small class="text-muted">Laissez vide si non lié à une tâche.</small>
                     </div>
                 </div>
                 <div class="modal-footer">

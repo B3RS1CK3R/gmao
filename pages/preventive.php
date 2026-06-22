@@ -1,13 +1,12 @@
 <?php
-// pages/preventive.php - Liste des maintenances préventives (icônes harmonisées)
+// pages/preventive.php - Liste des maintenances préventives
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
 }
 
 $action = $_GET['action'] ?? 'list';
-$message = '';
-$error = '';
+$active_filter = isset($_GET['filter']) ? $_GET['filter'] : 'upcoming';
 
 // Redirections
 if($action == 'add') { header('Location: ?page=preventive_add'); exit(); }
@@ -15,16 +14,14 @@ if($action == 'edit' && isset($_GET['id'])) { header('Location: ?page=preventive
 if($action == 'delete' && isset($_GET['id'])) { header('Location: ?page=preventive_delete&id=' . intval($_GET['id'])); exit(); }
 if($action == 'complete' && isset($_GET['id'])) { header('Location: ?page=preventive_complete&id=' . intval($_GET['id'])); exit(); }
 
-// Requête principale
-$preventives = $pdo->query("
+// Récupération de toutes les maintenances
+$all_preventives = $pdo->query("
     SELECT pm.*, 
-           e.name as equipment_name, 
-           e.code as equipment_code,
-           t.id as technician_id,
-           t.firstname, 
-           t.lastname, 
-           t.specialty,
-           team.name as team_name
+            e.name as equipment_name, 
+            e.code as equipment_code,
+            t.id as technician_id,
+            t.firstname, t.lastname, t.specialty,
+            team.name as team_name
     FROM preventive_maintenance pm
     JOIN equipment e ON pm.equipment_id = e.id
     LEFT JOIN technicians t ON pm.technician_id = t.id
@@ -35,34 +32,81 @@ $preventives = $pdo->query("
 ")->fetchAll();
 
 // Statistiques
-$overdue_count = $upcoming_count = $ok_count = 0;
-foreach($preventives as $p) {
-    if(strtotime($p['next_due']) < time()) $overdue_count++;
-    else {
-        $days = (strtotime($p['next_due']) - time()) / 86400;
-        if($days <= 30) $upcoming_count++;
-        else $ok_count++;
+$stats = [
+    'all' => count($all_preventives),
+    'overdue' => 0,
+    'upcoming' => 0,
+    'ok' => 0,
+    'cancelled' => 0
+];
+foreach($all_preventives as $p) {
+    if($p['task_status'] == 'cancelled') {
+        $stats['cancelled']++;
+    } else {
+        if(strtotime($p['next_due']) < time()) {
+            $stats['overdue']++;
+        } else {
+            $days = (strtotime($p['next_due']) - time()) / 86400;
+            if($days <= 30) $stats['upcoming']++;
+            else $stats['ok']++;
+        }
     }
 }
 
+// Filtrer
+$preventives = array_filter($all_preventives, function($p) use ($active_filter) {
+    if ($active_filter == 'all') return true;
+    if ($active_filter == 'cancelled') return $p['task_status'] == 'cancelled';
+    
+    if ($active_filter == 'overdue') {
+        return $p['task_status'] != 'cancelled' && strtotime($p['next_due']) < time();
+    }
+    if ($active_filter == 'upcoming') {
+        if ($p['task_status'] == 'cancelled') return false;
+        $days = (strtotime($p['next_due']) - time()) / 86400;
+        return $days <= 30 && $days >= 0;
+    }
+    if ($active_filter == 'ok') {
+        if ($p['task_status'] == 'cancelled') return false;
+        $days = (strtotime($p['next_due']) - time()) / 86400;
+        return $days > 30;
+    }
+    return true;
+});
+
+// Libellés des filtres
+$filter_labels = [
+    'all' => t('all'),
+    'overdue' => t('overdue'),
+    'upcoming' => t('upcoming'),
+    'ok' => t('ok'),
+    'cancelled' => t('cancelled')
+];
+$filter_icons = [
+    'all' => '',
+    'overdue' => '🔴',
+    'upcoming' => '🟡',
+    'ok' => '🟢',
+    'cancelled' => '⚫'
+];
+$filter_colors = [
+    'all' => '#667eea',
+    'overdue' => '#dc3545',
+    'upcoming' => '#ffc107',
+    'ok' => '#28a745',
+    'cancelled' => '#6c757d'
+];
+
 // Historique
 $history = [];
-foreach($preventives as $pm) {
-    $stmt = $pdo->prepare("
-        SELECT * FROM user_logs 
-        WHERE action IN ('preventive_created', 'preventive_updated', 'preventive_status_change', 
-                        'preventive_assigned', 'preventive_completed', 'preventive_deleted')
-        AND details LIKE ?
-        ORDER BY created_at DESC
-        LIMIT 3
-    ");
+foreach($all_preventives as $pm) {
+    $stmt = $pdo->prepare("SELECT * FROM user_logs WHERE action IN ('preventive_created', 'preventive_updated', 'preventive_status_change', 'preventive_assigned', 'preventive_completed', 'preventive_deleted') AND details LIKE ? ORDER BY created_at DESC LIMIT 3");
     $stmt->execute(["%ID: {$pm['id']}%"]);
     $history[$pm['id']] = $stmt->fetchAll();
 }
 ?>
 
 <style>
-    /* === Mêmes styles que interventions.php === */
     .info-card {
         background: white;
         border-radius: 15px;
@@ -76,23 +120,43 @@ foreach($preventives as $pm) {
         padding: 15px 20px;
         font-weight: bold;
     }
+    .card-header-custom i {
+        margin-right: 8px;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+    }
     .stats-card {
         text-align: center;
         padding: 15px;
         background: white;
         border-radius: 15px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
+        transition: all 0.2s;
         cursor: pointer;
-        margin-bottom: 15px;
+        border: 3px solid transparent;
     }
     .stats-card:hover {
         transform: translateY(-3px);
+    }
+    .stats-card.active {
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     .stats-number {
         font-size: 28px;
         font-weight: bold;
     }
+    .stats-label {
+        font-size: 13px;
+        color: #6c757d;
+        margin-top: 4px;
+    }
+    
     .status-badge {
         display: inline-block;
         padding: 5px 12px;
@@ -100,18 +164,11 @@ foreach($preventives as $pm) {
         font-size: 11px;
         font-weight: 600;
     }
-    .status-overdue {
-        background: #dc3545;
-        color: white;
-    }
-    .status-upcoming {
-        background: #ffc107;
-        color: #333;
-    }
-    .status-ok {
-        background: #28a745;
-        color: white;
-    }
+    .status-overdue { background: #dc3545; color: white; }
+    .status-upcoming { background: #ffc107; color: #333; }
+    .status-ok { background: #28a745; color: white; }
+    .status-cancelled { background: #6c757d; color: white; }
+    
     .action-buttons {
         display: flex;
         gap: 5px;
@@ -121,7 +178,7 @@ foreach($preventives as $pm) {
         max-width: 105px;
         margin: 0 auto;
     }
-    .action-buttons .btn, .action-buttons .disabled-icon {
+    .action-buttons .btn {
         padding: 5px;
         margin: 0;
         border-radius: 6px;
@@ -134,12 +191,9 @@ foreach($preventives as $pm) {
         height: 30px;
         flex: 0 0 30px;
     }
-    .table-responsive {
-        overflow-x: auto;
-    }
-    .table {
-        min-width: 1000px;
-    }
+    
+    .table-responsive { overflow-x: auto; }
+    .table { min-width: 1000px; }
     .table-dark th {
         background: #212529;
         color: white;
@@ -152,70 +206,63 @@ foreach($preventives as $pm) {
         vertical-align: middle;
         border-bottom: 1px solid #eee;
     }
-    .table tr:hover {
-        background: #f8f9fa;
-    }
+    .table tr:hover { background: #f8f9fa; }
+    
     .history-item {
         padding: 5px 0;
         font-size: 10px;
         border-bottom: 1px solid #eee;
     }
-    .history-item:last-child {
-        border-bottom: none;
-    }
+    .history-item:last-child { border-bottom: none; }
+    
     .btn-primary {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border: none;
         border-radius: 8px;
         padding: 8px 20px;
     }
-    .btn-primary:hover {
-        filter: brightness(0.95);
-    }
+    .btn-primary:hover { filter: brightness(0.95); }
     .btn-secondary {
         background: #6c757d;
         border: none;
         border-radius: 8px;
         padding: 8px 20px;
     }
-    .btn-secondary:hover {
-        background: #5a6268;
-    }
+    .btn-secondary:hover { background: #5a6268; }
     .btn-warning {
         background: #fd7e14;
         border: none;
         border-radius: 6px;
         color: white;
     }
-    .btn-warning:hover {
-        background: #e06a0a;
-        color: white;
-    }
+    .btn-warning:hover { background: #e06a0a; color: white; }
     .btn-danger {
         background: #dc3545;
         border: none;
         border-radius: 6px;
     }
+    .btn-danger:hover { background: #c82333; }
     .btn-info {
         background: #17a2b8;
         border: none;
         border-radius: 6px;
     }
+    .btn-info:hover { background: #138496; }
     .btn-success {
         background: #28a745;
         border: none;
         border-radius: 6px;
     }
+    .btn-success:hover { background: #218838; }
     .form-select-sm {
         font-size: 12px;
         padding: 4px 8px;
     }
-    .text-muted {
-        color: #6c757d !important;
-    }
+    .text-muted { color: #6c757d !important; }
+    
     .legend-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 15px;
         text-align: center;
     }
@@ -233,15 +280,14 @@ foreach($preventives as $pm) {
         transform: translateY(-2px);
         background: #e9ecef;
     }
+    
     @media (max-width: 768px) {
-        .legend-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
+        .stats-grid { grid-template-columns: repeat(3, 1fr); }
+        .legend-grid { grid-template-columns: repeat(3, 1fr); }
     }
     @media (max-width: 480px) {
-        .legend-grid {
-            grid-template-columns: 1fr;
-        }
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .legend-grid { grid-template-columns: repeat(2, 1fr); }
     }
 </style>
 
@@ -260,11 +306,15 @@ foreach($preventives as $pm) {
         <div class="alert alert-danger alert-dismissible fade show"><?php echo htmlspecialchars($_GET['err']); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
     <?php endif; ?>
 
-    <!-- Statistiques -->
-    <div class="row mb-4">
-        <div class="col-md-4"><div class="stats-card" onclick="filterByStatus('overdue')"><div class="stats-number text-danger"><?php echo $overdue_count; ?></div><div class="text-muted"><?php echo t('overdue'); ?></div></div></div>
-        <div class="col-md-4"><div class="stats-card" onclick="filterByStatus('upcoming')"><div class="stats-number text-warning"><?php echo $upcoming_count; ?></div><div class="text-muted"><?php echo t('upcoming'); ?> (30 <?php echo t('days_s'); ?>)</div></div></div>
-        <div class="col-md-4"><div class="stats-card" onclick="filterByStatus('ok')"><div class="stats-number text-success"><?php echo $ok_count; ?></div><div class="text-muted"><?php echo t('maintenance_ok'); ?></div></div></div>
+    <!-- Statistiques (filtres) -->
+    <div class="stats-grid">
+        <?php foreach($stats as $key => $value): ?>
+        <div class="stats-card <?php echo ($active_filter == $key) ? 'active' : ''; ?>" 
+             onclick="window.location.href='?page=preventive&filter=<?php echo $key; ?>'">
+            <div class="stats-number" style="color: <?php echo $filter_colors[$key] ?? '#667eea'; ?>;"><?php echo $value; ?></div>
+            <div class="stats-label"><?php echo $filter_icons[$key] ?? ''; ?> <?php echo $filter_labels[$key] ?? $key; ?></div>
+        </div>
+        <?php endforeach; ?>
     </div>
 
     <!-- Liste -->
@@ -272,7 +322,7 @@ foreach($preventives as $pm) {
         <div class="card-header-custom"><i class="fas fa-list"></i> <?php echo t('preventive_maintenance_list'); ?></div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0" id="preventiveTable">
+                <table class="table table-hover mb-0">
                     <thead class="table-dark">
                         <tr>
                             <th><?php echo t('task_number'); ?></th>
@@ -289,7 +339,12 @@ foreach($preventives as $pm) {
                     <tbody>
                         <?php foreach($preventives as $pm): 
                             $days_diff = (strtotime($pm['next_due']) - time()) / 86400;
-                            if(strtotime($pm['next_due']) < time()) {
+                            $is_cancelled = ($pm['task_status'] == 'cancelled');
+                            
+                            if($is_cancelled) {
+                                $status_class = 'status-cancelled';
+                                $status_text = '⚫ ' . t('cancelled');
+                            } elseif(strtotime($pm['next_due']) < time()) {
                                 $status_class = 'status-overdue';
                                 $status_text = '🔴 ' . t('overdue');
                             } elseif($days_diff <= 30) {
@@ -300,7 +355,7 @@ foreach($preventives as $pm) {
                                 $status_text = '🟢 OK';
                             }
                         ?>
-                        <tr data-status="<?php echo $status_class; ?>">
+                        <tr>
                             <td><strong><?php echo htmlspecialchars($pm['task_number'] ?? 'N/A'); ?></strong></td>
                             <td>
                                 <?php echo htmlspecialchars($pm['equipment_name']); ?><br>
@@ -313,8 +368,10 @@ foreach($preventives as $pm) {
                             <td><?php echo $pm['last_done'] ? format_date_local($pm['last_done'], 'short', false) : t('never'); ?></td>
                             <td>
                                 <?php echo format_date_local($pm['next_due'], 'short', false); ?>
-                                <?php if(strtotime($pm['next_due']) < time()): ?><br><small class="text-danger"><?php echo t('overdue_by'); ?> <?php echo abs(round($days_diff)); ?> <?php echo t('days'); ?></small>
-                                <?php elseif($days_diff <= 30): ?><br><small class="text-warning"><?php echo t('in'); ?> <?php echo round($days_diff); ?> <?php echo t('days_s'); ?></small><?php endif; ?>
+                                <?php if(!$is_cancelled): ?>
+                                    <?php if(strtotime($pm['next_due']) < time()): ?><br><small class="text-danger"><?php echo t('overdue_by'); ?> <?php echo abs(round($days_diff)); ?> <?php echo t('days'); ?></small>
+                                    <?php elseif($days_diff <= 30): ?><br><small class="text-warning"><?php echo t('in'); ?> <?php echo round($days_diff); ?> <?php echo t('days_s'); ?></small><?php endif; ?>
+                                <?php endif; ?>
                             </td>
                             <td><span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span></td>
                             <td>
@@ -329,7 +386,6 @@ foreach($preventives as $pm) {
                                 }
                                 ?>
                             </td>
-                            <!-- Dernière modification -->
                             <td style="max-width: 150px;">
                                 <?php if(!empty($history[$pm['id']])): ?>
                                     <?php foreach(array_slice($history[$pm['id']], 0, 1) as $h): ?>
@@ -352,28 +408,39 @@ foreach($preventives as $pm) {
                                     <small class="text-muted">-</small>
                                 <?php endif; ?>
                             </td>
-                            <!-- Actions (exactement comme interventions) -->
                             <td class="text-center action-buttons" onclick="event.stopPropagation()">
-                                <a href="?page=preventive_view&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="?page=preventive_complete&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('complete'); ?>">
-                                    <i class="fas fa-check-circle"></i>
-                                </a>
-                                <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                    <a href="?page=preventive_assign&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
-                                        <i class="fas fa-user-plus"></i>
+                                <?php if(!$is_cancelled): ?>
+                                    <a href="?page=preventive_view&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
+                                        <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="?page=preventive_edit&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
-                                        <i class="fas fa-pen"></i>
+                                    <a href="?page=preventive_complete&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('complete'); ?>">
+                                        <i class="fas fa-check-circle"></i>
                                     </a>
-                                    <a href="?page=preventive_delete&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </a>
+                                    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+                                        <a href="?page=preventive_assign&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
+                                            <i class="fas fa-user-plus"></i>
+                                        </a>
+                                        <a href="?page=preventive_edit&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                            <i class="fas fa-pen"></i>
+                                        </a>
+                                        <a href="?page=preventive_delete&id=<?php echo $pm['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted"><i class="fas fa-ban"></i> <?php echo t('cancelled'); ?></span>
                                 <?php endif; ?>
                             </td>
                         <tr>
                         <?php endforeach; ?>
+                        <?php if(count($preventives) == 0): ?>
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x d-block mb-2"></i>
+                                <?php echo t('no_preventive_found'); ?>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -381,16 +448,37 @@ foreach($preventives as $pm) {
     </div>
 
     <!-- Légende -->
-    <div class="row mb-4"><div class="col-12"><div class="info-card"><div class="card-header-custom"><i class="fas fa-info-circle"></i> <?php echo t('legend'); ?></div><div class="card-body p-3"><div class="legend-grid"><div class="legend-item"><span class="status-badge status-overdue">🔴 <?php echo t('overdue'); ?></span><small><?php echo t('maintenance_overdue'); ?></small></div><div class="legend-item"><span class="status-badge status-upcoming">🟡 <?php echo t('upcoming'); ?> (< 30d)</span><small><?php echo t('maintenance_upcoming'); ?></small></div><div class="legend-item"><span class="status-badge status-ok">🟢 OK</span><small><?php echo t('maintenance_ok'); ?></small></div></div></div></div></div></div>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="info-card">
+                <div class="card-header-custom" style="background: linear-gradient(135deg, #6c757d, #495057);">
+                    <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
+                </div>
+                <div class="card-body p-3">
+                    <div class="legend-grid">
+                        <div class="legend-item">
+                            <span class="status-badge status-overdue">🔴 <?php echo t('overdue'); ?></span>
+                            <small><?php echo t('maintenance_overdue'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-upcoming">🟡 <?php echo t('upcoming'); ?> (< 30d)</span>
+                            <small><?php echo t('maintenance_upcoming'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-ok">🟢 <?php echo t('ok'); ?></span>
+                            <small><?php echo t('maintenance_ok'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-cancelled">⚫ <?php echo t('cancelled'); ?></span>
+                            <small><?php echo t('cancelled_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge bg-secondary">📊</span>
+                            <small><?php echo t('click_stats_to_filter'); ?></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-
-<script>
-function filterByStatus(status) {
-    const rows = document.querySelectorAll('#preventiveTable tbody tr');
-    rows.forEach(row => {
-        if(status === 'all') row.style.display = '';
-        else if(row.getAttribute('data-status') === 'status-' + status) row.style.display = '';
-        else row.style.display = 'none';
-    });
-}
-</script>

@@ -6,6 +6,7 @@ $equipment_id_param = isset($_GET['equipment_id']) ? intval($_GET['equipment_id'
 $equipments = $pdo->query("SELECT id, code, name, location, zone FROM equipment WHERE status = 'active' ORDER BY name")->fetchAll();
 $technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
 $teams = $pdo->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
+$contractors = $pdo->query("SELECT id, company_name, specialty FROM contractors WHERE status = 'active' ORDER BY company_name")->fetchAll();
 
 // Générer le prochain numéro de tâche (aperçu)
 $next_task_number = generateTaskNumber($pdo, 'intervention', true);
@@ -17,12 +18,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $task_number = generateTaskNumber($pdo, 'intervention', false);
     $technician_id = !empty($_POST['technician_id']) ? $_POST['technician_id'] : null;
     $team_id = !empty($_POST['team_id']) ? $_POST['team_id'] : null;
-    if ($team_id) $technician_id = null;
+    $contractor_id = !empty($_POST['contractor_id']) ? $_POST['contractor_id'] : null;
+    
+    // Priorité : équipe > technicien > prestataire
+    if ($team_id) {
+        $technician_id = null;
+        $contractor_id = null;
+    } elseif ($technician_id) {
+        $contractor_id = null;
+    }
 
     $sql = "INSERT INTO interventions (
         task_number, equipment_id, type, priority, title, description, reported_by,
-        technician_id, team_id, task_status, intervention_date, task_type, zone, localisation, planned_duration
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        technician_id, team_id, contractor_id, task_status, intervention_date, task_type, zone, localisation, planned_duration
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     $stmt = $pdo->prepare($sql);
     $result = $stmt->execute([
@@ -35,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $_SESSION['username'],
         $technician_id,
         $team_id,
+        $contractor_id,
         $_POST['task_status'],
         !empty($_POST['intervention_date']) ? $_POST['intervention_date'] : null,
         $_POST['task_type'],
@@ -54,14 +64,71 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 ?>
 
 <style>
-    .info-card { background: white; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; overflow: hidden; }
-    .card-header-custom { background: #667eea; color: white; padding: 12px 20px; font-weight: bold; }
-    .task-number-display { font-size: 20px; font-weight: bold; color: #667eea; background: #f0f4ff; padding: 8px 15px; border-radius: 10px; display: inline-block; }
-    .form-label { font-weight: 500; margin-bottom: 5px; color: #4a5568; }
-    .form-control, .form-select { border-radius: 8px; border: 1px solid #e2e8f0; padding: 10px 12px; }
-    .btn-primary { background: #667eea; border: none; border-radius: 8px; padding: 10px 25px; font-weight: 600; }
-    .btn-secondary { background: #718096; border: none; border-radius: 8px; padding: 10px 25px; }
-    .alert-fixed { position: fixed; top: 80px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .card-header-custom {
+        background: #667eea;
+        color: white;
+        padding: 12px 20px;
+        font-weight: bold;
+    }
+    .task-number-display {
+        font-size: 20px;
+        font-weight: bold;
+        color: #667eea;
+        background: #f0f4ff;
+        padding: 8px 15px;
+        border-radius: 10px;
+        display: inline-block;
+    }
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 5px;
+        color: #4a5568;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        padding: 10px 12px;
+    }
+    .btn-primary {
+        background: #667eea;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 25px;
+        font-weight: 600;
+    }
+    .btn-secondary {
+        background: #718096;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 25px;
+    }
+    .alert-fixed {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .assignment-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        border: 1px solid #e9ecef;
+    }
+    .assignment-section .section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 15px;
+    }
 </style>
 
 <div class="container-fluid">
@@ -170,29 +237,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
             </div>
             <div class="col-md-6">
-                <!-- Assignation -->
+                <!-- Assignation avec prestataires -->
                 <div class="info-card">
                     <div class="card-header-custom"><i class="fas fa-users me-2"></i> <?php echo t('assignment'); ?></div>
                     <div class="card-body p-4">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label"><?php echo t('technician'); ?></label>
-                                <select name="technician_id" class="form-select">
-                                    <option value="">-- <?php echo t('unassigned'); ?> --</option>
-                                    <?php foreach ($technicians as $tech): ?>
-                                    <option value="<?php echo $tech['id']; ?>"><?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname']); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                        <div class="assignment-section">
+                            <div class="section-title"><i class="fas fa-user-cog"></i> <?php echo t('assign_to'); ?></div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label"><?php echo t('technician'); ?></label>
+                                    <select name="technician_id" id="technicianSelect" class="form-select">
+                                        <option value="">-- <?php echo t('unassigned'); ?> --</option>
+                                        <?php foreach ($technicians as $tech): ?>
+                                        <option value="<?php echo $tech['id']; ?>"><?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted"><?php echo t('or_select_contractor'); ?></small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label"><?php echo t('contractor'); ?></label>
+                                    <select name="contractor_id" id="contractorSelect" class="form-select">
+                                        <option value="">-- <?php echo t('select_contractor'); ?> --</option>
+                                        <?php foreach ($contractors as $c): ?>
+                                        <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['company_name'] . (isset($c['specialty']) && !empty($c['specialty']) ? ' (' . $c['specialty'] . ')' : '')); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted"><?php echo t('or_select_technician'); ?></small>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label"><?php echo t('team'); ?></label>
-                                <select name="team_id" class="form-select">
-                                    <option value="">-- <?php echo t('select_team'); ?> --</option>
-                                    <?php foreach ($teams as $team): ?>
-                                    <option value="<?php echo $team['id']; ?>"><?php echo htmlspecialchars($team['name']); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <small class="text-muted"><?php echo t('team_overrides_technician'); ?></small>
+                            <div class="row mt-2">
+                                <div class="col-md-12 mb-2">
+                                    <label class="form-label"><?php echo t('team'); ?></label>
+                                    <select name="team_id" class="form-select">
+                                        <option value="">-- <?php echo t('select_team'); ?> --</option>
+                                        <?php foreach ($teams as $team): ?>
+                                        <option value="<?php echo $team['id']; ?>"><?php echo htmlspecialchars($team['name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted"><?php echo t('team_overrides_technician'); ?></small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -224,8 +307,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                     <div class="col-md-4 mb-3"><label class="form-label"><?php echo t('planned_duration'); ?></label>
                         <select name="planned_duration" class="form-select">
-                            <option value="1h">1h</option><option value="2h">2h</option><option value="2h30">2h30</option><option value="3h">3h</option>
-                            <option value="4h" selected>4h</option><option value="6h">6h</option><option value="8h">8h</option><option value="1j">1j</option>
+                            <option value="1h">1h</option>
+                            <option value="2h">2h</option>
+                            <option value="2h30">2h30</option>
+                            <option value="3h">3h</option>
+                            <option value="4h" selected>4h</option>
+                            <option value="6h">6h</option>
+                            <option value="8h">8h</option>
+                            <option value="1j">1j</option>
                         </select>
                     </div>
                 </div>
@@ -248,4 +337,24 @@ document.getElementById('equipment_id').addEventListener('change', function() {
 if (document.getElementById('equipment_id').value) {
     document.getElementById('equipment_id').dispatchEvent(new Event('change'));
 }
+
+// Gestion de l'exclusion mutuelle technicien / prestataire
+document.addEventListener('DOMContentLoaded', function() {
+    const technicianSelect = document.getElementById('technicianSelect');
+    const contractorSelect = document.getElementById('contractorSelect');
+
+    if (technicianSelect && contractorSelect) {
+        technicianSelect.addEventListener('change', function() {
+            if (this.value) {
+                contractorSelect.value = '';
+            }
+        });
+
+        contractorSelect.addEventListener('change', function() {
+            if (this.value) {
+                technicianSelect.value = '';
+            }
+        });
+    }
+});
 </script>

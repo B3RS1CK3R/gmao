@@ -38,9 +38,23 @@ if (!$pm) {
     return;
 }
 
+// Récupérer le contractor_id si la colonne existe
+$contractor_id = null;
+try {
+    $check = $pdo->query("SHOW COLUMNS FROM preventive_maintenance LIKE 'contractor_id'");
+    if ($check->rowCount() > 0) {
+        $stmt = $pdo->prepare("SELECT contractor_id FROM preventive_maintenance WHERE id = ?");
+        $stmt->execute([$id]);
+        $contractor_id = $stmt->fetchColumn();
+    }
+} catch (PDOException $e) {
+    // Ignorer si la colonne n'existe pas
+}
+
 $equipments = $pdo->query("SELECT id, code, name FROM equipment WHERE status IN ('active', 'maintenance') ORDER BY name")->fetchAll();
 $technicians = $pdo->query("SELECT id, firstname, lastname FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
 $teams = $pdo->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
+$contractors = $pdo->query("SELECT id, company_name, specialty FROM contractors WHERE status = 'active' ORDER BY company_name")->fetchAll();
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -51,8 +65,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $instructions   = trim($_POST['instructions'] ?? '');
     $technician_id  = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
     $team_id        = (isset($_POST['team_id']) && $_POST['team_id'] !== '') ? intval($_POST['team_id']) : null;
+    $contractor_id  = !empty($_POST['contractor_id']) ? intval($_POST['contractor_id']) : null;
     
-    if ($team_id) $technician_id = null;
+    // Priorité : équipe > technicien > prestataire
+    if ($team_id) {
+        $technician_id = null;
+        $contractor_id = null;
+    } elseif ($technician_id) {
+        $contractor_id = null;
+    }
 
     if ($equipment_id <= 0 || empty($title)) {
         $error = "Veuillez sélectionner un équipement et renseigner un titre.";
@@ -69,7 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 title = ?, 
                 instructions = ?, 
                 technician_id = ?, 
-                team_id = ? 
+                team_id = ?,
+                contractor_id = ? 
                 WHERE id = ?";
         
         $stmt = $pdo->prepare($sql);
@@ -81,7 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $title, 
             $instructions, 
             $technician_id, 
-            $team_id, 
+            $team_id,
+            $contractor_id,
             $id
         ]);
 
@@ -103,6 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     .form-control, .form-select { border-radius: 8px; border: 1px solid #ddd; padding: 10px 12px; }
     .btn-warning { background: #fd7e14; border: none; border-radius: 8px; padding: 8px 20px; color: white; }
     .btn-secondary { background: #6c757d; border: none; border-radius: 8px; padding: 8px 20px; }
+    .assignment-section { background: #f8f9fa; border-radius: 10px; padding: 15px; border: 1px solid #e9ecef; }
+    .assignment-section .section-title { font-size: 14px; font-weight: 600; color: #495057; margin-bottom: 15px; }
 </style>
 
 <div class="container-fluid">
@@ -167,29 +192,50 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <textarea name="instructions" class="form-control" rows="4"><?php echo htmlspecialchars($pm['instructions'] ?? ''); ?></textarea>
                 </div>
 
+                <!-- Section Assignation avec prestataires -->
                 <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label"><?php echo t('technician'); ?></label>
-                        <select name="technician_id" class="form-select">
-                            <option value="">-- <?php echo t('unassigned'); ?> --</option>
-                            <?php foreach ($technicians as $tech): ?>
-                                <option value="<?php echo $tech['id']; ?>" <?php if ($pm['technician_id'] == $tech['id']) echo 'selected'; ?>>
-                                    <?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label"><?php echo t('team'); ?></label>
-                        <select name="team_id" class="form-select">
-                            <option value="">-- <?php echo t('select_team'); ?> --</option>
-                            <?php foreach ($teams as $team): ?>
-                                <option value="<?php echo $team['id']; ?>" <?php if ($pm['team_id'] == $team['id']) echo 'selected'; ?>>
-                                    <?php echo htmlspecialchars($team['name']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <small class="text-muted"><?php echo t('team_overrides_technician'); ?></small>
+                    <div class="col-md-12">
+                        <div class="assignment-section">
+                            <div class="section-title"><i class="fas fa-user-cog"></i> <?php echo t('assign_to'); ?></div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label"><?php echo t('technician'); ?></label>
+                                    <select name="technician_id" id="technicianSelect" class="form-select">
+                                        <option value="">-- <?php echo t('unassigned'); ?> --</option>
+                                        <?php foreach ($technicians as $tech): ?>
+                                            <option value="<?php echo $tech['id']; ?>" <?php if ($pm['technician_id'] == $tech['id']) echo 'selected'; ?>>
+                                                <?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted"><?php echo t('or_select_contractor'); ?></small>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label"><?php echo t('contractor'); ?></label>
+                                    <select name="contractor_id" id="contractorSelect" class="form-select">
+                                        <option value="">-- <?php echo t('select_contractor'); ?> --</option>
+                                        <?php foreach ($contractors as $c): ?>
+                                            <option value="<?php echo $c['id']; ?>" <?php if ($contractor_id == $c['id']) echo 'selected'; ?>>
+                                                <?php echo htmlspecialchars($c['company_name'] . (isset($c['specialty']) && !empty($c['specialty']) ? ' (' . $c['specialty'] . ')' : '')); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted"><?php echo t('or_select_technician'); ?></small>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label"><?php echo t('team'); ?></label>
+                                    <select name="team_id" class="form-select">
+                                        <option value="">-- <?php echo t('select_team'); ?> --</option>
+                                        <?php foreach ($teams as $team): ?>
+                                            <option value="<?php echo $team['id']; ?>" <?php if ($pm['team_id'] == $team['id']) echo 'selected'; ?>>
+                                                <?php echo htmlspecialchars($team['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted"><?php echo t('team_overrides_technician'); ?></small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -202,3 +248,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const technicianSelect = document.getElementById('technicianSelect');
+    const contractorSelect = document.getElementById('contractorSelect');
+
+    if (technicianSelect && contractorSelect) {
+        technicianSelect.addEventListener('change', function() {
+            if (this.value) {
+                contractorSelect.value = '';
+            }
+        });
+
+        contractorSelect.addEventListener('change', function() {
+            if (this.value) {
+                technicianSelect.value = '';
+            }
+        });
+    }
+});
+</script>

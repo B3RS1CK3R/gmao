@@ -1,150 +1,87 @@
 <?php
-// pages/stock.php - Full spare parts management (CRUD)
-// auth handled centrally in index.php
+// pages/stock.php - Liste des pièces détachées + mouvements de stock
+if(!isset($_SESSION['user_id'])) {
+    header('Location: index.php?page=login');
+    exit();
+}
 
 $action = $_GET['action'] ?? 'list';
-$message = '';
-$error = '';
-
-// ========== ACTION PROCESSING ==========
-
-// Add a spare part
-if($action == 'add' && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $sql = "INSERT INTO spare_parts (part_number, name, quantity, min_quantity, location, supplier, unit_price, last_restock, documentation_path) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    $stmt = $pdo->prepare($sql);
-    $result = $stmt->execute([
-        $_POST['part_number'],
-        $_POST['name'],
-        $_POST['quantity'],
-        $_POST['min_quantity'],
-        $_POST['location'],
-        $_POST['supplier'],
-        $_POST['unit_price'],
-        $_POST['last_restock'],
-        $_POST['documentation_path'] ?? null
-    ]);
-    
-    if($result) {
-        logUserAction($_SESSION['user_id'], 'stock_created', "Part created: {$_POST['part_number']}");
-        $message = "✅ " . t('save_success');
-        echo "<meta http-equiv='refresh' content='1;url=?page=stock'>";
-    } else {
-        $error = "❌ " . t('save_error');
-    }
+if ($action == 'add') {
+    header('Location: ?page=stock_add');
+    exit();
 }
-
-// Edit a spare part
-if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $sql = "UPDATE spare_parts SET 
-            part_number = ?, 
-            name = ?, 
-            quantity = ?, 
-            min_quantity = ?, 
-            location = ?, 
-            supplier = ?, 
-            unit_price = ?, 
-            last_restock = ?,
-            documentation_path = ?
-            WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
-    $result = $stmt->execute([
-        $_POST['part_number'],
-        $_POST['name'],
-        $_POST['quantity'],
-        $_POST['min_quantity'],
-        $_POST['location'],
-        $_POST['supplier'],
-        $_POST['unit_price'],
-        $_POST['last_restock'],
-        $_POST['documentation_path'] ?? null,
-        $_GET['id']
-    ]);
-    
-    if($result) {
-        logUserAction($_SESSION['user_id'], 'stock_updated', "Part ID: {$_GET['id']} modified");
-        $message = "✅ " . t('save_success');
-        echo "<meta http-equiv='refresh' content='1;url=?page=stock'>";
-    } else {
-        $error = "❌ " . t('save_error');
-    }
+if ($action == 'edit' && isset($_GET['id'])) {
+    header('Location: ?page=stock_edit&id=' . intval($_GET['id']));
+    exit();
 }
-
-// Delete (soft delete - deactivation) with password validation
-if($action == 'delete' && isset($_GET['id'])) {
-    if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor') {
-        if(isset($_POST['confirm_password'])) {
-            $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
-            $stmt->execute([$_SESSION['user_id']]);
-            $user = $stmt->fetch();
-            if(password_verify($_POST['confirm_password'], $user['password'])) {
-                $stmt2 = $pdo->prepare("UPDATE spare_parts SET quantity = -1, min_quantity = -1 WHERE id = ?");
-                $stmt2->execute([$_GET['id']]);
-                logUserAction($_SESSION['user_id'], 'stock_deleted', "Part ID: {$_GET['id']} deactivated");
-                $message = "✅ " . t('save_success');
-                echo "<meta http-equiv='refresh' content='1;url=?page=stock'>";
-            } else {
-                $error = "❌ " . t('password_error');
-            }
-        }
-    }
+if ($action == 'delete' && isset($_GET['id'])) {
+    header('Location: ?page=stock_delete&id=' . intval($_GET['id']));
+    exit();
 }
-
-// Restore a deactivated part (admin only)
-if($action == 'restore' && isset($_GET['id']) && $_SESSION['role'] == 'admin') {
+if ($action == 'restore' && isset($_GET['id']) && $_SESSION['role'] == 'admin') {
     $stmt = $pdo->prepare("UPDATE spare_parts SET quantity = 0, min_quantity = 5, documentation_path = NULL WHERE id = ?");
     $stmt->execute([$_GET['id']]);
     logUserAction($_SESSION['user_id'], 'stock_restored', "Part ID: {$_GET['id']} reactivated");
-    $message = "✅ " . t('save_success');
-    echo "<meta http-equiv='refresh' content='1;url=?page=stock'>";
+    header('Location: ?page=stock&msg=' . urlencode(t('save_success')));
+    exit();
 }
 
-// Stock movement (in/out)
+$message = '';
+$error = '';
+
+// ========== TRAITEMENT DES MOUVEMENTS ==========
 if($action == 'movement' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $part_id = $_GET['id'];
     $movement_type = $_POST['movement_type'];
     $quantity = intval($_POST['quantity']);
-    $reason = $_POST['reason'];
-    
-    // Fetch current quantity
+    $reason = trim($_POST['reason'] ?? '');
+    $related = $_POST['related_type'] ?? '';
+
+    // Extraire le type et l'ID
+    $related_type = null;
+    $related_id = null;
+    if ($related && strpos($related, '_') !== false) {
+        list($related_type, $related_id) = explode('_', $related);
+        $related_id = intval($related_id);
+    }
+
     $stmt = $pdo->prepare("SELECT quantity FROM spare_parts WHERE id = ?");
     $stmt->execute([$part_id]);
     $current = $stmt->fetchColumn();
-    
+
     if($movement_type == 'in') {
         $new_quantity = $current + $quantity;
         $movement_text = "Stock in";
     } else {
         if($current < $quantity) {
-            $error = "❌ " . t('stock_insufficient') . " (available: $current)";
+            $error = "❌ " . t('stock_insufficient') . " (disponible: $current)";
         } else {
             $new_quantity = $current - $quantity;
             $movement_text = "Stock out";
         }
     }
-    
+
     if(!$error) {
-        $stmt = $pdo->prepare("UPDATE spare_parts SET quantity = ?, last_restock = ? WHERE id = ?");
-        $stmt->execute([$new_quantity, ($movement_type == 'in' ? date('Y-m-d') : null), $part_id]);
-        
-        // Record movement
-        $stmt = $pdo->prepare("INSERT INTO stock_movements (part_id, movement_type, quantity, reason) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$part_id, $movement_type, $quantity, $reason]);
-        
+        $pdo->prepare("UPDATE spare_parts SET quantity = ?, last_restock = ? WHERE id = ?")
+            ->execute([$new_quantity, ($movement_type == 'in' ? date('Y-m-d') : null), $part_id]);
+
+        $stmt = $pdo->prepare("INSERT INTO stock_movements (part_id, movement_type, quantity, reason, related_type, related_id) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$part_id, $movement_type, $quantity, $reason, $related_type, $related_id]);
+
         logUserAction($_SESSION['user_id'], 'stock_movement', "$movement_text: $quantity x part ID: $part_id");
         $message = "✅ " . t('save_success');
         echo "<meta http-equiv='refresh' content='1;url=?page=stock_detail&id=$part_id'>";
     }
 }
 
-// Fetch parts (excluding deactivated for non-admin)
+// Récupération des pièces
 if($_SESSION['role'] == 'admin') {
     $parts = $pdo->query("SELECT * FROM spare_parts ORDER BY name")->fetchAll();
 } else {
     $parts = $pdo->query("SELECT * FROM spare_parts WHERE quantity >= 0 ORDER BY name")->fetchAll();
 }
 
-// Fetch modifications history for each part
+// Historique des modifications
 $history = [];
 foreach($parts as $part) {
     $stmt = $pdo->prepare("
@@ -158,7 +95,7 @@ foreach($parts as $part) {
     $history[$part['id']] = $stmt->fetchAll();
 }
 
-// Stock statistics
+// Statistiques
 $critical_stock = count(array_filter($parts, function($p) { 
     return $p['quantity'] <= $p['min_quantity'] && $p['quantity'] >= 0; 
 }));
@@ -171,500 +108,52 @@ $ok_stock = count(array_filter($parts, function($p) {
 $inactive_stock = count(array_filter($parts, function($p) { 
     return $p['quantity'] < 0; 
 }));
-
-// ========== ADD FORM ==========
-if($action == 'add'):
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #28a745, #1e7e34);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-    .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        padding: 10px 12px;
-    }
-    .form-control:focus, .form-select:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-    .btn-primary {
-        background: linear-gradient(135deg, #28a745, #1e7e34);
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-primary:hover {
-        filter: brightness(0.95);
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary:hover {
-        background: #5a6268;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-plus-circle"></i> <?php echo t('add_part'); ?>
-    </div>
-    <div class="card-body p-4">
-        <form method="POST">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('part_number'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="part_number" class="form-control" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('name'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control" required>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label"><?php echo t('quantity'); ?></label>
-                    <input type="number" name="quantity" class="form-control" value="0" min="0">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label"><?php echo t('min_quantity'); ?></label>
-                    <input type="number" name="min_quantity" class="form-control" value="5">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label"><?php echo t('location_stock'); ?></label>
-                    <input type="text" name="location" class="form-control" placeholder="<?php echo t('location_placeholder'); ?>">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label"><?php echo t('unit_price'); ?> (€)</label>
-                    <input type="number" step="0.01" name="unit_price" class="form-control" value="0">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('supplier'); ?></label>
-                    <input type="text" name="supplier" class="form-control">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('last_restock'); ?></label>
-                    <input type="date" name="last_restock" class="form-control">
-                </div>
-                
-                <!-- Documentation field (admin and supervisor only) -->
-                <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                <div class="col-md-12 mb-3">
-                    <label class="form-label">
-                        <i class="fas fa-folder-open"></i> <?php echo t('documentation'); ?>
-                    </label>
-                    <div class="doc-path-input-group">
-                        <input type="text" name="documentation_path" class="form-control" 
-                               placeholder="<?php echo t('doc_placeholder'); ?>">
-                        <small class="text-muted"><?php echo t('doc_help'); ?></small>
-                    </div>
-                </div>
-                <?php endif; ?>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <?php echo t('create'); ?></button>
-                <a href="?page=stock" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
-
-// ========== EDIT FORM ==========
-if($action == 'edit' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT * FROM spare_parts WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    $part = $stmt->fetch();
-    if(!$part) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #fd7e14, #e06a0a);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .doc-path-input-group {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-    }
-    .btn-folder {
-        background: #17a2b8;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 15px;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-    .btn-folder:hover {
-        background: #138496;
-    }
-    .doc-preview {
-        margin-top: 10px;
-        padding: 10px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        font-size: 12px;
-    }
-    .doc-preview a {
-        color: #007bff;
-        text-decoration: none;
-    }
-    .doc-preview a:hover {
-        text-decoration: underline;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-edit"></i> <?php echo t('edit_part'); ?> : <?php echo htmlspecialchars($part['part_number']); ?>
-    </div>
-    <div class="card-body p-4">
-        <form method="POST">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('part_number'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="part_number" class="form-control" value="<?php echo htmlspecialchars($part['part_number']); ?>" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('name'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars($part['name']); ?>" required>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label"><?php echo t('quantity'); ?></label>
-                    <input type="number" name="quantity" class="form-control" value="<?php echo $part['quantity']; ?>" min="0">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label"><?php echo t('min_quantity'); ?></label>
-                    <input type="number" name="min_quantity" class="form-control" value="<?php echo $part['min_quantity']; ?>">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label"><?php echo t('location_stock'); ?></label>
-                    <input type="text" name="location" class="form-control" value="<?php echo htmlspecialchars($part['location']); ?>">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label"><?php echo t('unit_price'); ?> (€)</label>
-                    <input type="number" step="0.01" name="unit_price" class="form-control" value="<?php echo $part['unit_price']; ?>">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('supplier'); ?></label>
-                    <input type="text" name="supplier" class="form-control" value="<?php echo htmlspecialchars($part['supplier']); ?>">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('last_restock'); ?></label>
-                    <input type="date" name="last_restock" class="form-control" value="<?php echo $part['last_restock']; ?>">
-                </div>
-                
-                <!-- Documentation field -->
-                <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                <div class="col-md-12 mb-3">
-                    <label class="form-label">
-                        <i class="fas fa-folder-open"></i> <?php echo t('documentation'); ?>
-                    </label>
-                    <div class="doc-path-input-group">
-                        <input type="text" name="documentation_path" class="form-control" 
-                               value="<?php echo htmlspecialchars($part['documentation_path'] ?? ''); ?>" 
-                               placeholder="<?php echo t('doc_placeholder'); ?>">
-                        <?php if(!empty($part['documentation_path'])): ?>
-                        <button type="button" class="btn-folder" onclick="openDocumentation('<?php echo addslashes($part['documentation_path']); ?>')" title="<?php echo t('open_doc'); ?>">
-                            <i class="fas fa-folder-open"></i> <?php echo t('open'); ?>
-                        </button>
-                        <?php endif; ?>
-                    </div>
-                    <small class="text-muted"><?php echo t('doc_help'); ?></small>
-                </div>
-                <?php else: ?>
-                <?php if(!empty($part['documentation_path'])): ?>
-                <div class="col-md-12 mb-3">
-                    <div class="doc-preview">
-                        <i class="fas fa-link"></i> <strong><?php echo t('documentation'); ?> :</strong><br>
-                        <a href="#" onclick="openDocumentation('<?php echo addslashes($part['documentation_path']); ?>'); return false;">
-                            <i class="fas fa-file-alt"></i> <?php echo basename($part['documentation_path']); ?>
-                        </a>
-                        <br><small class="text-muted"><?php echo htmlspecialchars($part['documentation_path']); ?></small>
-                    </div>
-                </div>
-                <?php endif; ?>
-                <?php endif; ?>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> <?php echo t('update'); ?></button>
-                <a href="?page=stock" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<script>
-function openDocumentation(path) {
-    let formattedPath = path.replace(/\\/g, '/');
-    if (!formattedPath.startsWith('file:///')) {
-        formattedPath = 'file:///' + formattedPath;
-    }
-    window.open(formattedPath, '_blank');
-}
-</script>
-<?php
-return;
-endif;
-
-// ========== DELETE CONFIRMATION MODAL ==========
-if($action == 'delete' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT * FROM spare_parts WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    $part = $stmt->fetch();
-    if(!$part) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-?>
-<div class="form-card">
-    <div class="form-card-header" style="background: linear-gradient(135deg, #dc3545, #c82333);">
-        <i class="fas fa-trash-alt"></i> <?php echo t('delete_part'); ?>
-    </div>
-    <div class="card-body p-4">
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <?php echo t('delete_confirm'); ?> : <strong><?php echo htmlspecialchars($part['name']); ?></strong> (<?php echo htmlspecialchars($part['part_number']); ?>)
-        </div>
-        <p><?php echo t('delete_warning'); ?></p>
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('confirm_password'); ?></label>
-                <input type="password" name="confirm_password" class="form-control" required>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> <?php echo t('confirm'); ?></button>
-                <a href="?page=stock" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
 ?>
 
 <style>
-    .stock-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .stock-card-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
+    .stock-card { background: white; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; overflow: hidden; }
+    .stock-card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; font-weight: bold; }
     .status-critical { background: #dc3545; color: white; }
     .status-warning { background: #ffc107; color: #333; }
     .status-ok { background: #28a745; color: white; }
     .status-inactive { background: #6c757d; color: white; }
-    .status-badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-    }
+    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
     .table-row-clickable { cursor: pointer; transition: background 0.2s; }
     .table-row-clickable:hover { background: #f8f9fa; }
-    .table-dark th {
-        background: #212529;
-        color: white;
-        padding: 12px 15px;
-        font-weight: 600;
-        vertical-align: middle;
-    }
-    .table td {
-        padding: 12px 15px;
-        vertical-align: middle;
-        border-bottom: 1px solid #eee;
-    }
-    .table tr:hover {
-        background: #f8f9fa;
-    }
-
-    /* Action buttons - 2x2 grid layout with original dimensions */
-    .action-buttons {
-        display: inline-flex;
-        flex-direction: column;
-        gap: 4px;
-        align-items: center;
-        justify-content: center;
-    }
-    .action-buttons-row {
-        display: flex;
-        gap: 4px;
-        justify-content: center;
-    }
-    .action-icon-btn {
-        width: 30px !important;
-        height: 30px !important;
-        padding: 0 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        font-size: 12px !important;
-        line-height: 1 !important;
-        border-radius: 6px !important;
-    }
-    .stats-card {
-        text-align: center;
-        padding: 15px;
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
-        cursor: pointer;
-    }
-    .stats-card:hover {
-        transform: translateY(-3px);
-    }
-    .stats-number {
-        font-size: 28px;
-        font-weight: bold;
-    }
-    .history-item {
-        padding: 5px 0;
-        font-size: 10px;
-        border-bottom: 1px solid #eee;
-    }
-    .history-item:last-child {
-        border-bottom: none;
-    }
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-primary:hover {
-        filter: brightness(0.95);
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary:hover {
-        background: #5a6268;
-    }
-    .btn-warning {
-        background: #fd7e14;
-        border: none;
-        border-radius: 6px;
-        color: white;
-    }
-    .btn-warning:hover {
-        background: #e06a0a;
-        color: white;
-    }
-    .btn-danger {
-        background: #dc3545;
-        border: none;
-        border-radius: 6px;
-    }
-    .btn-success {
-        background: #28a745;
-        border: none;
-        border-radius: 6px;
-    }
-    .btn-info {
-        background: #17a2b8;
-        border: none;
-        border-radius: 6px;
-    }
-
-    /* Legend grid styles */
-    .legend-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 15px;
-        text-align: center;
-    }
-
-    .legend-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-        padding: 10px;
-        background: #f8f9fa;
-        border-radius: 10px;
-        transition: transform 0.2s;
-    }
-
-    .legend-item:hover {
-        transform: translateY(-2px);
-        background: #e9ecef;
-    }
-
-    .legend-item i {
-        font-size: 20px;
-    }
-
-    .legend-item .status-badge {
-        font-size: 12px;
-        padding: 5px 12px;
-    }
-
-    .legend-item small {
-        font-size: 11px;
-        color: #6c757d;
-    }
-
-    /* Responsive: sur mobile, passer à 2 colonnes */
-    @media (max-width: 768px) {
-        .legend-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-    }
-
-    /* Responsive: sur très petit mobile, passer à 1 colonne */
-    @media (max-width: 480px) {
-        .legend-grid {
-            grid-template-columns: 1fr;
-        }
-    }
+    .table-dark th { background: #212529; color: white; padding: 12px 15px; font-weight: 600; vertical-align: middle; }
+    .table td { padding: 12px 15px; vertical-align: middle; border-bottom: 1px solid #eee; }
+    .action-buttons { display: inline-flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; }
+    .action-buttons-row { display: flex; gap: 4px; justify-content: center; }
+    .action-icon-btn { width: 30px !important; height: 30px !important; padding: 0 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; font-size: 12px !important; line-height: 1 !important; border-radius: 6px !important; }
+    .stats-card { text-align: center; padding: 15px; background: white; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); transition: transform 0.2s; cursor: pointer; }
+    .stats-card:hover { transform: translateY(-3px); }
+    .stats-number { font-size: 28px; font-weight: bold; }
+    .history-item { padding: 5px 0; font-size: 10px; border-bottom: 1px solid #eee; }
+    .history-item:last-child { border-bottom: none; }
+    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; padding: 8px 20px; }
+    .btn-primary:hover { filter: brightness(0.95); }
+    .btn-secondary { background: #6c757d; border: none; border-radius: 8px; padding: 8px 20px; }
+    .btn-secondary:hover { background: #5a6268; }
+    .btn-warning { background: #fd7e14; border: none; border-radius: 6px; color: white; }
+    .btn-warning:hover { background: #e06a0a; color: white; }
+    .btn-danger { background: #dc3545; border: none; border-radius: 6px; }
+    .btn-success { background: #28a745; border: none; border-radius: 6px; }
+    .btn-info { background: #17a2b8; border: none; border-radius: 6px; }
+    .legend-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; text-align: center; }
+    .legend-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; background: #f8f9fa; border-radius: 10px; transition: transform 0.2s; }
+    .legend-item:hover { transform: translateY(-2px); background: #e9ecef; }
+    .legend-item i { font-size: 20px; }
+    .legend-item .status-badge { font-size: 12px; padding: 5px 12px; }
+    .legend-item small { font-size: 11px; color: #6c757d; }
+    @media (max-width: 768px) { .legend-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+    @media (max-width: 480px) { .legend-grid { grid-template-columns: 1fr; } }
 </style>
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-boxes"></i> <?php echo t('stock'); ?></h2>
         <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-        <a href="?page=stock&action=add" class="btn btn-primary">
+        <a href="?page=stock_add" class="btn btn-primary">
             <i class="fas fa-plus"></i> <?php echo t('add_part'); ?>
         </a>
         <?php endif; ?>
@@ -676,7 +165,6 @@ endif;
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
-    
     <?php if($error): ?>
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
@@ -684,7 +172,7 @@ endif;
         </div>
     <?php endif; ?>
     
-    <!-- Statistics cards -->
+    <!-- Statistiques -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="stats-card" onclick="window.location.href='?page=stock&status=critical'">
@@ -712,7 +200,7 @@ endif;
         </div>
     </div>
     
-    <!-- Stock list -->
+    <!-- Liste -->
     <div class="stock-card">
         <div class="stock-card-header">
             <i class="fas fa-list"></i> <?php echo t('stock_list'); ?>
@@ -813,10 +301,10 @@ endif;
                                         </div>
                                         <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
                                             <div class="action-buttons-row">
-                                                <a href="?page=stock&action=edit&id=<?php echo $part['id']; ?>" class="btn btn-sm btn-primary action-icon-btn" title="<?php echo t('edit'); ?>">
+                                                <a href="?page=stock_edit&id=<?php echo $part['id']; ?>" class="btn btn-sm btn-primary action-icon-btn" title="<?php echo t('edit'); ?>">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="?page=stock&action=delete&id=<?php echo $part['id']; ?>" class="btn btn-sm btn-danger action-icon-btn" title="<?php echo t('delete'); ?>">
+                                                <a href="?page=stock_delete&id=<?php echo $part['id']; ?>" class="btn btn-sm btn-danger action-icon-btn" title="<?php echo t('delete'); ?>">
                                                     <i class="fas fa-trash"></i>
                                                 </a>
                                             </div>
@@ -832,7 +320,7 @@ endif;
                             </td>
                         </tr>
                         
-                        <!-- Stock in modal -->
+                        <!-- Modale entrée -->
                         <div class="modal fade" id="movementInModal<?php echo $part['id']; ?>" tabindex="-1">
                             <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content">
@@ -853,6 +341,7 @@ endif;
                                                 <label class="form-label"><?php echo t('reason'); ?></label>
                                                 <textarea name="reason" class="form-control" rows="2" placeholder="<?php echo t('reason_placeholder'); ?>"></textarea>
                                             </div>
+                                            <!-- Pas d'association pour les entrées (peut-être utile mais on laisse vide) -->
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo t('cancel'); ?></button>
@@ -863,7 +352,7 @@ endif;
                             </div>
                         </div>
                         
-                        <!-- Stock out modal -->
+                        <!-- Modale sortie (avec association) -->
                         <div class="modal fade" id="movementOutModal<?php echo $part['id']; ?>" tabindex="-1">
                             <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content">
@@ -884,6 +373,37 @@ endif;
                                                 <label class="form-label"><?php echo t('reason'); ?></label>
                                                 <textarea name="reason" class="form-control" rows="2" placeholder="<?php echo t('reason_placeholder'); ?>"></textarea>
                                             </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Associer à (intervention / maintenance)</label>
+                                                <select name="related_type" class="form-select">
+                                                    <option value="">-- Aucune --</option>
+                                                    <?php
+                                                    $invStmt = $pdo->query("SELECT id, task_number, title FROM interventions WHERE task_status NOT IN ('completed', 'closed') ORDER BY task_number");
+                                                    $interventions = $invStmt->fetchAll();
+                                                    if ($interventions): ?>
+                                                        <optgroup label="Interventions">
+                                                        <?php foreach ($interventions as $inv): ?>
+                                                            <option value="intervention_<?php echo $inv['id']; ?>">
+                                                                <?php echo htmlspecialchars($inv['task_number'] . ' - ' . $inv['title']); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                        </optgroup>
+                                                    <?php endif; ?>
+                                                    <?php
+                                                    $prevStmt = $pdo->query("SELECT id, task_number, title FROM preventive_maintenance WHERE task_status != 'completed' ORDER BY task_number");
+                                                    $preventives = $prevStmt->fetchAll();
+                                                    if ($preventives): ?>
+                                                        <optgroup label="Maintenances préventives">
+                                                        <?php foreach ($preventives as $prev): ?>
+                                                            <option value="preventive_<?php echo $prev['id']; ?>">
+                                                                <?php echo htmlspecialchars($prev['task_number'] . ' - ' . $prev['title']); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                        </optgroup>
+                                                    <?php endif; ?>
+                                                </select>
+                                                <small class="text-muted">Laissez vide si non lié à une tâche.</small>
+                                            </div>
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo t('cancel'); ?></button>
@@ -900,7 +420,7 @@ endif;
         </div>
     </div>
     
-    <!-- Legend -->
+    <!-- Légende -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="stock-card">

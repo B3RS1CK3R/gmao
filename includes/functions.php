@@ -1474,4 +1474,333 @@ function completeIntervention($id, $completion_report, $duration_hours = null) {
     ");
     return $stmt->execute([$completion_report, $duration_hours, $id]);
 }
+
+// ========== SETTINGS FUNCTIONS ==========
+
+/**
+ * Display permanent deletion interface for deleted items
+ * This function handles the display of deleted interventions, preventives and equipments
+ * 
+ * @param PDO $pdo Database connection
+ * @param array $deleted_interventions List of deleted interventions
+ * @param array $deleted_preventives List of deleted preventives
+ * @param array $deleted_equipments List of deleted equipments
+ * @return string HTML output
+ */
+function renderDeletedItemsList($pdo, $deleted_interventions, $deleted_preventives, $deleted_equipments) {
+    $output = '';
+    
+    if (!empty($deleted_interventions)) {
+        $output .= '
+        <div class="section-title">
+            <i class="fas fa-tasks"></i> Interventions annulées (' . count($deleted_interventions) . ')
+            <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="toggleSelectAll(\'interventions\')">
+                <i class="fas fa-check-double"></i> Tout sélectionner
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30px;"><input type="checkbox" id="select_all_interventions" onchange="toggleAll(\'interventions\', this.checked)"></th>
+                        <th>' . t('task_number') . '</th>
+                        <th>' . t('equipment') . '</th>
+                        <th>' . t('title') . '</th>
+                    </tr>
+                </thead>
+                <tbody>';
+        
+        foreach ($deleted_interventions as $item) {
+            $output .= '
+                    <tr class="deleted-item-row">
+                        <td><input type="checkbox" name="delete_interventions[]" value="' . $item['id'] . '" class="interventions-check"></td>
+                        <td>' . htmlspecialchars($item['task_number']) . '</td>
+                        <td>' . htmlspecialchars($item['equipment_name']) . '</td>
+                        <td>' . htmlspecialchars($item['title']) . '</td>
+                    </tr>';
+        }
+        
+        $output .= '
+                </tbody>
+            </table>
+        </div>';
+    }
+    
+    if (!empty($deleted_preventives)) {
+        $output .= '
+        <div class="section-title mt-3">
+            <i class="fas fa-calendar-check"></i> Maintenances préventives annulées (' . count($deleted_preventives) . ')
+            <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="toggleSelectAll(\'preventives\')">
+                <i class="fas fa-check-double"></i> Tout sélectionner
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30px;"><input type="checkbox" id="select_all_preventives" onchange="toggleAll(\'preventives\', this.checked)"></th>
+                        <th>' . t('task_number') . '</th>
+                        <th>' . t('equipment') . '</th>
+                        <th>' . t('title') . '</th>
+                    </tr>
+                </thead>
+                <tbody>';
+        
+        foreach ($deleted_preventives as $item) {
+            $output .= '
+                    <tr class="deleted-item-row">
+                        <td><input type="checkbox" name="delete_preventives[]" value="' . $item['id'] . '" class="preventives-check"></td>
+                        <td>' . htmlspecialchars($item['task_number']) . '</td>
+                        <td>' . htmlspecialchars($item['equipment_name']) . '</td>
+                        <td>' . htmlspecialchars($item['title']) . '</td>
+                    </tr>';
+        }
+        
+        $output .= '
+                </tbody>
+            </table>
+        </div>';
+    }
+    
+    if (!empty($deleted_equipments)) {
+        $output .= '
+        <div class="section-title mt-3">
+            <i class="fas fa-microchip"></i> Équipements retirés (' . count($deleted_equipments) . ')
+            <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="toggleSelectAll(\'equipments\')">
+                <i class="fas fa-check-double"></i> Tout sélectionner
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30px;"><input type="checkbox" id="select_all_equipments" onchange="toggleAll(\'equipments\', this.checked)"></th>
+                        <th>' . t('code') . '</th>
+                        <th>' . t('name') . '</th>
+                        <th>' . t('type') . '</th>
+                    </tr>
+                </thead>
+                <tbody>';
+        
+        foreach ($deleted_equipments as $item) {
+            $output .= '
+                    <tr class="deleted-item-row">
+                        <td><input type="checkbox" name="delete_equipments[]" value="' . $item['id'] . '" class="equipments-check"></td>
+                        <td>' . htmlspecialchars($item['code']) . '</td>
+                        <td>' . htmlspecialchars($item['name']) . '</td>
+                        <td>' . htmlspecialchars($item['type']) . '</td>
+                    </tr>';
+        }
+        
+        $output .= '
+                </tbody>
+            </table>
+        </div>';
+    }
+    
+    return $output;
+}
+
+/**
+ * Render database reset table
+ * 
+ * @param PDO $pdo Database connection
+ * @param int $count_equipment Number of equipment
+ * @param int $count_interventions Number of interventions
+ * @param int $count_preventives Number of preventives
+ * @param int $count_technicians Number of technicians
+ * @param int $count_stock Number of stock items
+ * @return string HTML output
+ */
+function renderDatabaseResetTable($pdo, $count_equipment, $count_interventions, $count_preventives, $count_technicians, $count_stock) {
+    return '
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 30px;"><input type="checkbox" id="select_all_reset" onchange="toggleAllReset(this.checked)"></th>
+                    <th>Table</th>
+                    <th>Éléments</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="reset-item">
+                    <td><input type="checkbox" name="reset_equipment" value="1" class="reset-check"></td>
+                    <td><i class="fas fa-microchip text-primary"></i> <strong>Équipements</strong></td>
+                    <td><span class="badge bg-secondary badge-count">' . $count_equipment . '</span></td>
+                    <td><small class="text-muted">Supprime tous les équipements et leurs associations</small></td>
+                </tr>
+                <tr class="reset-item">
+                    <td><input type="checkbox" name="reset_interventions" value="1" class="reset-check"></td>
+                    <td><i class="fas fa-tools text-info"></i> <strong>Interventions</strong></td>
+                    <td><span class="badge bg-secondary badge-count">' . $count_interventions . '</span></td>
+                    <td><small class="text-muted">Supprime toutes les interventions</small></td>
+                </tr>
+                <tr class="reset-item">
+                    <td><input type="checkbox" name="reset_preventives" value="1" class="reset-check"></td>
+                    <td><i class="fas fa-calendar-check text-warning"></i> <strong>Maintenances préventives</strong></td>
+                    <td><span class="badge bg-secondary badge-count">' . $count_preventives . '</span></td>
+                    <td><small class="text-muted">Supprime toutes les maintenances préventives</small></td>
+                </tr>
+                <tr class="reset-item">
+                    <td><input type="checkbox" name="reset_technicians" value="1" class="reset-check"></td>
+                    <td><i class="fas fa-user-cog text-success"></i> <strong>Techniciens</strong></td>
+                    <td><span class="badge bg-secondary badge-count">' . $count_technicians . '</span></td>
+                    <td><small class="text-muted">Supprime les techniciens (ceux liés à des utilisateurs sont désactivés)</small></td>
+                </tr>
+                <tr class="reset-item">
+                    <td><input type="checkbox" name="reset_stock" value="1" class="reset-check"></td>
+                    <td><i class="fas fa-boxes text-danger"></i> <strong>Stock</strong></td>
+                    <td><span class="badge bg-secondary badge-count">' . $count_stock . '</span></td>
+                    <td><small class="text-muted">Supprime toutes les pièces détachées et leurs mouvements</small></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>';
+}
+
+/**
+ * Process permanent deletion of selected items
+ * 
+ * @param PDO $pdo Database connection
+ * @param array $post_data POST data
+ * @param int $user_id Current user ID
+ * @return array Result with 'success' and 'message' keys
+ */
+function processPermanentDeletion($pdo, $post_data, $user_id) {
+    $result = ['success' => false, 'message' => ''];
+    $deleted_count = 0;
+    $deleted_items = [];
+    
+    try {
+        $pdo->beginTransaction();
+        
+        if (isset($post_data['delete_interventions']) && is_array($post_data['delete_interventions'])) {
+            foreach ($post_data['delete_interventions'] as $id) {
+                $id = intval($id);
+                $stmt = $pdo->prepare("SELECT task_number FROM interventions WHERE id = ? AND task_status = 'cancelled'");
+                $stmt->execute([$id]);
+                $item = $stmt->fetch();
+                if ($item) {
+                    $pdo->prepare("DELETE FROM stock_movements WHERE related_type = 'intervention' AND related_id = ?")->execute([$id]);
+                    $pdo->prepare("DELETE FROM interventions WHERE id = ?")->execute([$id]);
+                    $deleted_count++;
+                    $deleted_items[] = "Intervention: " . $item['task_number'];
+                }
+            }
+        }
+        
+        if (isset($post_data['delete_preventives']) && is_array($post_data['delete_preventives'])) {
+            foreach ($post_data['delete_preventives'] as $id) {
+                $id = intval($id);
+                $stmt = $pdo->prepare("SELECT task_number FROM preventive_maintenance WHERE id = ? AND task_status = 'cancelled'");
+                $stmt->execute([$id]);
+                $item = $stmt->fetch();
+                if ($item) {
+                    $pdo->prepare("DELETE FROM stock_movements WHERE related_type = 'preventive' AND related_id = ?")->execute([$id]);
+                    $pdo->prepare("DELETE FROM preventive_maintenance WHERE id = ?")->execute([$id]);
+                    $deleted_count++;
+                    $deleted_items[] = "Maintenance: " . $item['task_number'];
+                }
+            }
+        }
+        
+        if (isset($post_data['delete_equipments']) && is_array($post_data['delete_equipments'])) {
+            foreach ($post_data['delete_equipments'] as $id) {
+                $id = intval($id);
+                $stmt = $pdo->prepare("SELECT code, name FROM equipment WHERE id = ? AND status = 'retired'");
+                $stmt->execute([$id]);
+                $item = $stmt->fetch();
+                if ($item) {
+                    $pdo->prepare("DELETE FROM equipment_parts WHERE equipment_id = ?")->execute([$id]);
+                    $pdo->prepare("DELETE FROM attachments WHERE parent_type = 'equipment' AND parent_id = ?")->execute([$id]);
+                    $pdo->prepare("DELETE FROM equipment WHERE id = ?")->execute([$id]);
+                    $deleted_count++;
+                    $deleted_items[] = "Équipement: " . $item['code'] . " - " . $item['name'];
+                }
+            }
+        }
+        
+        $pdo->commit();
+        
+        logUserAction($user_id, 'permanent_deletion', "Suppression définitive de $deleted_count éléments : " . implode(', ', $deleted_items));
+        $result['success'] = true;
+        $result['message'] = "✅ $deleted_count élément(s) supprimé(s) définitivement.";
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        $result['message'] = "Erreur lors de la suppression : " . $e->getMessage();
+    }
+    
+    return $result;
+}
+
+/**
+ * Process database reset of selected tables
+ * 
+ * @param PDO $pdo Database connection
+ * @param array $post_data POST data
+ * @param int $user_id Current user ID
+ * @return array Result with 'success' and 'message' keys
+ */
+function processDatabaseReset($pdo, $post_data, $user_id) {
+    $result = ['success' => false, 'message' => ''];
+    $tables_to_reset = [];
+    $reset_messages = [];
+    
+    try {
+        $pdo->beginTransaction();
+        
+        if (isset($post_data['reset_equipment']) && $post_data['reset_equipment'] == '1') {
+            $pdo->exec("DELETE FROM equipment_parts");
+            $pdo->exec("DELETE FROM attachments WHERE parent_type = 'equipment'");
+            $pdo->exec("DELETE FROM equipment");
+            $tables_to_reset[] = 'équipements';
+            $reset_messages[] = "✅ Équipements réinitialisés";
+        }
+        
+        if (isset($post_data['reset_interventions']) && $post_data['reset_interventions'] == '1') {
+            $pdo->exec("DELETE FROM stock_movements WHERE related_type = 'intervention'");
+            $pdo->exec("DELETE FROM interventions");
+            $tables_to_reset[] = 'interventions';
+            $reset_messages[] = "✅ Interventions réinitialisées";
+        }
+        
+        if (isset($post_data['reset_preventives']) && $post_data['reset_preventives'] == '1') {
+            $pdo->exec("DELETE FROM stock_movements WHERE related_type = 'preventive'");
+            $pdo->exec("DELETE FROM preventive_maintenance");
+            $tables_to_reset[] = 'maintenances préventives';
+            $reset_messages[] = "✅ Maintenances préventives réinitialisées";
+        }
+        
+        if (isset($post_data['reset_technicians']) && $post_data['reset_technicians'] == '1') {
+            $pdo->exec("DELETE FROM technicians WHERE user_id IS NULL");
+            $pdo->exec("UPDATE technicians SET status = 'inactive' WHERE user_id IS NOT NULL");
+            $tables_to_reset[] = 'techniciens';
+            $reset_messages[] = "✅ Techniciens réinitialisés";
+        }
+        
+        if (isset($post_data['reset_stock']) && $post_data['reset_stock'] == '1') {
+            $pdo->exec("DELETE FROM stock_movements");
+            $pdo->exec("DELETE FROM spare_parts");
+            $tables_to_reset[] = 'stock';
+            $reset_messages[] = "✅ Stock réinitialisé";
+        }
+        
+        $pdo->exec("UPDATE task_format_settings SET last_number = 0 WHERE type IN ('intervention', 'preventive')");
+        
+        $pdo->commit();
+        
+        logUserAction($user_id, 'database_reset', "Réinitialisation de la base de données : " . implode(', ', $tables_to_reset));
+        $result['success'] = true;
+        $result['message'] = "✅ Base de données réinitialisée avec succès !<br>" . implode('<br>', $reset_messages);
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        $result['message'] = "Erreur lors de la réinitialisation : " . $e->getMessage();
+    }
+    
+    return $result;
+}
 ?>

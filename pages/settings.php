@@ -15,14 +15,12 @@ try {
         `setting_value` TEXT NOT NULL,
         `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-} catch (PDOException $e) {
-    // Ignorer si déjà existante
-}
+} catch (PDOException $e) {}
 
 $stmt = $pdo->query("SELECT setting_value FROM system_settings WHERE setting_key = 'timezone_offset'");
 $current_offset = $stmt->fetchColumn();
 if (!$current_offset) {
-    $current_offset = '+02:00'; // défaut été
+    $current_offset = '+02:00';
 }
 
 // Récupérer les formats de numéros de tâches
@@ -32,9 +30,87 @@ while ($row = $stmt->fetch()) {
     $formats[$row['type']] = $row;
 }
 
-// Traitement des formulaires
+// ========== TRAITEMENT SUPPRESSION DÉFINITIVE ==========
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['permanent_delete'])) {
+    if (!isset($_POST['csrf_token']) || !validate_csrf($_POST['csrf_token'])) {
+        $error = t('csrf_invalid');
+    } elseif (empty($_POST['confirm_password'])) {
+        $error = t('password_required');
+    } else {
+        $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ? AND role = 'admin'");
+        $stmt->execute([$_SESSION['user_id']]);
+        $user = $stmt->fetch();
+        
+        if (!$user || !password_verify($_POST['confirm_password'], $user['password'])) {
+            $error = t('password_error');
+        } else {
+            $result = processPermanentDeletion($pdo, $_POST, $_SESSION['user_id']);
+            if ($result['success']) {
+                $message = $result['message'];
+            } else {
+                $error = $result['message'];
+            }
+        }
+    }
+}
+
+// ========== TRAITEMENT RÉINITIALISATION BASE DE DONNÉES ==========
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_database'])) {
+    if (!isset($_POST['csrf_token']) || !validate_csrf($_POST['csrf_token'])) {
+        $error = t('csrf_invalid');
+    } elseif (empty($_POST['reset_password'])) {
+        $error = t('password_required');
+    } else {
+        $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ? AND role = 'admin'");
+        $stmt->execute([$_SESSION['user_id']]);
+        $user = $stmt->fetch();
+        
+        if (!$user || !password_verify($_POST['reset_password'], $user['password'])) {
+            $error = t('password_error');
+        } else {
+            $result = processDatabaseReset($pdo, $_POST, $_SESSION['user_id']);
+            if ($result['success']) {
+                $message = $result['message'];
+            } else {
+                $error = $result['message'];
+            }
+        }
+    }
+}
+
+// Récupération des éléments supprimés
+$deleted_interventions = $pdo->query("
+    SELECT i.id, i.task_number, i.title, e.name as equipment_name
+    FROM interventions i
+    JOIN equipment e ON i.equipment_id = e.id
+    WHERE i.task_status = 'cancelled'
+    ORDER BY i.task_number
+")->fetchAll();
+
+$deleted_preventives = $pdo->query("
+    SELECT pm.id, pm.task_number, pm.title, e.name as equipment_name
+    FROM preventive_maintenance pm
+    JOIN equipment e ON pm.equipment_id = e.id
+    WHERE pm.task_status = 'cancelled'
+    ORDER BY pm.task_number
+")->fetchAll();
+
+$deleted_equipments = $pdo->query("
+    SELECT id, code, name, type
+    FROM equipment
+    WHERE status = 'retired'
+    ORDER BY code
+")->fetchAll();
+
+// Compter le nombre d'éléments par table
+$count_equipment = $pdo->query("SELECT COUNT(*) FROM equipment")->fetchColumn();
+$count_interventions = $pdo->query("SELECT COUNT(*) FROM interventions")->fetchColumn();
+$count_preventives = $pdo->query("SELECT COUNT(*) FROM preventive_maintenance")->fetchColumn();
+$count_technicians = $pdo->query("SELECT COUNT(*) FROM technicians")->fetchColumn();
+$count_stock = $pdo->query("SELECT COUNT(*) FROM spare_parts")->fetchColumn();
+
+// ========== TRAITEMENT DES AUTRES FORMULAIRES ==========
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Sauvegarde des formats d'interventions
     if (isset($_POST['save_interv'])) {
         $interv_prefix = trim($_POST['interv_prefix']);
         $interv_year = isset($_POST['interv_use_year']) ? 1 : 0;
@@ -46,7 +122,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$interv_prefix, $interv_year, $interv_month, $interv_digits, $reset_year, $reset_month]);
         $message = t('save_success');
     }
-    // Sauvegarde des formats de préventives
     if (isset($_POST['save_prev'])) {
         $prev_prefix = trim($_POST['prev_prefix']);
         $prev_year = isset($_POST['prev_use_year']) ? 1 : 0;
@@ -58,23 +133,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$prev_prefix, $prev_year, $prev_month, $prev_digits, $reset_year, $reset_month]);
         $message = t('save_success');
     }
-    // Sauvegarde du fuseau horaire
     if (isset($_POST['save_timezone_offset'])) {
         $new_offset = $_POST['timezone_offset'];
-        // Validation simple : format +/-HH:MM
         if (preg_match('/^[+-]\d{2}:\d{2}$/', $new_offset)) {
             $stmt = $pdo->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES ('timezone_offset', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
             $stmt->execute([$new_offset, $new_offset]);
-            $message = "Offset horaire mis à jour : $new_offset";
-            // Appliquer immédiatement
+            $message = t('timezone_updated') . " : $new_offset";
             $pdo->exec("SET time_zone = '$new_offset'");
             $current_offset = $new_offset;
         } else {
-            $error = "Offset invalide. Utilisez le format +/-HH:MM";
+            $error = t('timezone_invalid');
         }
     }
 
-    // Recharger les données après sauvegarde
     $stmt = $pdo->query("SELECT * FROM task_format_settings");
     $formats = [];
     while ($row = $stmt->fetch()) $formats[$row['type']] = $row;
@@ -82,17 +153,150 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <style>
-    .config-card { background: white; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; overflow: hidden; }
-    .config-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; font-weight: bold; }
-    .form-label { font-weight: 500; margin-bottom: 5px; }
-    .form-check-input { margin-right: 8px; }
-    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; padding: 8px 20px; }
-    .preview-code { background: #f8f9fa; padding: 8px 12px; border-radius: 8px; font-family: monospace; font-size: 14px; margin-top: 10px; }
-    .info-text { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 8px 12px; border-radius: 8px; margin: 10px 0; font-size: 13px; }
-    .btn-success { background: #28a745; border: none; border-radius: 8px; padding: 8px 20px; }
+    .config-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .config-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
+    }
+    .config-header i {
+        margin-right: 8px;
+    }
+    .config-header .badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        vertical-align: middle;
+    }
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+    .form-check-input {
+        margin-right: 8px;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+    .preview-code {
+        background: #f8f9fa;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 14px;
+        margin-top: 10px;
+    }
+    .info-text {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin: 10px 0;
+        font-size: 13px;
+    }
+    .btn-success {
+        background: #28a745;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+    .btn-success:hover {
+        background: #218838;
+    }
+    .btn-danger {
+        background: #dc3545;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+    .btn-danger:hover {
+        background: #c82333;
+    }
+    .btn-warning {
+        background: #fd7e14;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+        color: white;
+    }
+    .btn-warning:hover {
+        background: #e06a0a;
+        color: white;
+    }
+    .delete-card {
+        border: 2px solid #dc3545;
+    }
+    .delete-card .config-header {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+    }
+    .reset-card {
+        border: 2px solid #fd7e14;
+    }
+    .reset-card .config-header {
+        background: linear-gradient(135deg, #fd7e14, #e06a0a);
+    }
+    .deleted-item-row {
+        transition: background 0.2s;
+    }
+    .deleted-item-row:hover {
+        background: #f8f9fa;
+    }
+    .section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #495057;
+        margin: 10px 0 5px 0;
+        padding: 5px 10px;
+        background: #e9ecef;
+        border-radius: 6px;
+    }
+    .reset-item {
+        padding: 8px 12px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .reset-item:last-child {
+        border-bottom: none;
+    }
+    .reset-item:hover {
+        background: #f8f9fa;
+    }
+    .badge-count {
+        font-size: 12px;
+        padding: 3px 10px;
+    }
+    .warning-box {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    /* Correction sidebar et badges */
+    .settings-page .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .settings-page .config-header .badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    .settings-page .config-header .badge.bg-light {
+        background: rgba(255,255,255,0.2) !important;
+        color: white !important;
+    }
 </style>
 
-<div class="container-fluid">
+<div class="container-fluid settings-page">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-cog"></i> <?php echo t('configuration'); ?></h2>
     </div>
@@ -104,8 +308,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="alert alert-danger alert-dismissible fade show"><?php echo $error; ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
     <?php endif; ?>
 
+    <!-- ========== SECTION 1 : NUMÉROS DE TÂCHES ========== -->
     <div class="row">
-        <!-- Interventions -->
         <div class="col-md-6">
             <div class="config-card">
                 <div class="config-header"><i class="fas fa-tasks"></i> <?php echo t('task_numbers_interventions'); ?></div>
@@ -131,9 +335,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
         </div>
-        <!-- Préventives -->
         <div class="col-md-6">
             <div class="config-card">
+                <!-- SUPPRESSION DU BADGE D'ALERTE -->
                 <div class="config-header"><i class="fas fa-calendar-check"></i> <?php echo t('task_numbers_preventive'); ?></div>
                 <div class="card-body p-4">
                     <form method="POST" id="form_prev">
@@ -159,39 +363,287 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
-    <!-- Module de fuseau horaire (avec offsets) -->
+    <!-- ========== SECTION 2 : FUSEAU HORAIRE ========== -->
     <div class="row mt-4">
         <div class="col-md-12">
             <div class="config-card">
                 <div class="config-header" style="background: linear-gradient(135deg, #28a745, #1e7e34);">
-                    <i class="fas fa-globe"></i> Paramètres de fuseau horaire (MySQL)
+                    <i class="fas fa-globe"></i> <?php echo t('timezone_settings'); ?>
                 </div>
                 <div class="card-body p-4">
                     <form method="POST">
                         <div class="row">
                             <div class="col-md-6">
-                                <label class="form-label">Décalage horaire (MySQL)</label>
+                                <label class="form-label"><?php echo t('timezone_offset_label'); ?></label>
                                 <select name="timezone_offset" class="form-select" required>
                                     <option value="+00:00" <?php echo ($current_offset == '+00:00') ? 'selected' : ''; ?>>UTC (+00:00)</option>
-                                    <option value="+01:00" <?php echo ($current_offset == '+01:00') ? 'selected' : ''; ?>>UTC+01:00 (heure normale d'Europe centrale)</option>
-                                    <option value="+02:00" <?php echo ($current_offset == '+02:00') ? 'selected' : ''; ?>>UTC+02:00 (heure d'été d'Europe centrale)</option>
-                                    <option value="-05:00" <?php echo ($current_offset == '-05:00') ? 'selected' : ''; ?>>UTC-05:00 (heure normale de l'Est US)</option>
-                                    <option value="-04:00" <?php echo ($current_offset == '-04:00') ? 'selected' : ''; ?>>UTC-04:00 (heure d'été de l'Est US)</option>
+                                    <option value="+01:00" <?php echo ($current_offset == '+01:00') ? 'selected' : ''; ?>>UTC+01:00 (<?php echo t('timezone_cet'); ?>)</option>
+                                    <option value="+02:00" <?php echo ($current_offset == '+02:00') ? 'selected' : ''; ?>>UTC+02:00 (<?php echo t('timezone_cest'); ?>)</option>
+                                    <option value="-05:00" <?php echo ($current_offset == '-05:00') ? 'selected' : ''; ?>>UTC-05:00 (<?php echo t('timezone_est'); ?>)</option>
+                                    <option value="-04:00" <?php echo ($current_offset == '-04:00') ? 'selected' : ''; ?>>UTC-04:00 (<?php echo t('timezone_edt'); ?>)</option>
                                 </select>
-                                <small class="text-muted">Choisissez l'offset correspondant à votre fuseau horaire actuel. Pour la France métropolitaine, utilisez +02:00 en été, +01:00 en hiver. Vous pouvez changer manuellement.</small>
+                                <small class="text-muted"><?php echo t('timezone_help'); ?></small>
                             </div>
                             <div class="col-md-6 d-flex align-items-end">
-                                <button type="submit" name="save_timezone_offset" class="btn btn-success"><i class="fas fa-save"></i> Enregistrer</button>
+                                <button type="submit" name="save_timezone_offset" class="btn btn-success"><i class="fas fa-save"></i> <?php echo t('save'); ?></button>
                             </div>
                         </div>
                     </form>
                     <div class="info-text mt-3">
-                        <i class="fas fa-info-circle"></i> Heure actuelle (MySQL) : <strong><?php
+                        <i class="fas fa-info-circle"></i> <?php echo t('current_mysql_time'); ?> : <strong><?php
                             $stmt = $pdo->query("SELECT NOW()");
                             echo $stmt->fetchColumn();
                         ?></strong><br>
-                        Heure actuelle (PHP) : <strong><?php echo date('Y-m-d H:i:s'); ?></strong>
+                        <?php echo t('current_php_time'); ?> : <strong><?php echo date('Y-m-d H:i:s'); ?></strong>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== SECTION 3 : GESTION DES ÉLÉMENTS SUPPRIMÉS ========== -->
+    <?php if (!empty($deleted_interventions) || !empty($deleted_preventives) || !empty($deleted_equipments)): ?>
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="config-card delete-card">
+                <div class="config-header">
+                    <i class="fas fa-trash-alt"></i> <?php echo t('deleted_items_management'); ?>
+                    <span class="badge bg-light ms-2">
+                        <?php 
+                            $total_deleted = count($deleted_interventions) + count($deleted_preventives) + count($deleted_equipments);
+                            echo $total_deleted . ' ' . t('items');
+                        ?>
+                    </span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong><?php echo t('warning'); ?></strong> : <?php echo t('permanent_delete_warning'); ?>
+                    </div>
+                    
+                    <form method="POST" id="permanentDeleteForm" onsubmit="return confirmPermanentDelete();">
+                        <?= csrf_input() ?>
+                        <input type="hidden" name="permanent_delete" value="1">
+                        
+                        <!-- Interventions supprimées -->
+                        <?php if (!empty($deleted_interventions)): ?>
+                        <div class="section-title">
+                            <i class="fas fa-tasks"></i> <?php echo t('cancelled_interventions'); ?> (<?php echo count($deleted_interventions); ?>)
+                            <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="toggleSelectAll('interventions')">
+                                <i class="fas fa-check-double"></i> <?php echo t('select_all'); ?>
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 30px;"><input type="checkbox" id="select_all_interventions" onchange="toggleAll('interventions', this.checked)"></th>
+                                        <th><?php echo t('task_number'); ?></th>
+                                        <th><?php echo t('equipment'); ?></th>
+                                        <th><?php echo t('title'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($deleted_interventions as $item): ?>
+                                    <tr class="deleted-item-row">
+                                        <td><input type="checkbox" name="delete_interventions[]" value="<?php echo $item['id']; ?>" class="interventions-check"></td>
+                                        <td><?php echo htmlspecialchars($item['task_number']); ?></td>
+                                        <td><?php echo htmlspecialchars($item['equipment_name']); ?></td>
+                                        <td><?php echo htmlspecialchars($item['title']); ?></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <!-- Maintenances supprimées -->
+                        <?php if (!empty($deleted_preventives)): ?>
+                        <div class="section-title mt-3">
+                            <i class="fas fa-calendar-check"></i> <?php echo t('cancelled_preventives'); ?> (<?php echo count($deleted_preventives); ?>)
+                            <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="toggleSelectAll('preventives')">
+                                <i class="fas fa-check-double"></i> <?php echo t('select_all'); ?>
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 30px;"><input type="checkbox" id="select_all_preventives" onchange="toggleAll('preventives', this.checked)"></th>
+                                        <th><?php echo t('task_number'); ?></th>
+                                        <th><?php echo t('equipment'); ?></th>
+                                        <th><?php echo t('title'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($deleted_preventives as $item): ?>
+                                    <tr class="deleted-item-row">
+                                        <td><input type="checkbox" name="delete_preventives[]" value="<?php echo $item['id']; ?>" class="preventives-check"></td>
+                                        <td><?php echo htmlspecialchars($item['task_number']); ?></td>
+                                        <td><?php echo htmlspecialchars($item['equipment_name']); ?></td>
+                                        <td><?php echo htmlspecialchars($item['title']); ?></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <!-- Équipements supprimés -->
+                        <?php if (!empty($deleted_equipments)): ?>
+                        <div class="section-title mt-3">
+                            <i class="fas fa-microchip"></i> <?php echo t('deleted_equipments'); ?> (<?php echo count($deleted_equipments); ?>)
+                            <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="toggleSelectAll('equipments')">
+                                <i class="fas fa-check-double"></i> <?php echo t('select_all'); ?>
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 30px;"><input type="checkbox" id="select_all_equipments" onchange="toggleAll('equipments', this.checked)"></th>
+                                        <th><?php echo t('code'); ?></th>
+                                        <th><?php echo t('name'); ?></th>
+                                        <th><?php echo t('type'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($deleted_equipments as $item): ?>
+                                    <tr class="deleted-item-row">
+                                        <td><input type="checkbox" name="delete_equipments[]" value="<?php echo $item['id']; ?>" class="equipments-check"></td>
+                                        <td><?php echo htmlspecialchars($item['code']); ?></td>
+                                        <td><?php echo htmlspecialchars($item['name']); ?></td>
+                                        <td><?php echo htmlspecialchars($item['type']); ?></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <!-- Confirmation mot de passe -->
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <div class="row align-items-end">
+                                <div class="col-md-8">
+                                    <label class="form-label"><i class="fas fa-lock"></i> <?php echo t('confirm_password'); ?> <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="password" name="confirm_password" id="permanent_delete_password" class="form-control" required autocomplete="off" placeholder="<?php echo t('enter_admin_password'); ?>">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('permanent_delete_password')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <button type="submit" class="btn btn-danger btn-lg w-100" id="permanentDeleteBtn">
+                                        <i class="fas fa-trash-alt"></i> <?php echo t('permanent_delete'); ?>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- ========== SECTION 4 : RÉINITIALISATION DE LA BASE DE DONNÉES ========== -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="config-card reset-card">
+                <div class="config-header">
+                    <i class="fas fa-database"></i> <?php echo t('database_reset'); ?>
+                    <span class="badge bg-light ms-2">
+                        <i class="fas fa-exclamation-triangle text-warning"></i> <?php echo t('irreversible_action'); ?>
+                    </span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="warning-box">
+                        <i class="fas fa-exclamation-triangle text-warning fa-2x float-start me-3"></i>
+                        <strong>⚠️ <?php echo t('warning'); ?> :</strong> <?php echo t('database_reset_warning'); ?><br>
+                        <small class="text-muted"><?php echo t('task_counters_will_reset'); ?></small>
+                    </div>
+
+                    <form method="POST" id="resetDatabaseForm" onsubmit="return confirmResetDatabase();">
+                        <?= csrf_input() ?>
+                        <input type="hidden" name="reset_database" value="1">
+
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 30px;"><input type="checkbox" id="select_all_reset" onchange="toggleAllReset(this.checked)"></th>
+                                        <th><?php echo t('table'); ?></th>
+                                        <th><?php echo t('items_count'); ?></th>
+                                        <th><?php echo t('description'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="reset-item">
+                                        <td><input type="checkbox" name="reset_equipment" value="1" class="reset-check"></td>
+                                        <td><i class="fas fa-microchip text-primary"></i> <strong><?php echo t('equipment'); ?></strong></td>
+                                        <td><span class="badge bg-secondary badge-count"><?php echo $count_equipment; ?></span></td>
+                                        <td><small class="text-muted"><?php echo t('reset_equipment_desc'); ?></small></td>
+                                    </tr>
+                                    <tr class="reset-item">
+                                        <td><input type="checkbox" name="reset_interventions" value="1" class="reset-check"></td>
+                                        <td><i class="fas fa-tools text-info"></i> <strong><?php echo t('interventions'); ?></strong></td>
+                                        <td><span class="badge bg-secondary badge-count"><?php echo $count_interventions; ?></span></td>
+                                        <td><small class="text-muted"><?php echo t('reset_interventions_desc'); ?></small></td>
+                                    </tr>
+                                    <tr class="reset-item">
+                                        <td><input type="checkbox" name="reset_preventives" value="1" class="reset-check"></td>
+                                        <td><i class="fas fa-calendar-check text-warning"></i> <strong><?php echo t('preventive_maintenance'); ?></strong></td>
+                                        <td><span class="badge bg-secondary badge-count"><?php echo $count_preventives; ?></span></td>
+                                        <td><small class="text-muted"><?php echo t('reset_preventives_desc'); ?></small></td>
+                                    </tr>
+                                    <tr class="reset-item">
+                                        <td><input type="checkbox" name="reset_technicians" value="1" class="reset-check"></td>
+                                        <td><i class="fas fa-user-cog text-success"></i> <strong><?php echo t('technicians'); ?></strong></td>
+                                        <td><span class="badge bg-secondary badge-count"><?php echo $count_technicians; ?></span></td>
+                                        <td><small class="text-muted"><?php echo t('reset_technicians_desc'); ?></small></td>
+                                    </tr>
+                                    <tr class="reset-item">
+                                        <td><input type="checkbox" name="reset_stock" value="1" class="reset-check"></td>
+                                        <td><i class="fas fa-boxes text-danger"></i> <strong><?php echo t('stock'); ?></strong></td>
+                                        <td><span class="badge bg-secondary badge-count"><?php echo $count_stock; ?></span></td>
+                                        <td><small class="text-muted"><?php echo t('reset_stock_desc'); ?></small></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-3 text-center">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAllReset(true)">
+                                <i class="fas fa-check-double"></i> <?php echo t('select_all'); ?>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="toggleAllReset(false)">
+                                <i class="fas fa-times"></i> <?php echo t('deselect_all'); ?>
+                            </button>
+                        </div>
+
+                        <hr>
+
+                        <!-- Confirmation mot de passe -->
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <div class="row align-items-end">
+                                <div class="col-md-8">
+                                    <label class="form-label"><i class="fas fa-lock"></i> <?php echo t('confirm_password'); ?> <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="password" name="reset_password" id="reset_database_password" class="form-control" required autocomplete="off" placeholder="<?php echo t('enter_admin_password_reset'); ?>">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('reset_database_password')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <button type="submit" class="btn btn-warning btn-lg w-100" id="resetDatabaseBtn">
+                                        <i class="fas fa-database"></i> <?php echo t('reset'); ?>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -222,6 +674,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script>
+// ========== GESTION DES SÉLECTIONS ==========
+function toggleAll(type, checked) {
+    var checkboxes = document.querySelectorAll('.' + type + '-check');
+    checkboxes.forEach(function(cb) {
+        cb.checked = checked;
+    });
+}
+
+function toggleSelectAll(type) {
+    var selectAllCheckbox = document.getElementById('select_all_' + type);
+    if (selectAllCheckbox) {
+        var newState = !selectAllCheckbox.checked;
+        selectAllCheckbox.checked = newState;
+        toggleAll(type, newState);
+    }
+}
+
+function toggleAllReset(checked) {
+    var checkboxes = document.querySelectorAll('.reset-check');
+    checkboxes.forEach(function(cb) {
+        cb.checked = checked;
+    });
+    var selectAll = document.getElementById('select_all_reset');
+    if (selectAll) {
+        selectAll.checked = checked;
+    }
+}
+
+// ========== CONFIRMATION SUPPRESSION DÉFINITIVE ==========
+function confirmPermanentDelete() {
+    var checked = document.querySelectorAll('input[type="checkbox"]:checked');
+    var count = 0;
+    checked.forEach(function(cb) {
+        if (cb.name && cb.name.startsWith('delete_')) {
+            count++;
+        }
+    });
+    
+    if (count === 0) {
+        alert('<?php echo t('select_at_least_one'); ?>');
+        return false;
+    }
+    
+    var password = document.getElementById('permanent_delete_password').value;
+    if (!password) {
+        alert('<?php echo t('password_required'); ?>');
+        return false;
+    }
+    
+    return confirm('<?php echo t('permanent_delete_confirm'); ?> ' + count + ' <?php echo t('items'); ?>. <?php echo t('irreversible_action_confirm'); ?>');
+}
+
+// ========== CONFIRMATION RÉINITIALISATION ==========
+function confirmResetDatabase() {
+    var checked = document.querySelectorAll('.reset-check:checked');
+    if (checked.length === 0) {
+        alert('<?php echo t('select_at_least_one_table'); ?>');
+        return false;
+    }
+    
+    var password = document.getElementById('reset_database_password').value;
+    if (!password) {
+        alert('<?php echo t('password_required'); ?>');
+        return false;
+    }
+    
+    var tableNames = [];
+    checked.forEach(function(cb) {
+        var row = cb.closest('tr');
+        if (row) {
+            var name = row.querySelector('td:nth-child(2)')?.textContent?.trim() || cb.name;
+            tableNames.push(name);
+        }
+    });
+    
+    return confirm('<?php echo t('reset_confirm_message'); ?>\n\n' + 
+                    tableNames.join('\n') + 
+                    '\n\n<?php echo t('irreversible_action_confirm'); ?>');
+}
+
+// ========== AFFICHAGE/MASQUAGE MOT DE PASSE ==========
+function togglePassword(fieldId) {
+    const field = document.getElementById(fieldId);
+    const button = field.nextElementSibling;
+    if (button && button.tagName === 'BUTTON') {
+        if (field.type === 'password') {
+            field.type = 'text';
+            button.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        } else {
+            field.type = 'password';
+            button.innerHTML = '<i class="fas fa-eye"></i>';
+        }
+    }
+}
+
+// ========== RÉINITIALISATION COMPTEUR ==========
 let currentResetType = '';
 
 function resetCounter(type) {
@@ -252,7 +800,7 @@ document.getElementById('confirmResetBtn').addEventListener('click', function() 
     .catch(err => { alert('Erreur réseau'); });
 });
 
-// Aperçu dynamique des numéros de tâches
+// ========== APERÇU DYNAMIQUE DES NUMÉROS ==========
 document.addEventListener('DOMContentLoaded', function() {
     function getBasePath() {
         let path = window.location.pathname;
