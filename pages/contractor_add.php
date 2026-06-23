@@ -151,8 +151,8 @@ $equipments = $pdo->query("SELECT id, code, name, warranty_end FROM equipment WH
                         <input type="text" name="specialty" class="form-control" placeholder="<?php echo t('specialty_placeholder'); ?>">
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label"><?php echo t('notes'); ?></label>
-                        <input type="text" name="notes" class="form-control" placeholder="<?php echo t('notes_placeholder'); ?>">
+                        <label class="form-label"><?php echo t('contract_number'); ?></label>
+                        <input type="text" name="contract_number" class="form-control" placeholder="<?php echo t('contract_number_placeholder'); ?>">
                     </div>
                 </div>
 
@@ -164,6 +164,105 @@ $equipments = $pdo->query("SELECT id, code, name, warranty_end FROM equipment WH
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('contract_end'); ?></label>
                         <input type="date" name="contract_end" class="form-control">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><?php echo t('notes'); ?></label>
+                        <input type="text" name="notes" class="form-control" placeholder="<?php echo t('notes_placeholder'); ?>">
+                    </div>
+                </div>
+
+                <!-- ========== PARAMÈTRES DES ALERTES ========== -->
+                <div class="section-title"><i class="fas fa-bell"></i> <?php echo t('alert_settings'); ?></div>
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="alert_enabled" id="alert_enabled" value="1" checked>
+                            <label class="form-check-label" for="alert_enabled">
+                                <strong><?php echo t('enable_alerts'); ?></strong>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row" id="alertSettings">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><?php echo t('alert_days_before_1'); ?></label>
+                        <div class="input-group">
+                            <input type="number" name="alert_days_before_1" class="form-control" value="90" min="1">
+                            <span class="input-group-text"><?php echo t('days_s'); ?></span>
+                        </div>
+                        <small class="text-muted"><?php echo t('alert_days_before_1_help'); ?></small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><?php echo t('alert_days_before_2'); ?></label>
+                        <div class="input-group">
+                            <input type="number" name="alert_days_before_2" class="form-control" value="21" min="1">
+                            <span class="input-group-text"><?php echo t('days_s'); ?></span>
+                        </div>
+                        <small class="text-muted"><?php echo t('alert_days_before_2_help'); ?></small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label fw-bold"><i class="fas fa-tools"></i> <?php echo t('alert_for_interventions'); ?></label>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="alert_sidebar_intervention" id="alert_sidebar_intervention" value="1" checked>
+                            <label class="form-check-label" for="alert_sidebar_intervention">
+                                <i class="fas fa-bell text-primary"></i> <?php echo t('alert_sidebar'); ?>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="alert_popup_intervention" id="alert_popup_intervention" value="1" checked>
+                            <label class="form-check-label" for="alert_popup_intervention">
+                                <i class="fas fa-window-restore text-success"></i> <?php echo t('alert_popup'); ?>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="alert_email_intervention" id="alert_email_intervention" value="1" checked>
+                            <label class="form-check-label" for="alert_email_intervention">
+                                <i class="fas fa-envelope text-info"></i> <?php echo t('alert_email'); ?>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label fw-bold"><i class="fas fa-calendar-check"></i> <?php echo t('alert_for_maintenances'); ?></label>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="alert_sidebar_maintenance" id="alert_sidebar_maintenance" value="1" checked>
+                            <label class="form-check-label" for="alert_sidebar_maintenance">
+                                <i class="fas fa-bell text-primary"></i> <?php echo t('alert_sidebar'); ?>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="alert_popup_maintenance" id="alert_popup_maintenance" value="1" checked>
+                            <label class="form-check-label" for="alert_popup_maintenance">
+                                <i class="fas fa-window-restore text-success"></i> <?php echo t('alert_popup'); ?>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="alert_email_maintenance" id="alert_email_maintenance" value="1" checked>
+                            <label class="form-check-label" for="alert_email_maintenance">
+                                <i class="fas fa-envelope text-info"></i> <?php echo t('alert_email'); ?>
+                            </label>
+                        </div>
                     </div>
                 </div>
 

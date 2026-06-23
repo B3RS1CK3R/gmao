@@ -16,17 +16,15 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $task_number = generateTaskNumber($pdo, 'intervention', false);
-    $technician_id = !empty($_POST['technician_id']) ? $_POST['technician_id'] : null;
-    $team_id = !empty($_POST['team_id']) ? $_POST['team_id'] : null;
-    $contractor_id = !empty($_POST['contractor_id']) ? $_POST['contractor_id'] : null;
+    $technician_id = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
+    $team_id = !empty($_POST['team_id']) ? intval($_POST['team_id']) : null;
+    $contractor_id = !empty($_POST['contractor_id']) ? intval($_POST['contractor_id']) : null;
     
-    // Priorité : équipe > technicien > prestataire
+    // Règle : Si une équipe est sélectionnée, le technicien est ignoré
     if ($team_id) {
         $technician_id = null;
-        $contractor_id = null;
-    } elseif ($technician_id) {
-        $contractor_id = null;
     }
+    // Le prestataire peut être combiné avec un technicien OU une équipe
 
     $sql = "INSERT INTO interventions (
         task_number, equipment_id, type, priority, title, description, reported_by,
@@ -243,6 +241,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="card-body p-4">
                         <div class="assignment-section">
                             <div class="section-title"><i class="fas fa-user-cog"></i> <?php echo t('assign_to'); ?></div>
+                            
+                            <!-- Ligne 1 : Technicien + Équipe -->
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label"><?php echo t('technician'); ?></label>
@@ -252,9 +252,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <option value="<?php echo $tech['id']; ?>"><?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname']); ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <small class="text-muted"><?php echo t('or_select_contractor'); ?></small>
+                                    <small class="text-muted"><?php echo t('can_combine_with_contractor'); ?></small>
                                 </div>
+                                
                                 <div class="col-md-6 mb-3">
+                                    <label class="form-label"><?php echo t('team'); ?></label>
+                                    <select name="team_id" id="teamSelect" class="form-select">
+                                        <option value="">-- <?php echo t('select_team'); ?> --</option>
+                                        <?php foreach ($teams as $team): ?>
+                                        <option value="<?php echo $team['id']; ?>"><?php echo htmlspecialchars($team['name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted"><?php echo t('team_overrides_technician'); ?></small>
+                                </div>
+                            </div>
+                            
+                            <!-- Ligne 2 : Prestataire extérieur -->
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
                                     <label class="form-label"><?php echo t('contractor'); ?></label>
                                     <select name="contractor_id" id="contractorSelect" class="form-select">
                                         <option value="">-- <?php echo t('select_contractor'); ?> --</option>
@@ -262,19 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['company_name'] . (isset($c['specialty']) && !empty($c['specialty']) ? ' (' . $c['specialty'] . ')' : '')); ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <small class="text-muted"><?php echo t('or_select_technician'); ?></small>
-                                </div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-md-12 mb-2">
-                                    <label class="form-label"><?php echo t('team'); ?></label>
-                                    <select name="team_id" class="form-select">
-                                        <option value="">-- <?php echo t('select_team'); ?> --</option>
-                                        <?php foreach ($teams as $team): ?>
-                                        <option value="<?php echo $team['id']; ?>"><?php echo htmlspecialchars($team['name']); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <small class="text-muted"><?php echo t('team_overrides_technician'); ?></small>
+                                    <small class="text-muted"><?php echo t('can_combine_with_technician'); ?></small>
                                 </div>
                             </div>
                         </div>
@@ -338,23 +341,30 @@ if (document.getElementById('equipment_id').value) {
     document.getElementById('equipment_id').dispatchEvent(new Event('change'));
 }
 
-// Gestion de l'exclusion mutuelle technicien / prestataire
+// SCRIPT CORRIGÉ : Plus d'exclusion mutuelle entre technicien et prestataire
 document.addEventListener('DOMContentLoaded', function() {
     const technicianSelect = document.getElementById('technicianSelect');
     const contractorSelect = document.getElementById('contractorSelect');
+    const teamSelect = document.getElementById('teamSelect');
 
-    if (technicianSelect && contractorSelect) {
-        technicianSelect.addEventListener('change', function() {
-            if (this.value) {
-                contractorSelect.value = '';
-            }
-        });
-
-        contractorSelect.addEventListener('change', function() {
+    // Règle : Si une équipe est sélectionnée, le technicien est ignoré
+    if (teamSelect) {
+        teamSelect.addEventListener('change', function() {
             if (this.value) {
                 technicianSelect.value = '';
+                technicianSelect.disabled = true;
+            } else {
+                technicianSelect.disabled = false;
             }
         });
+        
+        // Initialiser l'état
+        if (teamSelect.value) {
+            technicianSelect.disabled = true;
+        }
     }
+
+    // Technicien et prestataire peuvent être sélectionnés ensemble
+    // Aucune exclusion mutuelle entre ces deux champs
 });
 </script>

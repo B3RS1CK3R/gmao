@@ -24,7 +24,7 @@ if($action == 'complete' && isset($_GET['id'])) {
     exit();
 }
 if($action == 'edit' && isset($_GET['id'])) {
-    header('Location: ?page=interventions_edit&id=' . intval($_GET['id']));
+    header('Location: ?page=intervention_edit&id=' . intval($_GET['id']));
     exit();
 }
 if($action == 'delete' && isset($_GET['id'])) {
@@ -41,7 +41,7 @@ if($action == 'change_status' && isset($_GET['id']) && isset($_GET['status'])) {
     echo "<meta http-equiv='refresh' content='1;url=?page=interventions&filter=" . $_GET['status'] . "'>";
 }
 
-// Fetch all interventions
+// Fetch all interventions with contractors
 $all_interventions = $pdo->query("
     SELECT i.*,
             e.name as equipment_name,
@@ -49,11 +49,14 @@ $all_interventions = $pdo->query("
             e.location as equipment_location,
             t.id as technician_id,
             t.firstname, t.lastname, t.specialty,
-            team.name as team_name
+            team.name as team_name,
+            c.id as contractor_id,
+            c.company_name as contractor_name
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
     LEFT JOIN technicians t ON i.technician_id = t.id
     LEFT JOIN teams team ON i.team_id = team.id
+    LEFT JOIN contractors c ON i.contractor_id = c.id
     ORDER BY 
         CASE i.task_status 
             WHEN 'cancelled' THEN 5
@@ -212,6 +215,15 @@ foreach($all_interventions as $inv) {
     .status-termine { background: #28a745; color: white; }
     .status-cloturee { background: #343a40; color: white; }
     .status-cancelled { background: #dc3545; color: white; }
+    
+    /* Contractor badge */
+    .contractor-badge {
+        background: #6f42c1;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+    }
     
     /* Actions */
     .action-buttons {
@@ -392,7 +404,7 @@ foreach($all_interventions as $inv) {
     <div class="stats-grid">
         <?php foreach($stats as $key => $value): ?>
         <div class="stats-card <?php echo ($active_filter == $key) ? 'active' : ''; ?>" 
-             onclick="window.location.href='?page=interventions&filter=<?php echo $key; ?>'">
+            onclick="window.location.href='?page=interventions&filter=<?php echo $key; ?>'">
             <div class="stats-number" style="color: <?php echo $filter_colors[$key] ?? '#667eea'; ?>;"><?php echo $value; ?></div>
             <div class="stats-label"><?php echo $filter_icons[$key] ?? ''; ?> <?php echo $filter_labels[$key] ?? $key; ?></div>
         </div>
@@ -414,14 +426,18 @@ foreach($all_interventions as $inv) {
                             <th><?php echo t('title'); ?></th>
                             <th><?php echo t('priority'); ?></th>
                             <th><?php echo t('status'); ?></th>
-                            <th><?php echo t('technician'); ?><br><?php echo t('team'); ?></th>
+                            <th><?php echo t('assigned_to'); ?></th>
                             <th><?php echo t('planned_date'); ?></th>
                             <th><?php echo t('last_modifications'); ?></th>
                             <th class="text-center" style="width: 120px;"><?php echo t('actions'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach($interventions as $inv): ?>
+                        <?php foreach($interventions as $inv): 
+                            $hasTeam = !empty($inv['team_name']);
+                            $hasTech = !empty($inv['firstname']) && !empty($inv['lastname']);
+                            $hasContractor = !empty($inv['contractor_id']);
+                        ?>
                         <tr>
                             <td>
                                 <strong><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></strong>
@@ -455,17 +471,18 @@ foreach($all_interventions as $inv) {
                             </td>
                             <td>
                                 <?php 
-                                $hasTeam = !empty($inv['team_name']);
-                                $hasTech = !empty($inv['firstname']);
-                                if($hasTeam && $hasTech) {
+                                if ($hasTeam && $hasTech) {
                                     echo '<span class="badge bg-info">' . htmlspecialchars($inv['team_name']) . '</span><br>';
                                     echo '<small>' . htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']) . '</small>';
-                                } elseif($hasTeam) {
+                                } elseif ($hasTeam) {
                                     echo '<span class="badge bg-info">' . htmlspecialchars($inv['team_name']) . '</span>';
                                     echo '<br><small class="text-muted">' . t('team_assigned') . '</small>';
-                                } elseif($hasTech) {
+                                } elseif ($hasContractor) {
+                                    echo '<span class="badge contractor-badge">🏢 ' . htmlspecialchars($inv['contractor_name']) . '</span>';
+                                    echo '<br><small class="text-muted">' . t('contractor_assigned') . '</small>';
+                                } elseif ($hasTech) {
                                     echo htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']);
-                                    echo '<br><small class="text-muted">' . htmlspecialchars($inv['specialty']) . '</small>';
+                                    if($inv['specialty']) echo '<br><small class="text-muted">' . htmlspecialchars($inv['specialty']) . '</small>';
                                 } else {
                                     echo '<span class="text-muted">' . t('unassigned') . '</span>';
                                 }
@@ -509,7 +526,7 @@ foreach($all_interventions as $inv) {
                                             <a href="?page=interventions_assign&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
                                                 <i class="fas fa-user-plus"></i>
                                             </a>
-                                            <a href="?page=interventions_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                            <a href="?page=intervention_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
                                                 <i class="fas fa-pen"></i>
                                             </a>
                                             <a href="?page=interventions_delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>">
@@ -519,7 +536,7 @@ foreach($all_interventions as $inv) {
                                     <?php else: ?>
                                         <span class="disabled-icon"><i class="fas fa-lock"></i></span>
                                         <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                            <a href="?page=interventions_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                            <a href="?page=intervention_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
                                                 <i class="fas fa-pen"></i>
                                             </a>
                                         <?php endif; ?>

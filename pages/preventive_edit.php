@@ -23,11 +23,14 @@ $stmt = $pdo->prepare("
            t.firstname, 
            t.lastname,
            team.id as team_id, 
-           team.name as team_name
+           team.name as team_name,
+           c.id as contractor_id,
+           c.company_name as contractor_name
     FROM preventive_maintenance pm
     JOIN equipment e ON pm.equipment_id = e.id
     LEFT JOIN technicians t ON pm.technician_id = t.id
     LEFT JOIN teams team ON pm.team_id = team.id
+    LEFT JOIN contractors c ON pm.contractor_id = c.id
     WHERE pm.id = ?
 ");
 $stmt->execute([$id]);
@@ -36,19 +39,6 @@ $pm = $stmt->fetch();
 if (!$pm) {
     echo "<div class='alert alert-danger'>" . t('not_found') . "</div>";
     return;
-}
-
-// Récupérer le contractor_id si la colonne existe
-$contractor_id = null;
-try {
-    $check = $pdo->query("SHOW COLUMNS FROM preventive_maintenance LIKE 'contractor_id'");
-    if ($check->rowCount() > 0) {
-        $stmt = $pdo->prepare("SELECT contractor_id FROM preventive_maintenance WHERE id = ?");
-        $stmt->execute([$id]);
-        $contractor_id = $stmt->fetchColumn();
-    }
-} catch (PDOException $e) {
-    // Ignorer si la colonne n'existe pas
 }
 
 $equipments = $pdo->query("SELECT id, code, name FROM equipment WHERE status IN ('active', 'maintenance') ORDER BY name")->fetchAll();
@@ -70,9 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Priorité : équipe > technicien > prestataire
     if ($team_id) {
         $technician_id = null;
-        $contractor_id = null;
-    } elseif ($technician_id) {
-        $contractor_id = null;
     }
 
     if ($equipment_id <= 0 || empty($title)) {
@@ -120,14 +107,53 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 ?>
 
 <style>
-    .form-card { background: white; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; overflow: hidden; }
-    .form-card-header { background: linear-gradient(135deg, #fd7e14, #e06a0a); color: white; padding: 15px 20px; font-weight: bold; }
-    .form-label { font-weight: 500; margin-bottom: 5px; }
-    .form-control, .form-select { border-radius: 8px; border: 1px solid #ddd; padding: 10px 12px; }
-    .btn-warning { background: #fd7e14; border: none; border-radius: 8px; padding: 8px 20px; color: white; }
-    .btn-secondary { background: #6c757d; border: none; border-radius: 8px; padding: 8px 20px; }
-    .assignment-section { background: #f8f9fa; border-radius: 10px; padding: 15px; border: 1px solid #e9ecef; }
-    .assignment-section .section-title { font-size: 14px; font-weight: 600; color: #495057; margin-bottom: 15px; }
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .form-card-header {
+        background: linear-gradient(135deg, #fd7e14, #e06a0a);
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
+    }
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+    }
+    .btn-warning {
+        background: #fd7e14;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+        color: white;
+    }
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+    }
+    .assignment-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        border: 1px solid #e9ecef;
+    }
+    .assignment-section .section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 15px;
+    }
 </style>
 
 <div class="container-fluid">
@@ -144,6 +170,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="form-card-header"><i class="fas fa-edit"></i> <?php echo t('edit_maintenance'); ?></div>
         <div class="card-body p-4">
             <form method="POST">
+                <?= csrf_input() ?>
+                <input type="hidden" name="id" value="<?php echo $id; ?>">
+                
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('task_number'); ?></label>
@@ -198,6 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="assignment-section">
                             <div class="section-title"><i class="fas fa-user-cog"></i> <?php echo t('assign_to'); ?></div>
                             <div class="row">
+                                <!-- Colonne 1 : Technicien -->
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label"><?php echo t('technician'); ?></label>
                                     <select name="technician_id" id="technicianSelect" class="form-select">
@@ -208,20 +238,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <small class="text-muted"><?php echo t('or_select_contractor'); ?></small>
+                                    <small class="text-muted"><?php echo t('can_combine_with_contractor'); ?></small>
                                 </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label"><?php echo t('contractor'); ?></label>
-                                    <select name="contractor_id" id="contractorSelect" class="form-select">
-                                        <option value="">-- <?php echo t('select_contractor'); ?> --</option>
-                                        <?php foreach ($contractors as $c): ?>
-                                            <option value="<?php echo $c['id']; ?>" <?php if ($contractor_id == $c['id']) echo 'selected'; ?>>
-                                                <?php echo htmlspecialchars($c['company_name'] . (isset($c['specialty']) && !empty($c['specialty']) ? ' (' . $c['specialty'] . ')' : '')); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <small class="text-muted"><?php echo t('or_select_technician'); ?></small>
-                                </div>
+                                
+                                <!-- Colonne 2 : Équipe -->
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label"><?php echo t('team'); ?></label>
                                     <select name="team_id" class="form-select">
@@ -234,13 +254,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </select>
                                     <small class="text-muted"><?php echo t('team_overrides_technician'); ?></small>
                                 </div>
+                                
+                                <!-- Colonne 3 : Prestataire extérieur -->
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label"><?php echo t('contractor'); ?></label>
+                                    <select name="contractor_id" id="contractorSelect" class="form-select">
+                                        <option value="">-- <?php echo t('select_contractor'); ?> --</option>
+                                        <?php foreach ($contractors as $c): ?>
+                                            <option value="<?php echo $c['id']; ?>" <?php if ($pm['contractor_id'] == $c['id']) echo 'selected'; ?>>
+                                                <?php echo htmlspecialchars($c['company_name'] . (isset($c['specialty']) && !empty($c['specialty']) ? ' (' . $c['specialty'] . ')' : '')); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted"><?php echo t('can_combine_with_technician_or_team'); ?></small>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-4">
-                    <?= csrf_input() ?>
                     <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> <?php echo t('save'); ?></button>
                     <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
                 </div>
@@ -253,19 +286,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 document.addEventListener('DOMContentLoaded', function() {
     const technicianSelect = document.getElementById('technicianSelect');
     const contractorSelect = document.getElementById('contractorSelect');
+    const teamSelect = document.querySelector('select[name="team_id"]');
 
-    if (technicianSelect && contractorSelect) {
-        technicianSelect.addEventListener('change', function() {
-            if (this.value) {
-                contractorSelect.value = '';
-            }
-        });
-
-        contractorSelect.addEventListener('change', function() {
+    // Règle : Si une équipe est sélectionnée, le technicien est ignoré
+    if (teamSelect) {
+        teamSelect.addEventListener('change', function() {
             if (this.value) {
                 technicianSelect.value = '';
+                technicianSelect.disabled = true;
+            } else {
+                technicianSelect.disabled = false;
             }
         });
+        
+        // Initialiser l'état
+        if (teamSelect.value) {
+            technicianSelect.disabled = true;
+        }
     }
+
+    // Technicien et prestataire peuvent être sélectionnés ensemble
+    // Aucune exclusion mutuelle entre ces deux champs
 });
 </script>

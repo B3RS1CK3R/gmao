@@ -42,17 +42,17 @@ $technician_id = !empty($_POST['technician_id']) ? intval($_POST['technician_id'
 $team_id = !empty($_POST['team_id']) ? intval($_POST['team_id']) : null;
 $contractor_id = !empty($_POST['contractor_id']) ? intval($_POST['contractor_id']) : null;
 
+// Règle : Si une équipe est sélectionnée, le technicien est ignoré
 if ($team_id) {
     $technician_id = null;
-    $contractor_id = null;
-} elseif ($technician_id) {
-    $contractor_id = null;
 }
+// Le prestataire peut être combiné avec un technicien OU une équipe
+// Aucune modification nécessaire pour contractor_id
 
 // Validation
-if ($equipment_id <= 0 || empty($title) || $frequency_days < 1) {
+if ($equipment_id <= 0 || empty($title)) {
     $_SESSION['flash_error'] = t('required_fields_missing');
-    header('Location: ?page=preventive_edit&id=' . $id);
+    header('Location: ?page=intervention_edit&id=' . $id);
     exit();
 }
 
@@ -114,14 +114,18 @@ try {
 
     // Journalisation
     $assignee = '';
-    if ($team_id) {
+    if ($team_id && $contractor_id) {
+        $assignee = " (équipe ID: $team_id + prestataire ID: $contractor_id)";
+    } elseif ($technician_id && $contractor_id) {
+        $assignee = " (technicien ID: $technician_id + prestataire ID: $contractor_id)";
+    } elseif ($team_id) {
         $assignee = " (équipe ID: $team_id)";
     } elseif ($technician_id) {
         $assignee = " (technicien ID: $technician_id)";
     } elseif ($contractor_id) {
         $assignee = " (prestataire ID: $contractor_id)";
     }
-    logUserAction($_SESSION['user_id'], 'preventive_updated', "Maintenance préventive modifiée: ID $id$assignee");
+    logUserAction($_SESSION['user_id'], 'preventive_updated', "Preventive modifiée: ID $id$assignee");
     
     $_SESSION['flash_message'] = t('save_success');
     header('Location: ?page=preventive');

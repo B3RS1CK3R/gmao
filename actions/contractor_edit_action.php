@@ -52,10 +52,20 @@ try {
         contact_phone = ?,
         contact_email = ?,
         specialty = ?,
+        contract_number = ?,
         status = ?,
         notes = ?,
         contract_start = ?,
-        contract_end = ?
+        contract_end = ?,
+        alert_enabled = ?,
+        alert_days_before_1 = ?,
+        alert_days_before_2 = ?,
+        alert_sidebar_intervention = ?,
+        alert_popup_intervention = ?,
+        alert_email_intervention = ?,
+        alert_sidebar_maintenance = ?,
+        alert_popup_maintenance = ?,
+        alert_email_maintenance = ?
     WHERE id = ?";
 
     $stmt = $pdo->prepare($sql);
@@ -75,10 +85,20 @@ try {
         $_POST['contact_phone'] ?? null,
         $_POST['contact_email'] ?? null,
         $_POST['specialty'] ?? null,
+        $_POST['contract_number'] ?? null,
         $_POST['status'] ?? 'active',
         $_POST['notes'] ?? null,
         !empty($_POST['contract_start']) ? $_POST['contract_start'] : null,
         !empty($_POST['contract_end']) ? $_POST['contract_end'] : null,
+        isset($_POST['alert_enabled']) ? 1 : 0,
+        intval($_POST['alert_days_before_1'] ?? 90),
+        intval($_POST['alert_days_before_2'] ?? 21),
+        isset($_POST['alert_sidebar_intervention']) ? 1 : 0,
+        isset($_POST['alert_popup_intervention']) ? 1 : 0,
+        isset($_POST['alert_email_intervention']) ? 1 : 0,
+        isset($_POST['alert_sidebar_maintenance']) ? 1 : 0,
+        isset($_POST['alert_popup_maintenance']) ? 1 : 0,
+        isset($_POST['alert_email_maintenance']) ? 1 : 0,
         $id
     ]);
 

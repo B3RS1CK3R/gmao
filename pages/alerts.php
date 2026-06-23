@@ -197,6 +197,35 @@ if ($_SESSION['role'] === 'admin') {
     }
 }
 
+// 8. CONTRACTOR ALERTS (NOUVEAU)
+$stmt = $pdo->query("
+    SELECT ca.*, c.company_name
+    FROM contractor_alerts ca
+    JOIN contractors c ON ca.contractor_id = c.id
+    WHERE ca.sent_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ORDER BY ca.sent_at DESC
+");
+$contractorAlerts = $stmt->fetchAll();
+
+foreach($contractorAlerts as $ca) {
+    $priority = $ca['days_remaining'] <= 7 ? 'critical' : 'warning';
+    $alerts[] = [
+        'id' => 'contractor_' . $ca['id'],
+        'type' => 'contractor_alert',
+        'priority' => $priority,
+        'title' => '🔔 ' . t('contact_contractor'),
+        'message' => $ca['company_name'] . ' - ' . $ca['task_number'] . ' (' . t('days_remaining') . ': ' . $ca['days_remaining'] . ')',
+        'details' => '<strong>' . t('contractor') . ' :</strong> ' . htmlspecialchars($ca['company_name']) . '<br>' .
+                     '<strong>' . t('task_number') . ' :</strong> ' . htmlspecialchars($ca['task_number']) . '<br>' .
+                     '<strong>' . t('equipment') . ' :</strong> ' . htmlspecialchars($ca['equipment_name']) . '<br>' .
+                     '<strong>' . t('scheduled_date') . ' :</strong> ' . format_date_local($ca['scheduled_date'], 'short') . '<br>' .
+                     '<strong>' . t('days_remaining') . ' :</strong> ' . $ca['days_remaining'] . ' ' . t('days_s'),
+        'url' => '?page=contractor_detail&id=' . $ca['contractor_id'],
+        'date' => $ca['sent_at'],
+        'days_remaining' => $ca['days_remaining']
+    ];
+}
+
 // Sort alerts by date (newest first)
 usort($alerts, function($a, $b) {
     return strtotime($b['date']) - strtotime($a['date']);
@@ -229,6 +258,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
     .alert-card-header.critical { background: linear-gradient(135deg, #dc3545, #c82333); }
     .alert-card-header.warning { background: linear-gradient(135deg, #fd7e14, #e06a0a); }
     .alert-card-header.info { background: linear-gradient(135deg, #17a2b8, #138496); }
+    .alert-card-header.contractor { background: linear-gradient(135deg, #6f42c1, #5a32a3); }
     .alert-card-body {
         padding: 20px;
         display: none;
@@ -251,6 +281,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
     .alert-item.critical { border-left: 4px solid #dc3545; }
     .alert-item.warning { border-left: 4px solid #fd7e14; }
     .alert-item.info { border-left: 4px solid #17a2b8; }
+    .alert-item.contractor { border-left: 4px solid #6f42c1; }
     .alert-priority-badge {
         display: inline-block;
         padding: 3px 8px;
@@ -261,6 +292,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
     .alert-priority-critical { background: #dc3545; color: white; }
     .alert-priority-warning { background: #fd7e14; color: white; }
     .alert-priority-info { background: #17a2b8; color: white; }
+    .alert-priority-contractor { background: #6f42c1; color: white; }
     .alert-dismiss-btn {
         background: none;
         border: none;
@@ -369,7 +401,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         </div>
     </div>
     
-    <!-- ===== POPUP SETTINGS SWITCH (AJOUTÉ) ===== -->
+    <!-- ===== POPUP SETTINGS SWITCH ===== -->
     <div class="popup-settings">
         <div>
             <i class="fas fa-bell-slash"></i> <strong><?php echo t('popup_notifications'); ?></strong>
@@ -444,7 +476,8 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         'warranty_expired' => ['title' => t('warranty_expired_title'), 'icon' => 'fas fa-file-contract', 'color' => 'critical'],
         'warranty_upcoming' => ['title' => t('warranty_upcoming_title'), 'icon' => 'fas fa-file-contract', 'color' => 'info'],
         'unassigned_intervention' => ['title' => t('unassigned_intervention_title'), 'icon' => 'fas fa-user-plus', 'color' => 'warning'],
-        'backup_reminder' => ['title' => t('backup_reminder_title'), 'icon' => 'fas fa-database', 'color' => 'warning']
+        'backup_reminder' => ['title' => t('backup_reminder_title'), 'icon' => 'fas fa-database', 'color' => 'warning'],
+        'contractor_alert' => ['title' => t('contractor_alerts'), 'icon' => 'fas fa-building', 'color' => 'contractor']
     ];
     
     foreach($categories as $type => $cat):
@@ -459,8 +492,13 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
             <i class="fas fa-chevron-down"></i>
         </div>
         <div class="alert-card-body">
-            <?php foreach($type_alerts as $alert): ?>
-            <div class="alert-item <?php echo $alert['priority']; ?>" data-priority="<?php echo $alert['priority']; ?>" data-id="<?php echo $alert['id']; ?>" onclick="goToUrl('<?php echo $alert['url']; ?>')">
+            <?php foreach($type_alerts as $alert): 
+                $priority_class = $alert['priority'] == 'critical' ? 'critical' : ($alert['priority'] == 'warning' ? 'warning' : 'info');
+                if ($alert['type'] == 'contractor_alert') {
+                    $priority_class = 'contractor';
+                }
+            ?>
+            <div class="alert-item <?php echo $priority_class; ?>" data-priority="<?php echo $alert['priority']; ?>" data-id="<?php echo $alert['id']; ?>" onclick="goToUrl('<?php echo $alert['url']; ?>')">
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <div class="fw-bold"><?php echo $alert['title']; ?></div>
@@ -488,13 +526,19 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
                             <i class="fas fa-chart-line"></i> <?php echo t('stock_at'); ?> <?php echo $alert['percentage']; ?>%
                         </div>
                         <?php endif; ?>
+                        <?php if(isset($alert['days_remaining'])): ?>
+                        <div class="small text-<?php echo $alert['days_remaining'] <= 7 ? 'danger' : 'warning'; ?> mt-1">
+                            <i class="fas fa-hourglass-half"></i> <?php echo t('days_remaining'); ?>: <?php echo $alert['days_remaining']; ?> <?php echo t('days_s'); ?>
+                        </div>
+                        <?php endif; ?>
                     </div>
                     <div class="text-end">
-                        <span class="alert-priority-badge alert-priority-<?php echo $alert['priority']; ?>">
+                        <span class="alert-priority-badge alert-priority-<?php echo $priority_class; ?>">
                             <?php 
                             if($alert['priority'] == 'critical') echo t('critical');
                             elseif($alert['priority'] == 'warning') echo t('warning');
-                            else echo t('info');
+                            elseif($alert['priority'] == 'info') echo t('info');
+                            else echo t('contractor');
                             ?>
                         </span>
                         <button class="alert-dismiss-btn ms-2" onclick="dismissAlert(event, '<?php echo $alert['id']; ?>')" title="<?php echo t('mark_as_read'); ?>">
@@ -523,7 +567,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
 // Store dismissed alerts for session only
 let dismissedAlerts = [];
 
-// ===== POPUP SETTINGS MANAGEMENT (AJOUTÉ) =====
+// ===== POPUP SETTINGS MANAGEMENT =====
 const popupsToggle = document.getElementById('popupsToggle');
 if (popupsToggle) {
     const savedPopupPreference = localStorage.getItem('gmao_popups_enabled');
@@ -551,15 +595,13 @@ if (popupsToggle) {
     });
 }
 
-// ===== POPUP DURATION SETTINGS (AJOUTÉ) =====
+// ===== POPUP DURATION SETTINGS =====
 const popupDuration = document.getElementById('popupDuration');
 const saveDurationBtn = document.getElementById('saveDurationBtn');
 if (popupDuration) {
-    // Load saved duration
     const savedDuration = localStorage.getItem('gmao_popup_duration') || '8000';
     popupDuration.value = savedDuration;
     
-    // Save duration
     saveDurationBtn.addEventListener('click', function() {
         const duration = popupDuration.value;
         localStorage.setItem('gmao_popup_duration', duration);

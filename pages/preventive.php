@@ -1,5 +1,5 @@
 <?php
-// pages/preventive.php - Liste des maintenances préventives
+// pages/preventive.php - Liste des maintenances préventives (avec prestataires)
 if(!isset($_SESSION['user_id'])) {
     header('Location: index.php?page=login');
     exit();
@@ -14,18 +14,21 @@ if($action == 'edit' && isset($_GET['id'])) { header('Location: ?page=preventive
 if($action == 'delete' && isset($_GET['id'])) { header('Location: ?page=preventive_delete&id=' . intval($_GET['id'])); exit(); }
 if($action == 'complete' && isset($_GET['id'])) { header('Location: ?page=preventive_complete&id=' . intval($_GET['id'])); exit(); }
 
-// Récupération de toutes les maintenances
+// Récupération de toutes les maintenances avec prestataires
 $all_preventives = $pdo->query("
     SELECT pm.*, 
             e.name as equipment_name, 
             e.code as equipment_code,
             t.id as technician_id,
             t.firstname, t.lastname, t.specialty,
-            team.name as team_name
+            team.name as team_name,
+            c.id as contractor_id,
+            c.company_name as contractor_name
     FROM preventive_maintenance pm
     JOIN equipment e ON pm.equipment_id = e.id
     LEFT JOIN technicians t ON pm.technician_id = t.id
     LEFT JOIN teams team ON pm.team_id = team.id
+    LEFT JOIN contractors c ON pm.contractor_id = c.id
     ORDER BY 
         CASE WHEN pm.next_due < CURDATE() THEN 0 ELSE 1 END,
         pm.next_due ASC
@@ -104,6 +107,9 @@ foreach($all_preventives as $pm) {
     $stmt->execute(["%ID: {$pm['id']}%"]);
     $history[$pm['id']] = $stmt->fetchAll();
 }
+
+// Contractor badge style
+$contractor_badge_style = 'background: #6f42c1; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px;';
 ?>
 
 <style>
@@ -164,10 +170,30 @@ foreach($all_preventives as $pm) {
         font-size: 11px;
         font-weight: 600;
     }
-    .status-overdue { background: #dc3545; color: white; }
-    .status-upcoming { background: #ffc107; color: #333; }
-    .status-ok { background: #28a745; color: white; }
-    .status-cancelled { background: #6c757d; color: white; }
+
+    .contractor-badge {
+        background: #6f42c1;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+    }
+    .status-overdue {
+        background: #dc3545;
+        color: white;
+    }
+    .status-upcoming {
+        background: #ffc107;
+        color: #333;
+    }
+    .status-ok {
+        background: #28a745;
+        color: white;
+    }
+    .status-cancelled {
+        background: #6c757d;
+        color: white;
+    }
     
     .action-buttons {
         display: flex;
@@ -310,7 +336,7 @@ foreach($all_preventives as $pm) {
     <div class="stats-grid">
         <?php foreach($stats as $key => $value): ?>
         <div class="stats-card <?php echo ($active_filter == $key) ? 'active' : ''; ?>" 
-             onclick="window.location.href='?page=preventive&filter=<?php echo $key; ?>'">
+            onclick="window.location.href='?page=preventive&filter=<?php echo $key; ?>'">
             <div class="stats-number" style="color: <?php echo $filter_colors[$key] ?? '#667eea'; ?>;"><?php echo $value; ?></div>
             <div class="stats-label"><?php echo $filter_icons[$key] ?? ''; ?> <?php echo $filter_labels[$key] ?? $key; ?></div>
         </div>
@@ -331,7 +357,7 @@ foreach($all_preventives as $pm) {
                             <th><?php echo t('last_done'); ?></th>
                             <th><?php echo t('next_due'); ?></th>
                             <th><?php echo t('status'); ?></th>
-                            <th><?php echo t('technician'); ?><br><?php echo t('team'); ?></th>
+                            <th><?php echo t('assigned_to'); ?></th>
                             <th><?php echo t('last_modifications'); ?></th>
                             <th class="text-center"><?php echo t('actions'); ?></th>
                         </tr>
@@ -340,6 +366,9 @@ foreach($all_preventives as $pm) {
                         <?php foreach($preventives as $pm): 
                             $days_diff = (strtotime($pm['next_due']) - time()) / 86400;
                             $is_cancelled = ($pm['task_status'] == 'cancelled');
+                            $hasTeam = !empty($pm['team_name']);
+                            $hasTech = !empty($pm['firstname']) && !empty($pm['lastname']);
+                            $hasContractor = !empty($pm['contractor_id']);
                             
                             if($is_cancelled) {
                                 $status_class = 'status-cancelled';
@@ -376,9 +405,16 @@ foreach($all_preventives as $pm) {
                             <td><span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span></td>
                             <td>
                                 <?php 
-                                if (!empty($pm['team_name'])) {
+                                if ($hasTeam && $hasTech) {
+                                    echo '<span class="badge bg-info">' . htmlspecialchars($pm['team_name']) . '</span><br>';
+                                    echo '<small>' . htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']) . '</small>';
+                                } elseif ($hasTeam) {
                                     echo '<span class="badge bg-info">' . htmlspecialchars($pm['team_name']) . '</span>';
-                                } elseif (!empty($pm['firstname']) && !empty($pm['lastname'])) {
+                                    echo '<br><small class="text-muted">' . t('team_assigned') . '</small>';
+                                } elseif ($hasContractor) {
+                                    echo '<span class="badge contractor-badge">🏢 ' . htmlspecialchars($pm['contractor_name']) . '</span>';
+                                    echo '<br><small class="text-muted">' . t('contractor_assigned') . '</small>';
+                                } elseif ($hasTech) {
                                     echo htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']);
                                     if($pm['specialty']) echo '<br><small class="text-muted">' . htmlspecialchars($pm['specialty']) . '</small>';
                                 } else {

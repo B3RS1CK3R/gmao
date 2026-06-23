@@ -265,6 +265,10 @@ try {
                 </div>
                 <div class="card-body p-4">
                     <div class="info-row">
+                        <span class="label"><?php echo t('contract_number'); ?></span>
+                        <?php echo htmlspecialchars($contractor['contract_number'] ?: '-'); ?>
+                    </div>
+                    <div class="info-row">
                         <span class="label"><?php echo t('specialty'); ?></span>
                         <?php echo htmlspecialchars($contractor['specialty'] ?: '-'); ?>
                     </div>

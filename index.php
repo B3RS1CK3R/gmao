@@ -323,9 +323,6 @@ if ($page === 'interventions_delete_action' && isset($_GET['id'])) {
         case 'interventions_assign':
             require_once 'pages/interventions_assign.php';
             break;
-        case 'interventions_edit':
-            require_once 'pages/interventions_edit.php';
-            break;
         case 'intervention_add':
             require_once 'pages/intervention_add.php';
             break;
