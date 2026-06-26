@@ -868,5 +868,10 @@ return [
     'team_and_contractor' => 'Team + Contractor',
     'technician_and_contractor' => 'Technician + Contractor',
     'can_combine_with_technician' => 'Can be combined with a technician',
+    'team_not_found' => 'Team not found',
+    'technician_not_found' => 'Technician not found',
+    'contractor_not_found' => 'Contractor not found',
+    'invalid_date' => 'Invalid date',
+    'record_not_found' => 'Record not found',
 
 ];

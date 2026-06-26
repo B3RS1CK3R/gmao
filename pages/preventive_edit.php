@@ -4,7 +4,7 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-if ($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'supervisor') {
+if (!in_array($_SESSION['role'] ?? '', ['admin', 'supervisor', 'technician'])) {
     echo "<div class='alert alert-danger'>" . t('access_denied') . "</div>";
     return;
 }
@@ -17,15 +17,15 @@ if (!$id) {
 
 $stmt = $pdo->prepare("
     SELECT pm.*, 
-           e.name as equipment_name, 
-           e.code as equipment_code,
-           t.id as technician_id, 
-           t.firstname, 
-           t.lastname,
-           team.id as team_id, 
-           team.name as team_name,
-           c.id as contractor_id,
-           c.company_name as contractor_name
+            e.name as equipment_name, 
+            e.code as equipment_code,
+            t.id as technician_id, 
+            t.firstname, 
+            t.lastname,
+            t.specialty,
+            team.name as team_name,
+            c.id as contractor_id,
+            c.company_name as contractor_name
     FROM preventive_maintenance pm
     JOIN equipment e ON pm.equipment_id = e.id
     LEFT JOIN technicians t ON pm.technician_id = t.id
@@ -41,69 +41,38 @@ if (!$pm) {
     return;
 }
 
+// Empêcher la modification d'une intervention terminée
+if (in_array($pm['task_status'], ['completed', 'closed', 'cancelled'])) {
+    echo "<div class='alert alert-warning'>" . t('cannot_edit_completed_intervention') . "</div>";
+    echo "<a href='?page=intervention_view&id=$id' class='btn btn-secondary'><i class='fas fa-arrow-left'></i> " . t('back') . "</a>";
+    return;
+}
+
+$error = $_SESSION['flash_error'] ?? '';
+unset($_SESSION['flash_error']);
+
 $equipments = $pdo->query("SELECT id, code, name FROM equipment WHERE status IN ('active', 'maintenance') ORDER BY name")->fetchAll();
 $technicians = $pdo->query("SELECT id, firstname, lastname FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
-$teams = $pdo->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
 $contractors = $pdo->query("SELECT id, company_name, specialty FROM contractors WHERE status = 'active' ORDER BY company_name")->fetchAll();
-$error = '';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $equipment_id   = intval($_POST['equipment_id']);
-    $frequency_days = intval($_POST['frequency_days']);
-    $last_done      = !empty($_POST['last_done']) ? $_POST['last_done'] : date('Y-m-d');
-    $title          = trim($_POST['title'] ?? '');
-    $instructions   = trim($_POST['instructions'] ?? '');
-    $technician_id  = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
-    $team_id        = (isset($_POST['team_id']) && $_POST['team_id'] !== '') ? intval($_POST['team_id']) : null;
-    $contractor_id  = !empty($_POST['contractor_id']) ? intval($_POST['contractor_id']) : null;
-    
-    // Priorité : équipe > technicien > prestataire
-    if ($team_id) {
-        $technician_id = null;
-    }
-
-    if ($equipment_id <= 0 || empty($title)) {
-        $error = "Veuillez sélectionner un équipement et renseigner un titre.";
-    } elseif ($frequency_days < 1) {
-        $error = "La fréquence doit être d'au moins 1 jour.";
-    } else {
-        $next_due = date('Y-m-d', strtotime($last_done . ' + ' . $frequency_days . ' days'));
-
-        $sql = "UPDATE preventive_maintenance SET 
-                equipment_id = ?, 
-                frequency_days = ?, 
-                last_done = ?, 
-                next_due = ?, 
-                title = ?, 
-                instructions = ?, 
-                technician_id = ?, 
-                team_id = ?,
-                contractor_id = ? 
-                WHERE id = ?";
-        
-        $stmt = $pdo->prepare($sql);
-        $result = $stmt->execute([
-            $equipment_id, 
-            $frequency_days, 
-            $last_done, 
-            $next_due, 
-            $title, 
-            $instructions, 
-            $technician_id, 
-            $team_id,
-            $contractor_id,
-            $id
-        ]);
-
-        if ($result) {
-            logUserAction($_SESSION['user_id'], 'preventive_updated', "ID: {$id} - Ref: {$pm['task_number']}");
-            header('Location: ?page=preventive&msg=' . urlencode(t('save_success')));
-            exit();
-        } else {
-            $error = t('save_error');
-        }
-    }
+// Récupérer les équipes
+$teams = [];
+try {
+    $teams = $pdo->query("SELECT id, name FROM teams ORDER BY name")->fetchAll();
+} catch (PDOException $e) {
+    // Ignorer si la table teams n'existe pas
 }
+
+// Priorités disponibles
+$priorities = [
+    'low' => t('priority_low'),
+    'medium' => t('priority_medium'),
+    'high' => t('priority_high'),
+    'critical' => t('priority_critical')
+];
+
+// Durées planifiées prédéfinies
+$durations = ['30min', '1h', '2h', '3h', '4h', '6h', '8h', '1 day', '2 days'];
 ?>
 
 <style>
@@ -136,11 +105,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         padding: 8px 20px;
         color: white;
     }
+    .btn-warning:hover {
+        background: #e06a0a;
+        color: white;
+    }
     .btn-secondary {
         background: #6c757d;
         border: none;
         border-radius: 8px;
         padding: 8px 20px;
+    }
+    .btn-secondary:hover {
+        background: #5a6268;
     }
     .assignment-section {
         background: #f8f9fa;
@@ -154,11 +130,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         color: #495057;
         margin-bottom: 15px;
     }
+    .text-muted {
+        color: #6c757d !important;
+    }
 </style>
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-edit"></i> <?php echo t('edit_maintenance'); ?> : <?php echo htmlspecialchars($pm['equipment_name']); ?></h2>
+        <h2><i class="fas fa-edit"></i> <?php echo t('edit_maintenance'); ?> : <?php echo htmlspecialchars($pm['task_number']); ?></h2>
         <a href="?page=preventive" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> <?php echo t('back'); ?></a>
     </div>
 
@@ -169,10 +148,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <div class="form-card">
         <div class="form-card-header"><i class="fas fa-edit"></i> <?php echo t('edit_maintenance'); ?></div>
         <div class="card-body p-4">
-            <form method="POST">
+            <form method="POST" action="./index.php?page=preventive_edit_action">
                 <?= csrf_input() ?>
                 <input type="hidden" name="id" value="<?php echo $id; ?>">
-                
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('task_number'); ?></label>
@@ -193,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Titre de la tâche <span class="text-danger">*</span></label>
+                        <label class="form-label"><?php echo t('title'); ?> <span class="text-danger">*</span></label>
                         <input type="text" name="title" class="form-control" value="<?php echo htmlspecialchars($pm['title'] ?? ''); ?>" required>
                     </div>
                     <div class="col-md-6 mb-3">
@@ -214,6 +192,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <label class="form-label"><?php echo t('next_due'); ?></label>
                         <input type="date" class="form-control" value="<?php echo $pm['next_due']; ?>" readonly>
                     </div>
+                </div>
+
+                <!-- NOUVEAUX CHAMPS : Priorité, Durée, Zone, Localisation -->
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label"><?php echo t('priority'); ?></label>
+                        <select name="priority" class="form-select">
+                            <?php foreach ($priorities as $key => $label): ?>
+                                <option value="<?php echo $key; ?>" <?php if (($pm['priority'] ?? 'medium') == $key) echo 'selected'; ?>>
+                                    <?php echo $label; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label"><?php echo t('planned_duration'); ?></label>
+                        <select name="planned_duration" class="form-select">
+                            <?php foreach ($durations as $duration): ?>
+                                <option value="<?php echo $duration; ?>" <?php if (($pm['planned_duration'] ?? '4h') == $duration) echo 'selected'; ?>>
+                                    <?php echo $duration; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label"><?php echo t('zone'); ?></label>
+                        <input type="text" name="zone" class="form-control" value="<?php echo htmlspecialchars($pm['zone'] ?? ''); ?>" placeholder="Ex: Zone A, Atelier 3">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><?php echo t('localisation'); ?></label>
+                    <input type="text" name="localisation" class="form-control" value="<?php echo htmlspecialchars($pm['localisation'] ?? ''); ?>" placeholder="Ex: Bâtiment B, 2ème étage">
                 </div>
 
                 <div class="mb-3">
@@ -244,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <!-- Colonne 2 : Équipe -->
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label"><?php echo t('team'); ?></label>
-                                    <select name="team_id" class="form-select">
+                                    <select name="team_id" id="teamSelect" class="form-select">
                                         <option value="">-- <?php echo t('select_team'); ?> --</option>
                                         <?php foreach ($teams as $team): ?>
                                             <option value="<?php echo $team['id']; ?>" <?php if ($pm['team_id'] == $team['id']) echo 'selected'; ?>>
@@ -286,7 +297,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 document.addEventListener('DOMContentLoaded', function() {
     const technicianSelect = document.getElementById('technicianSelect');
     const contractorSelect = document.getElementById('contractorSelect');
-    const teamSelect = document.querySelector('select[name="team_id"]');
+    const teamSelect = document.getElementById('teamSelect');
 
     // Règle : Si une équipe est sélectionnée, le technicien est ignoré
     if (teamSelect) {
@@ -304,8 +315,5 @@ document.addEventListener('DOMContentLoaded', function() {
             technicianSelect.disabled = true;
         }
     }
-
-    // Technicien et prestataire peuvent être sélectionnés ensemble
-    // Aucune exclusion mutuelle entre ces deux champs
 });
 </script>

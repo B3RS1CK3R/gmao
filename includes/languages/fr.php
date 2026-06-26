@@ -869,5 +869,10 @@ return [
     'technician_and_contractor' => 'Technicien + Prestataire',
     'can_combine_with_contractor' => 'Peut être combiné avec un prestataire',
     'can_combine_with_technician' => 'Peut être combiné avec un technicien',
+    'team_not_found' => 'Équipe non trouvée',
+    'technician_not_found' => 'Technicien non trouvé',
+    'contractor_not_found' => 'Prestataire non trouvé',
+    'invalid_date' => 'Date invalide',
+    'record_not_found' => 'Enregistrement non trouvé',
 
 ];

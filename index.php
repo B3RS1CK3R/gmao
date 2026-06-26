@@ -86,11 +86,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
     
-    if ($page === 'preventive_add') {
+    if ($page === 'preventive_add_action') {
         require_once 'actions/preventive_add_action.php';
         exit();
     }
-    if ($page === 'preventive_edit') {
+    if ($page === 'preventive_edit_action') {
         require_once 'actions/preventive_edit_action.php';
         exit();
     }

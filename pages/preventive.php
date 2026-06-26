@@ -107,9 +107,6 @@ foreach($all_preventives as $pm) {
     $stmt->execute(["%ID: {$pm['id']}%"]);
     $history[$pm['id']] = $stmt->fetchAll();
 }
-
-// Contractor badge style
-$contractor_badge_style = 'background: #6f42c1; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px;';
 ?>
 
 <style>
@@ -368,7 +365,7 @@ $contractor_badge_style = 'background: #6f42c1; color: white; padding: 2px 10px;
                             $is_cancelled = ($pm['task_status'] == 'cancelled');
                             $hasTeam = !empty($pm['team_name']);
                             $hasTech = !empty($pm['firstname']) && !empty($pm['lastname']);
-                            $hasContractor = !empty($pm['contractor_id']);
+                            $hasContractor = !empty($pm['contractor_id']) && !empty($pm['contractor_name']);
                             
                             if($is_cancelled) {
                                 $status_class = 'status-cancelled';
@@ -405,18 +402,26 @@ $contractor_badge_style = 'background: #6f42c1; color: white; padding: 2px 10px;
                             <td><span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span></td>
                             <td>
                                 <?php 
-                                if ($hasTeam && $hasTech) {
-                                    echo '<span class="badge bg-info">' . htmlspecialchars($pm['team_name']) . '</span><br>';
-                                    echo '<small>' . htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']) . '</small>';
+                                if ($hasTeam && $hasContractor) {
+                                    // Équipe + Prestataire
+                                    echo '<span class="badge bg-info">' . htmlspecialchars($pm['team_name']) . '</span>';
+                                    echo '<br><span class="badge contractor-badge">🏢 ' . htmlspecialchars($pm['contractor_name']) . '</span>';
+                                } elseif ($hasTech && $hasContractor) {
+                                    // Technicien + Prestataire
+                                    echo htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']);
+                                    if ($pm['specialty']) {
+                                        echo '<br><small class="text-muted">' . htmlspecialchars($pm['specialty']) . '</small>';
+                                    }
+                                    echo '<br><span class="badge contractor-badge">🏢 ' . htmlspecialchars($pm['contractor_name']) . '</span>';
                                 } elseif ($hasTeam) {
                                     echo '<span class="badge bg-info">' . htmlspecialchars($pm['team_name']) . '</span>';
-                                    echo '<br><small class="text-muted">' . t('team_assigned') . '</small>';
                                 } elseif ($hasContractor) {
                                     echo '<span class="badge contractor-badge">🏢 ' . htmlspecialchars($pm['contractor_name']) . '</span>';
-                                    echo '<br><small class="text-muted">' . t('contractor_assigned') . '</small>';
                                 } elseif ($hasTech) {
                                     echo htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']);
-                                    if($pm['specialty']) echo '<br><small class="text-muted">' . htmlspecialchars($pm['specialty']) . '</small>';
+                                    if ($pm['specialty']) {
+                                        echo '<br><small class="text-muted">' . htmlspecialchars($pm['specialty']) . '</small>';
+                                    }
                                 } else {
                                     echo '<span class="text-muted">' . t('unassigned') . '</span>';
                                 }
@@ -467,7 +472,7 @@ $contractor_badge_style = 'background: #6f42c1; color: white; padding: 2px 10px;
                                     <span class="text-muted"><i class="fas fa-ban"></i> <?php echo t('cancelled'); ?></span>
                                 <?php endif; ?>
                             </td>
-                        <tr>
+                        </tr>
                         <?php endforeach; ?>
                         <?php if(count($preventives) == 0): ?>
                         <tr>

@@ -436,7 +436,7 @@ foreach($all_interventions as $inv) {
                         <?php foreach($interventions as $inv): 
                             $hasTeam = !empty($inv['team_name']);
                             $hasTech = !empty($inv['firstname']) && !empty($inv['lastname']);
-                            $hasContractor = !empty($inv['contractor_id']);
+                            $hasContractor = !empty($inv['contractor_id']) && !empty($inv['contractor_name']);
                         ?>
                         <tr>
                             <td>
@@ -471,18 +471,26 @@ foreach($all_interventions as $inv) {
                             </td>
                             <td>
                                 <?php 
-                                if ($hasTeam && $hasTech) {
-                                    echo '<span class="badge bg-info">' . htmlspecialchars($inv['team_name']) . '</span><br>';
-                                    echo '<small>' . htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']) . '</small>';
+                                if ($hasTeam && $hasContractor) {
+                                    // Équipe + Prestataire
+                                    echo '<span class="badge bg-info">' . htmlspecialchars($inv['team_name']) . '</span>';
+                                    echo '<br><span class="badge contractor-badge">🏢 ' . htmlspecialchars($inv['contractor_name']) . '</span>';
+                                } elseif ($hasTech && $hasContractor) {
+                                    // Technicien + Prestataire
+                                    echo htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']);
+                                    if ($inv['specialty']) {
+                                        echo '<br><small class="text-muted">' . htmlspecialchars($inv['specialty']) . '</small>';
+                                    }
+                                    echo '<br><span class="badge contractor-badge">🏢 ' . htmlspecialchars($inv['contractor_name']) . '</span>';
                                 } elseif ($hasTeam) {
                                     echo '<span class="badge bg-info">' . htmlspecialchars($inv['team_name']) . '</span>';
-                                    echo '<br><small class="text-muted">' . t('team_assigned') . '</small>';
                                 } elseif ($hasContractor) {
                                     echo '<span class="badge contractor-badge">🏢 ' . htmlspecialchars($inv['contractor_name']) . '</span>';
-                                    echo '<br><small class="text-muted">' . t('contractor_assigned') . '</small>';
                                 } elseif ($hasTech) {
                                     echo htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']);
-                                    if($inv['specialty']) echo '<br><small class="text-muted">' . htmlspecialchars($inv['specialty']) . '</small>';
+                                    if ($inv['specialty']) {
+                                        echo '<br><small class="text-muted">' . htmlspecialchars($inv['specialty']) . '</small>';
+                                    }
                                 } else {
                                     echo '<span class="text-muted">' . t('unassigned') . '</span>';
                                 }

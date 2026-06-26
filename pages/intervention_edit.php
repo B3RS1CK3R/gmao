@@ -17,15 +17,15 @@ if (!$id) {
 
 $stmt = $pdo->prepare("
     SELECT i.*, 
-           e.name as equipment_name, 
-           e.code as equipment_code,
-           t.id as technician_id,
-           t.firstname, 
-           t.lastname, 
-           t.specialty,
-           team.name as team_name,
-           c.id as contractor_id,
-           c.company_name as contractor_name
+            e.name as equipment_name, 
+            e.code as equipment_code,
+            t.id as technician_id,
+            t.firstname, 
+            t.lastname, 
+            t.specialty,
+            team.name as team_name,
+            c.id as contractor_id,
+            c.company_name as contractor_name
     FROM interventions i
     JOIN equipment e ON i.equipment_id = e.id
     LEFT JOIN technicians t ON i.technician_id = t.id
@@ -142,7 +142,7 @@ try {
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('task_number'); ?></label>
-                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($interv['task_number'] ?? '#' . $interv['id']); ?>" readonly>
+                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($interv['task_number'] ?? ''); ?>" readonly style="background-color: #e9ecef; cursor: not-allowed;">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('status'); ?></label>
@@ -166,7 +166,7 @@ try {
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('title'); ?> <span class="text-danger">*</span></label>
-                        <input type="text" name="title" class="form-control" value="<?php echo htmlspecialchars($interv['title']); ?>" required>
+                        <input type="text" name="title" class="form-control" value="<?php echo htmlspecialchars($interv['title'] ?? ''); ?>" required>
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label"><?php echo t('type'); ?></label>
