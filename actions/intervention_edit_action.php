@@ -171,7 +171,7 @@ try {
     } elseif ($contractor_id) {
         $assignee = " (prestataire ID: $contractor_id)";
     }
-    logUserAction($_SESSION['user_id'], 'intervention_updated', "Intervention modifiée: ID $id$assignee");
+    logUserAction($_SESSION['user_id'], 'intervention_updated', "Intervention modifiée ID: $id$assignee");
     
     $_SESSION['flash_message'] = t('save_success');
     header('Location: ?page=interventions');

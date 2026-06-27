@@ -62,7 +62,19 @@ try {
 } catch (PDOException $e) {
     // Ignorer si la table teams n'existe pas
 }
+
+// Priorités disponibles
+$priorities = [
+    'low' => t('low'),
+    'medium' => t('medium'),
+    'high' => t('high'),
+    'critical' => t('critical')
+];
+
+// Durées planifiées prédéfinies
+$durations = ['1h', '2h', '2h30', '3h', '4h', '6h', '8h', '1j'];
 ?>
+
 <style>
     .form-card {
         background: white;
@@ -179,10 +191,12 @@ try {
                     <div class="col-md-4 mb-3">
                         <label class="form-label"><?php echo t('priority'); ?></label>
                         <select name="priority" class="form-select">
-                            <option value="low" <?php if($interv['priority'] == 'low') echo 'selected'; ?>><?php echo t('low'); ?></option>
-                            <option value="medium" <?php if($interv['priority'] == 'medium') echo 'selected'; ?>><?php echo t('medium'); ?></option>
-                            <option value="high" <?php if($interv['priority'] == 'high') echo 'selected'; ?>><?php echo t('high'); ?></option>
-                            <option value="critical" <?php if($interv['priority'] == 'critical') echo 'selected'; ?>><?php echo t('critical'); ?></option>
+                            <?php foreach ($priorities as $key => $label): ?>
+                                <option value="<?php echo $key; ?>" 
+                                    <?php if (($interv['priority'] ?? 'medium') == $key) echo 'selected'; ?>>
+                                    <?php echo $label; ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     
@@ -194,14 +208,12 @@ try {
                     <div class="col-md-3 mb-3">
                         <label class="form-label"><?php echo t('planned_duration'); ?></label>
                         <select name="planned_duration" class="form-select">
-                            <option value="1h">1h</option>
-                            <option value="2h">2h</option>
-                            <option value="2h30">2h30</option>
-                            <option value="3h">3h</option>
-                            <option value="4h" selected>4h</option>
-                            <option value="6h">6h</option>
-                            <option value="8h">8h</option>
-                            <option value="1j">1j</option>
+                            <?php foreach ($durations as $duration): ?>
+                                <option value="<?php echo $duration; ?>" 
+                                    <?php if (($interv['planned_duration'] ?? '4h') == $duration) echo 'selected'; ?>>
+                                    <?php echo $duration; ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-6 mb-3">

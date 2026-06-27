@@ -159,7 +159,6 @@ foreach($all_preventives as $pm) {
         color: #6c757d;
         margin-top: 4px;
     }
-    
     .status-badge {
         display: inline-block;
         padding: 5px 12px;
@@ -167,13 +166,27 @@ foreach($all_preventives as $pm) {
         font-size: 11px;
         font-weight: 600;
     }
-
     .contractor-badge {
+        font-size: 11px;
         background: #6f42c1;
         color: white;
         padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 11px;
+    }
+    .badge {
+        font-size: 11px !important;
+        padding: 4px 8px;
+        margin: 2px 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .bg-primary {
+        background: #0d6efd !important;
+        color: white !important;
+    }
+    .bg-info {
+        background: #0dcaf0 !important;
+        color: #000 !important;
     }
     .status-overdue {
         background: #dc3545;
@@ -214,9 +227,12 @@ foreach($all_preventives as $pm) {
         height: 30px;
         flex: 0 0 30px;
     }
-    
-    .table-responsive { overflow-x: auto; }
-    .table { min-width: 1000px; }
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .table {
+        min-width: 1000px;
+    }
     .table-dark th {
         background: #212529;
         color: white;
@@ -229,14 +245,17 @@ foreach($all_preventives as $pm) {
         vertical-align: middle;
         border-bottom: 1px solid #eee;
     }
-    .table tr:hover { background: #f8f9fa; }
-    
+    .table tr:hover {
+        background: #f8f9fa;
+    }
     .history-item {
         padding: 5px 0;
         font-size: 10px;
         border-bottom: 1px solid #eee;
     }
-    .history-item:last-child { border-bottom: none; }
+    .history-item:last-child {
+        border-bottom: none;
+    }
     
     .btn-primary {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -403,25 +422,19 @@ foreach($all_preventives as $pm) {
                             <td>
                                 <?php 
                                 if ($hasTeam && $hasContractor) {
-                                    // Équipe + Prestataire
-                                    echo '<span class="badge bg-info">' . htmlspecialchars($pm['team_name']) . '</span>';
-                                    echo '<br><span class="badge contractor-badge">🏢 ' . htmlspecialchars($pm['contractor_name']) . '</span>';
+                                    echo '<span class="badge bg-info"><i class="fas fa-users"></i> ' . htmlspecialchars($pm['team_name']) . '</span>';
+                                    echo '<br><span class="badge contractor-badge"><i class="fas fa-building"></i> ' . htmlspecialchars($pm['contractor_name']) . '</span>';
                                 } elseif ($hasTech && $hasContractor) {
-                                    // Technicien + Prestataire
-                                    echo htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']);
-                                    if ($pm['specialty']) {
-                                        echo '<br><small class="text-muted">' . htmlspecialchars($pm['specialty']) . '</small>';
-                                    }
-                                    echo '<br><span class="badge contractor-badge">🏢 ' . htmlspecialchars($pm['contractor_name']) . '</span>';
+                                    echo '<span class="badge bg-primary"><i class="fas fa-user"></i> ' . htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']) . '</span>';
+                                    if ($pm['specialty']) echo '<br><small class="text-muted">' . htmlspecialchars($pm['specialty']) . '</small>';
+                                    echo '<br><span class="badge contractor-badge"><i class="fas fa-building"></i> ' . htmlspecialchars($pm['contractor_name']) . '</span>';
                                 } elseif ($hasTeam) {
-                                    echo '<span class="badge bg-info">' . htmlspecialchars($pm['team_name']) . '</span>';
+                                    echo '<span class="badge bg-info"><i class="fas fa-users"></i> ' . htmlspecialchars($pm['team_name']) . '</span>';
                                 } elseif ($hasContractor) {
-                                    echo '<span class="badge contractor-badge">🏢 ' . htmlspecialchars($pm['contractor_name']) . '</span>';
+                                    echo '<span class="badge contractor-badge"><i class="fas fa-building"></i> ' . htmlspecialchars($pm['contractor_name']) . '</span>';
                                 } elseif ($hasTech) {
-                                    echo htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']);
-                                    if ($pm['specialty']) {
-                                        echo '<br><small class="text-muted">' . htmlspecialchars($pm['specialty']) . '</small>';
-                                    }
+                                    echo '<span class="badge bg-primary"><i class="fas fa-user"></i> ' . htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']) . '</span>';
+                                    if ($pm['specialty']) echo '<br><small class="text-muted">' . htmlspecialchars($pm['specialty']) . '</small>';
                                 } else {
                                     echo '<span class="text-muted">' . t('unassigned') . '</span>';
                                 }
@@ -516,6 +529,20 @@ foreach($all_preventives as $pm) {
                         <div class="legend-item">
                             <span class="badge bg-secondary">📊</span>
                             <small><?php echo t('click_stats_to_filter'); ?></small>
+                        </div>
+
+                        <!-- Assignations -->
+                        <div class="legend-item">
+                            <span class="badge bg-primary"><i class="fas fa-user"></i> Technicien</span>
+                            <small>Assigné à un technicien</small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge bg-info"><i class="fas fa-users"></i> Équipe</span>
+                            <small>Assigné à une équipe</small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge contractor-badge"><i class="fas fa-building"></i> Prestataire</span>
+                            <small>Prestataire extérieur</small>
                         </div>
                     </div>
                 </div>
