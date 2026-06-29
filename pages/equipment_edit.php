@@ -24,6 +24,9 @@ $error = isset($_GET['error']) ? $_GET['error'] : '';
 // Récupération des pièces détachées (actives)
 $parts = $pdo->query("SELECT id, part_number, name, location, quantity FROM spare_parts WHERE quantity >= 0 ORDER BY name")->fetchAll();
 
+// Récupération des prestataires (fournisseurs) actifs
+$contractors = $pdo->query("SELECT id, company_name, specialty FROM contractors WHERE status = 'active' ORDER BY company_name")->fetchAll();
+
 // Récupération des pièces déjà associées à cet équipement
 $associatedParts = [];
 try {
@@ -158,7 +161,19 @@ try {
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('supplier'); ?></label>
-                        <input type="text" name="supplier" class="form-control" value="<?php echo htmlspecialchars($eq['supplier']); ?>">
+                        <select name="supplier" class="form-select">
+                            <option value="">-- <?php echo t('select_contractor'); ?> --</option>
+                            <?php foreach ($contractors as $contractor): ?>
+                                <option value="<?php echo htmlspecialchars($contractor['company_name']); ?>" 
+                                    <?php if ($eq['supplier'] == $contractor['company_name']) echo 'selected'; ?>>
+                                    <?php echo htmlspecialchars($contractor['company_name']); ?>
+                                    <?php if (!empty($contractor['specialty'])): ?>
+                                        (<?php echo htmlspecialchars($contractor['specialty']); ?>)
+                                    <?php endif; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small class="text-muted"><?php echo t('select_supplier_from_contractors'); ?></small>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><?php echo t('status'); ?></label>

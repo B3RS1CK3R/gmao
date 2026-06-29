@@ -326,8 +326,8 @@ function convertAlertsToToasts() {
     
     alerts.forEach((alert, index) => {
         const type = alert.classList.contains('alert-success') ? 'success' :
-                     alert.classList.contains('alert-danger') ? 'critical' :
-                     alert.classList.contains('alert-warning') ? 'warning' : 'info';
+                    alert.classList.contains('alert-danger') ? 'critical' :
+                    alert.classList.contains('alert-warning') ? 'warning' : 'info';
         
         // Extract only the text content, excluding the close button and icons
         let message = '';

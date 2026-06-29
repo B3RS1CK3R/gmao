@@ -1803,4 +1803,255 @@ function processDatabaseReset($pdo, $post_data, $user_id) {
     
     return $result;
 }
+
+// ========== CONTRACTOR ALERTS ==========
+
+/**
+ * Vérifie les alertes pour les prestataires
+ * À appeler lors du chargement de chaque page ou via cron
+ */
+function checkContractorAlerts($pdo) {
+    $alerts = [];
+    $today = date('Y-m-d');
+    
+    // 1. Récupérer tous les prestataires avec leurs alertes activées
+    $stmt = $pdo->prepare("
+        SELECT * FROM contractors 
+        WHERE status = 'active' 
+        AND alert_enabled = 1
+    ");
+    $stmt->execute();
+    $contractors = $stmt->fetchAll();
+    
+    foreach ($contractors as $contractor) {
+        $alert_days_1 = (int)($contractor['alert_days_before_1'] ?? 90);
+        $alert_days_2 = (int)($contractor['alert_days_before_2'] ?? 21);
+        
+        // 2. Vérifier les interventions assignées à ce prestataire
+        if ($contractor['alert_sidebar_intervention'] || $contractor['alert_popup_intervention'] || $contractor['alert_email_intervention']) {
+            $stmt = $pdo->prepare("
+                SELECT i.*, e.name as equipment_name 
+                FROM interventions i
+                JOIN equipment e ON i.equipment_id = e.id
+                WHERE i.contractor_id = ? 
+                AND i.task_status NOT IN ('completed', 'closed', 'cancelled')
+                AND i.intervention_date IS NOT NULL
+                AND i.intervention_date >= ?
+                ORDER BY i.intervention_date ASC
+            ");
+            $stmt->execute([$contractor['id'], $today]);
+            $interventions = $stmt->fetchAll();
+            
+            foreach ($interventions as $intervention) {
+                $days_until = (strtotime($intervention['intervention_date']) - strtotime($today)) / (60 * 60 * 24);
+                $days_until = round($days_until);
+                
+                // Alerte niveau 2 (plus proche)
+                if ($days_until <= $alert_days_2 && $days_until >= 0) {
+                    $alerts[] = [
+                        'type' => 'intervention',
+                        'level' => 2,
+                        'contractor_id' => $contractor['id'],
+                        'contractor_name' => $contractor['company_name'],
+                        'intervention_id' => $intervention['id'],
+                        'intervention_title' => $intervention['title'],
+                        'equipment_name' => $intervention['equipment_name'],
+                        'intervention_date' => $intervention['intervention_date'],
+                        'days_until' => $days_until,
+                        'message' => "⚠️ Intervention '{$intervention['title']}' pour {$intervention['equipment_name']} dans {$days_until} jours (Alerte 2)",
+                        'show_sidebar' => $contractor['alert_sidebar_intervention'],
+                        'show_popup' => $contractor['alert_popup_intervention'],
+                        'show_email' => $contractor['alert_email_intervention']
+                    ];
+                }
+                // Alerte niveau 1 (plus lointain)
+                elseif ($days_until <= $alert_days_1 && $days_until > $alert_days_2 && $days_until >= 0) {
+                    $alerts[] = [
+                        'type' => 'intervention',
+                        'level' => 1,
+                        'contractor_id' => $contractor['id'],
+                        'contractor_name' => $contractor['company_name'],
+                        'intervention_id' => $intervention['id'],
+                        'intervention_title' => $intervention['title'],
+                        'equipment_name' => $intervention['equipment_name'],
+                        'intervention_date' => $intervention['intervention_date'],
+                        'days_until' => $days_until,
+                        'message' => "📅 Intervention '{$intervention['title']}' pour {$intervention['equipment_name']} dans {$days_until} jours (Alerte 1)",
+                        'show_sidebar' => $contractor['alert_sidebar_intervention'],
+                        'show_popup' => $contractor['alert_popup_intervention'],
+                        'show_email' => $contractor['alert_email_intervention']
+                    ];
+                }
+            }
+        }
+        
+        // 3. Vérifier les maintenances préventives assignées à ce prestataire
+        if ($contractor['alert_sidebar_maintenance'] || $contractor['alert_popup_maintenance'] || $contractor['alert_email_maintenance']) {
+            $stmt = $pdo->prepare("
+                SELECT pm.*, e.name as equipment_name 
+                FROM preventive_maintenance pm
+                JOIN equipment e ON pm.equipment_id = e.id
+                WHERE pm.contractor_id = ? 
+                AND pm.next_due IS NOT NULL
+                AND pm.next_due >= ?
+                ORDER BY pm.next_due ASC
+            ");
+            $stmt->execute([$contractor['id'], $today]);
+            $maintenances = $stmt->fetchAll();
+            
+            foreach ($maintenances as $maintenance) {
+                $days_until = (strtotime($maintenance['next_due']) - strtotime($today)) / (60 * 60 * 24);
+                $days_until = round($days_until);
+                
+                // Alerte niveau 2 (plus proche)
+                if ($days_until <= $alert_days_2 && $days_until >= 0) {
+                    $alerts[] = [
+                        'type' => 'maintenance',
+                        'level' => 2,
+                        'contractor_id' => $contractor['id'],
+                        'contractor_name' => $contractor['company_name'],
+                        'maintenance_id' => $maintenance['id'],
+                        'maintenance_title' => $maintenance['title'],
+                        'equipment_name' => $maintenance['equipment_name'],
+                        'next_due' => $maintenance['next_due'],
+                        'days_until' => $days_until,
+                        'message' => "⚠️ Maintenance '{$maintenance['title']}' pour {$maintenance['equipment_name']} dans {$days_until} jours (Alerte 2)",
+                        'show_sidebar' => $contractor['alert_sidebar_maintenance'],
+                        'show_popup' => $contractor['alert_popup_maintenance'],
+                        'show_email' => $contractor['alert_email_maintenance']
+                    ];
+                }
+                // Alerte niveau 1 (plus lointain)
+                elseif ($days_until <= $alert_days_1 && $days_until > $alert_days_2 && $days_until >= 0) {
+                    $alerts[] = [
+                        'type' => 'maintenance',
+                        'level' => 1,
+                        'contractor_id' => $contractor['id'],
+                        'contractor_name' => $contractor['company_name'],
+                        'maintenance_id' => $maintenance['id'],
+                        'maintenance_title' => $maintenance['title'],
+                        'equipment_name' => $maintenance['equipment_name'],
+                        'next_due' => $maintenance['next_due'],
+                        'days_until' => $days_until,
+                        'message' => "📅 Maintenance '{$maintenance['title']}' pour {$maintenance['equipment_name']} dans {$days_until} jours (Alerte 1)",
+                        'show_sidebar' => $contractor['alert_sidebar_maintenance'],
+                        'show_popup' => $contractor['alert_popup_maintenance'],
+                        'show_email' => $contractor['alert_email_maintenance']
+                    ];
+                }
+            }
+        }
+    }
+    
+    // Stocker les alertes en session
+    $_SESSION['contractor_alerts'] = $alerts;
+    $_SESSION['contractor_alerts_count'] = count($alerts);
+    
+    // Envoyer les emails si nécessaire (seulement si cron ou en arrière-plan)
+    // Note: Pour éviter d'envoyer des emails à chaque chargement de page,
+    // cette partie devrait être exécutée uniquement par le cron
+    if (php_sapi_name() === 'cli') {
+        foreach ($alerts as $alert) {
+            if ($alert['show_email']) {
+                sendContractorAlertEmail($alert);
+            }
+        }
+    }
+    
+    return $alerts;
+}
+
+/**
+ * Envoie un email d'alerte au prestataire
+ */
+function sendContractorAlertEmail($alert) {
+    global $pdo;
+    
+    // Récupérer l'email du prestataire
+    $stmt = $pdo->prepare("SELECT email, company_name FROM contractors WHERE id = ?");
+    $stmt->execute([$alert['contractor_id']]);
+    $contractor = $stmt->fetch();
+    
+    if (!$contractor || empty($contractor['email'])) {
+        return false;
+    }
+    
+    $subject = "Alerte GMAO - " . $alert['message'];
+    
+    $message = "
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; }
+            .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 10px 0; }
+            .alert-box.level-2 { background: #f8d7da; border-left-color: #dc3545; }
+            .info { margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h2>" . t('contractor_alert_subject') . "</h2>
+        <div class='alert-box " . ($alert['level'] == 2 ? 'level-2' : '') . "'>
+            <p><strong>🏢 " . t('contractor') . ":</strong> {$contractor['company_name']}</p>
+            <p><strong>📋 " . t('alert_message') . ":</strong> {$alert['message']}</p>
+            <p><strong>📅 " . t('date') . ":</strong> " . date('d/m/Y H:i') . "</p>
+        </div>
+        <p>
+            <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=dashboard' 
+                style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                " . t('view_dashboard') . "
+            </a>
+        </p>
+        <hr>
+        <small>" . t('automatic_message') . "</small>
+    </body>
+    </html>
+    ";
+    
+    return sendEmail($contractor['email'], $subject, $message, true);
+}
+
+/**
+ * Récupère le nombre d'alertes pour les prestataires
+ */
+function getContractorAlertsCount() {
+    return $_SESSION['contractor_alerts_count'] ?? 0;
+}
+
+/**
+ * Affiche les alertes dans la sidebar
+ */
+function displayContractorAlerts() {
+    if (empty($_SESSION['contractor_alerts'])) {
+        return '';
+    }
+    
+    $html = '<div class="contractor-alerts mt-2">';
+    $html .= '<div class="alert alert-warning alert-sm py-1 px-2 mb-2" style="font-size: 12px;">';
+    $html .= '<i class="fas fa-bell"></i> <strong>' . t('contractor_alerts') . '</strong>';
+    $html .= ' <span class="badge bg-danger rounded-pill">' . count($_SESSION['contractor_alerts']) . '</span>';
+    $html .= '</div>';
+    
+    // Limiter l'affichage à 5 alertes max dans la sidebar
+    $display_alerts = array_slice($_SESSION['contractor_alerts'], 0, 5);
+    
+    foreach ($display_alerts as $alert) {
+        if (!$alert['show_sidebar']) continue;
+        
+        $bg_color = $alert['level'] == 2 ? '#dc3545' : '#ffc107';
+        $text_color = $alert['level'] == 2 ? 'white' : '#333';
+        
+        $html .= '<div class="alert alert-sm py-1 px-2 mb-1" style="background-color: ' . $bg_color . '; color: ' . $text_color . '; border-radius: 4px; font-size: 11px; border: none; padding: 4px 8px;">';
+        $html .= '<i class="fas fa-exclamation-circle"></i> ' . htmlspecialchars($alert['message']);
+        $html .= '</div>';
+    }
+    
+    if (count($_SESSION['contractor_alerts']) > 5) {
+        $html .= '<div class="text-center mt-1">';
+        $html .= '<a href="?page=alerts" class="text-muted" style="font-size: 11px;">' . t('view_all_alerts') . ' (' . count($_SESSION['contractor_alerts']) . ')</a>';
+        $html .= '</div>';
+    }
+    
+    $html .= '</div>';
+    return $html;
+}
 ?>

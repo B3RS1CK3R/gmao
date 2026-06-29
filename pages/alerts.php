@@ -5,6 +5,9 @@ if(!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Forcer la mise à jour des alertes prestataires
+checkContractorAlerts($pdo);
+
 // Fetch active alerts
 $alerts = [];
 
@@ -197,34 +200,47 @@ if ($_SESSION['role'] === 'admin') {
     }
 }
 
-// 8. CONTRACTOR ALERTS (NOUVEAU)
-$stmt = $pdo->query("
-    SELECT ca.*, c.company_name
-    FROM contractor_alerts ca
-    JOIN contractors c ON ca.contractor_id = c.id
-    WHERE ca.sent_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    ORDER BY ca.sent_at DESC
-");
-$contractorAlerts = $stmt->fetchAll();
-
-foreach($contractorAlerts as $ca) {
-    $priority = $ca['days_remaining'] <= 7 ? 'critical' : 'warning';
-    $alerts[] = [
-        'id' => 'contractor_' . $ca['id'],
-        'type' => 'contractor_alert',
-        'priority' => $priority,
-        'title' => '🔔 ' . t('contact_contractor'),
-        'message' => $ca['company_name'] . ' - ' . $ca['task_number'] . ' (' . t('days_remaining') . ': ' . $ca['days_remaining'] . ')',
-        'details' => '<strong>' . t('contractor') . ' :</strong> ' . htmlspecialchars($ca['company_name']) . '<br>' .
-                     '<strong>' . t('task_number') . ' :</strong> ' . htmlspecialchars($ca['task_number']) . '<br>' .
-                     '<strong>' . t('equipment') . ' :</strong> ' . htmlspecialchars($ca['equipment_name']) . '<br>' .
-                     '<strong>' . t('scheduled_date') . ' :</strong> ' . format_date_local($ca['scheduled_date'], 'short') . '<br>' .
-                     '<strong>' . t('days_remaining') . ' :</strong> ' . $ca['days_remaining'] . ' ' . t('days_s'),
-        'url' => '?page=contractor_detail&id=' . $ca['contractor_id'],
-        'date' => $ca['sent_at'],
-        'days_remaining' => $ca['days_remaining']
-    ];
+// ==========================================
+// 8. CONTRACTOR ALERTS (NOUVEAU - intégré)
+// ==========================================
+if (!empty($_SESSION['contractor_alerts'])) {
+    foreach ($_SESSION['contractor_alerts'] as $alert) {
+        // Déterminer la priorité en fonction des jours restants
+        $priority = ($alert['days_until'] <= 7) ? 'critical' : 'warning';
+        
+        // Déterminer le type
+        $type = ($alert['type'] == 'intervention') ? 'contractor_intervention' : 'contractor_maintenance';
+        
+        // Déterminer le titre
+        if ($alert['type'] == 'intervention') {
+            $title = '🔔 ' . t('contractor_intervention_alert');
+        } else {
+            $title = '🔔 ' . t('contractor_maintenance_alert');
+        }
+        
+        $alerts[] = [
+            'id' => 'contractor_' . $alert['contractor_id'] . '_' . ($alert['intervention_id'] ?? $alert['maintenance_id'] ?? time()),
+            'type' => $type,
+            'priority' => $priority,
+            'title' => $title,
+            'message' => $alert['contractor_name'] . ' - ' . ($alert['intervention_title'] ?? $alert['maintenance_title']) . ' (' . t('days_remaining') . ': ' . $alert['days_until'] . ' ' . t('days_s') . ')',
+            'details' => '<strong>' . t('contractor') . ' :</strong> ' . htmlspecialchars($alert['contractor_name']) . '<br>' .
+                        '<strong>' . t('task') . ' :</strong> ' . htmlspecialchars($alert['intervention_title'] ?? $alert['maintenance_title']) . '<br>' .
+                        '<strong>' . t('equipment') . ' :</strong> ' . htmlspecialchars($alert['equipment_name']) . '<br>' .
+                        '<strong>' . t('scheduled_date') . ' :</strong> ' . format_date_local($alert['intervention_date'] ?? $alert['next_due'] ?? date('Y-m-d'), 'short') . '<br>' .
+                        '<strong>' . t('days_remaining') . ' :</strong> ' . $alert['days_until'] . ' ' . t('days_s') . '<br>' .
+                        '<strong>' . t('alert_level') . ' :</strong> ' . ($alert['level'] == 2 ? t('critical') : t('warning')),
+            'url' => ($alert['type'] == 'intervention') 
+                ? '?page=intervention_view&id=' . ($alert['intervention_id'] ?? 0)
+                : '?page=preventive_view&id=' . ($alert['maintenance_id'] ?? 0),
+            'date' => $alert['intervention_date'] ?? $alert['next_due'] ?? date('Y-m-d'),
+            'days_remaining' => $alert['days_until'],
+            'contractor_name' => $alert['contractor_name'],
+            'alert_level' => $alert['level']
+        ];
+    }
 }
+// ==========================================
 
 // Sort alerts by date (newest first)
 usort($alerts, function($a, $b) {
@@ -235,6 +251,9 @@ usort($alerts, function($a, $b) {
 $critical_count = count(array_filter($alerts, function($a) { return $a['priority'] == 'critical'; }));
 $warning_count = count(array_filter($alerts, function($a) { return $a['priority'] == 'warning'; }));
 $info_count = count(array_filter($alerts, function($a) { return $a['priority'] == 'info'; }));
+$contractor_count = count(array_filter($alerts, function($a) { 
+    return in_array($a['type'], ['contractor_intervention', 'contractor_maintenance']); 
+}));
 ?>
 
 <style>
@@ -255,10 +274,18 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         align-items: center;
         cursor: pointer;
     }
-    .alert-card-header.critical { background: linear-gradient(135deg, #dc3545, #c82333); }
-    .alert-card-header.warning { background: linear-gradient(135deg, #fd7e14, #e06a0a); }
-    .alert-card-header.info { background: linear-gradient(135deg, #17a2b8, #138496); }
-    .alert-card-header.contractor { background: linear-gradient(135deg, #6f42c1, #5a32a3); }
+    .alert-card-header.critical {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+    }
+    .alert-card-header.warning {
+        background: linear-gradient(135deg, #fd7e14, #e06a0a);
+    }
+    .alert-card-header.info {
+        background: linear-gradient(135deg, #17a2b8, #138496);
+    }
+    .alert-card-header.contractor {
+        background: linear-gradient(135deg, #6f42c1, #5a32a3);
+    }
     .alert-card-body {
         padding: 20px;
         display: none;
@@ -278,10 +305,18 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
     .alert-item:last-child {
         border-bottom: none;
     }
-    .alert-item.critical { border-left: 4px solid #dc3545; }
-    .alert-item.warning { border-left: 4px solid #fd7e14; }
-    .alert-item.info { border-left: 4px solid #17a2b8; }
-    .alert-item.contractor { border-left: 4px solid #6f42c1; }
+    .alert-item.critical {
+        border-left: 4px solid #dc3545;
+    }
+    .alert-item.warning {
+        border-left: 4px solid #fd7e14;
+    }
+    .alert-item.info {
+        border-left: 4px solid #17a2b8;
+    }
+    .alert-item.contractor {
+        border-left: 4px solid #6f42c1;
+    }
     .alert-priority-badge {
         display: inline-block;
         padding: 3px 8px;
@@ -289,10 +324,18 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         font-size: 10px;
         font-weight: 600;
     }
-    .alert-priority-critical { background: #dc3545; color: white; }
-    .alert-priority-warning { background: #fd7e14; color: white; }
-    .alert-priority-info { background: #17a2b8; color: white; }
-    .alert-priority-contractor { background: #6f42c1; color: white; }
+    .alert-priority-critical {
+        background: #dc3545; color: white;
+    }
+    .alert-priority-warning {
+        background: #fd7e14; color: white;
+    }
+    .alert-priority-info {
+        background: #17a2b8; color: white;
+    }
+    .alert-priority-contractor {
+        background: #6f42c1; color: white;
+    }
     .alert-dismiss-btn {
         background: none;
         border: none;
@@ -459,9 +502,9 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
             </div>
         </div>
         <div class="col-md-3">
-            <div class="stats-card" onclick="filterAlerts('all')">
-                <div class="stats-number"><?php echo count($alerts); ?></div>
-                <div class="text-muted"><?php echo t('total_alerts'); ?></div>
+            <div class="stats-card" onclick="filterAlerts('contractor')">
+                <div class="stats-number" style="color: #6f42c1;"><?php echo $contractor_count; ?></div>
+                <div class="text-muted"><?php echo t('contractor_alerts'); ?></div>
             </div>
         </div>
     </div>
@@ -477,7 +520,8 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         'warranty_upcoming' => ['title' => t('warranty_upcoming_title'), 'icon' => 'fas fa-file-contract', 'color' => 'info'],
         'unassigned_intervention' => ['title' => t('unassigned_intervention_title'), 'icon' => 'fas fa-user-plus', 'color' => 'warning'],
         'backup_reminder' => ['title' => t('backup_reminder_title'), 'icon' => 'fas fa-database', 'color' => 'warning'],
-        'contractor_alert' => ['title' => t('contractor_alerts'), 'icon' => 'fas fa-building', 'color' => 'contractor']
+        'contractor_intervention' => ['title' => t('contractor_intervention_alerts'), 'icon' => 'fas fa-tools', 'color' => 'contractor'],
+        'contractor_maintenance' => ['title' => t('contractor_maintenance_alerts'), 'icon' => 'fas fa-calendar-check', 'color' => 'contractor']
     ];
     
     foreach($categories as $type => $cat):
@@ -494,7 +538,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         <div class="alert-card-body">
             <?php foreach($type_alerts as $alert): 
                 $priority_class = $alert['priority'] == 'critical' ? 'critical' : ($alert['priority'] == 'warning' ? 'warning' : 'info');
-                if ($alert['type'] == 'contractor_alert') {
+                if (in_array($alert['type'], ['contractor_intervention', 'contractor_maintenance'])) {
                     $priority_class = 'contractor';
                 }
             ?>
@@ -529,6 +573,16 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
                         <?php if(isset($alert['days_remaining'])): ?>
                         <div class="small text-<?php echo $alert['days_remaining'] <= 7 ? 'danger' : 'warning'; ?> mt-1">
                             <i class="fas fa-hourglass-half"></i> <?php echo t('days_remaining'); ?>: <?php echo $alert['days_remaining']; ?> <?php echo t('days_s'); ?>
+                        </div>
+                        <?php endif; ?>
+                        <?php if(isset($alert['contractor_name'])): ?>
+                        <div class="small text-primary mt-1">
+                            <i class="fas fa-building"></i> <?php echo t('contractor'); ?>: <?php echo htmlspecialchars($alert['contractor_name']); ?>
+                            <?php if(isset($alert['alert_level'])): ?>
+                                <span class="badge <?php echo $alert['alert_level'] == 2 ? 'bg-danger' : 'bg-warning'; ?> ms-1">
+                                    <?php echo $alert['alert_level'] == 2 ? t('level_2') : t('level_1'); ?>
+                                </span>
+                            <?php endif; ?>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -691,6 +745,13 @@ function filterAlerts(priority) {
         if(priority === 'all') {
             if(!dismissedAlerts.includes(alert.getAttribute('data-id'))) {
                 alert.style.display = '';
+            }
+        } else if(priority === 'contractor') {
+            const type = alert.closest('.alert-card')?.getAttribute('data-category') || '';
+            if((type === 'contractor_intervention' || type === 'contractor_maintenance') && !dismissedAlerts.includes(alert.getAttribute('data-id'))) {
+                alert.style.display = '';
+            } else {
+                alert.style.display = 'none';
             }
         } else {
             if(alert.getAttribute('data-priority') === priority && !dismissedAlerts.includes(alert.getAttribute('data-id'))) {

@@ -17,6 +17,9 @@ if(!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Forcer la mise à jour des alertes prestataires
+checkContractorAlerts($pdo);
+
 $alerts = [];
 $counts = [
     'critical' => 0,
@@ -169,6 +172,42 @@ foreach($unassigned as $inv) {
     
     $counts['warning']++;
 }
+
+// ==========================================
+// 6. CONTRACTOR ALERTS (NOUVEAU)
+// ==========================================
+if (!empty($_SESSION['contractor_alerts'])) {
+    foreach ($_SESSION['contractor_alerts'] as $alert) {
+        // Déterminer la priorité
+        $priority = $alert['level'] == 2 ? 'critical' : 'warning';
+        $type = ($alert['type'] == 'intervention') ? 'contractor_intervention' : 'contractor_maintenance';
+        
+        // Déterminer le titre
+        $title = ($alert['type'] == 'intervention') 
+            ? t('contractor_intervention_alert') 
+            : t('contractor_maintenance_alert');
+        
+        // Déterminer l'URL
+        $url = ($alert['type'] == 'intervention') 
+            ? '/gmao_GEMINI/index.php?page=intervention_view&id=' . ($alert['intervention_id'] ?? 0)
+            : '/gmao_GEMINI/index.php?page=preventive_view&id=' . ($alert['maintenance_id'] ?? 0);
+        
+        $alerts[] = [
+            'id' => 'contractor_' . ($alert['intervention_id'] ?? $alert['maintenance_id'] ?? time()),
+            'type' => $type,
+            'priority' => $priority,
+            'title' => $title,
+            'message' => $alert['contractor_name'] . ': ' . ($alert['intervention_title'] ?? $alert['maintenance_title']) . ' - ' . $alert['days_until'] . ' ' . t('days_left'),
+            'url' => $url,
+            'timestamp' => time(),
+            'contractor' => $alert['contractor_name'],
+            'days_until' => $alert['days_until']
+        ];
+        
+        $counts[$priority]++;
+    }
+}
+// ==========================================
 
 // Limit number of alerts
 $alerts = array_slice($alerts, 0, 20);

@@ -58,6 +58,20 @@ if (!in_array($page, $public_pages, true)) {
         header('Location: index.php?page=login');
         exit();
     }
+
+    // ===== AJOUTER ICI LA VÉRIFICATION DES ALERTES =====
+    // Vérifier les alertes prestataires (seulement si l'utilisateur est connecté)
+    if (!empty($_SESSION['user_id']) && in_array($_SESSION['role'] ?? '', ['admin', 'supervisor', 'technician', 'viewer'])) {
+        // Ne vérifier que toutes les 10 minutes pour ne pas surcharger
+        $last_check = $_SESSION['last_alert_check'] ?? 0;
+        $now = time();
+        
+        if ($now - $last_check > 600) { // 10 minutes
+            $alerts = checkContractorAlerts($pdo);
+            $_SESSION['last_alert_check'] = $now;
+        }
+    }
+    // ===================================================
 }
 
 if ($page === 'login') {
@@ -73,11 +87,11 @@ if ($page === 'logout') {
 // ====================== TRAITEMENT DES ACTIONS ======================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-    if ($page === 'equipment_add') {
+    if ($page === 'equipment_add_action') {
         require_once 'actions/equipment_add_action.php';
         exit();
     }
-    if ($page === 'equipment_edit') {
+    if ($page === 'equipment_edit_action') {
         require_once 'actions/equipment_edit_action.php';
         exit();
     }

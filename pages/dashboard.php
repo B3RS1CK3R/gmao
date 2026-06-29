@@ -1,12 +1,32 @@
 <?php
-// pages/dashboard.php - Version dynamique finale
+// pages/dashboard.php - Version dynamique finale avec alertes prestataires
 
 // Chemin absolu fiable
 require_once __DIR__ . '/../includes/functions.php';
 
+// Forcer la mise à jour des alertes prestataires
+checkContractorAlerts($pdo);
+
 $stats = getDashboardStats();
-$alerts = getAlerts();
+
+// Récupérer les alertes système + prestataires
+$system_alerts = getAlerts();
+$contractor_alerts = $_SESSION['contractor_alerts'] ?? [];
+
+// Fusionner les alertes pour l'affichage
+$all_alerts = $system_alerts;
+
+// Ajouter les messages des alertes prestataires
+foreach ($contractor_alerts as $alert) {
+    if ($alert['show_sidebar'] ?? true) {
+        $all_alerts[] = $alert['message'];
+    }
+}
+
 $recentInterventions = getRecentInterventions(5);
+
+// Calculer le nombre total d'alertes pour l'affichage
+$total_alerts_count = count($system_alerts) + count($contractor_alerts);
 ?>
 
 <div class="container-fluid">
@@ -16,14 +36,26 @@ $recentInterventions = getRecentInterventions(5);
     </h2>
     
     <!-- Alertes dynamiques -->
-    <?php if(!empty($alerts)): ?>
+    <?php if(!empty($all_alerts)): ?>
         <div class="alert alert-warning alert-dismissible fade show">
-            <strong><i class="fas fa-exclamation-triangle"></i> <?php echo t('alerts'); ?> :</strong>
+            <strong><i class="fas fa-exclamation-triangle"></i> <?php echo t('alerts'); ?> (<?php echo count($all_alerts); ?>) :</strong>
             <ul class="mb-0">
-                <?php foreach($alerts as $alert): ?>
+                <?php 
+                $display_alerts = array_slice($all_alerts, 0, 10);
+                foreach($display_alerts as $alert): 
+                ?>
                     <li><?php echo htmlspecialchars($alert); ?></li>
                 <?php endforeach; ?>
+                <?php if(count($all_alerts) > 10): ?>
+                    <li><a href="?page=alerts"><?php echo t('view_all_alerts'); ?> (<?php echo count($all_alerts) - 10; ?> <?php echo t('more'); ?>)</a></li>
+                <?php endif; ?>
             </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php else: ?>
+        <div class="alert alert-success alert-dismissible fade show">
+            <strong><i class="fas fa-check-circle"></i> <?php echo t('no_alerts'); ?></strong>
+            <p class="mb-0"><?php echo t('everything_is_fine'); ?></p>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
