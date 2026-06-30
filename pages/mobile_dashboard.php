@@ -1,10 +1,7 @@
 <?php
 // pages/mobile_dashboard.php - Interface mobile simplifiée
 session_start();
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+    // auth handled centrally in index.php
 
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/lang.php';
@@ -25,7 +22,7 @@ if($_SESSION['role'] == 'technician') {
             SELECT i.*, e.name as equipment_name 
             FROM interventions i 
             JOIN equipment e ON i.equipment_id = e.id 
-            WHERE i.intervenant_id = ? 
+            WHERE i.technician_id = ? 
             AND i.task_status IN ('a_faire', 'en_cours')
             ORDER BY i.intervention_date ASC
             LIMIT 10
@@ -251,7 +248,7 @@ if($_SESSION['role'] == 'technician') {
             </div>
         </div>
         <div class="mt-3">
-            <div class="small">📅 <?php echo date('l d F Y', time()); ?></div>
+            <div class="small">📅 <?php echo format_date_local(date('Y-m-d'), 'full', false); ?></div>
         </div>
     </div>
     
@@ -298,7 +295,7 @@ if($_SESSION['role'] == 'technician') {
         <?php else: ?>
             <?php foreach($my_interventions as $interv): ?>
                 <div class="intervention-item <?php echo $interv['priority'] == 'critical' ? 'intervention-critical' : ''; ?>" 
-                     onclick="window.location.href='?page=mobile_intervention_detail&id=<?php echo $interv['id']; ?>'">
+                    onclick="window.location.href='?page=mobile_intervention_detail&id=<?php echo $interv['id']; ?>'">
                     <div class="intervention-title"><?php echo htmlspecialchars($interv['title']); ?></div>
                     <div class="small text-muted">
                         <i class="fas fa-microchip"></i> <?php echo htmlspecialchars($interv['equipment_name']); ?>
@@ -309,7 +306,7 @@ if($_SESSION['role'] == 'technician') {
                                 ($interv['priority'] == 'high' ? 'warning' : 'secondary'); ?>">
                             <?php echo t($interv['priority']); ?>
                         </span>
-                        <span><?php echo $interv['intervention_date'] ? format_date_us($interv['intervention_date'], false) : t('not_planned'); ?></span>
+                        <span><?php echo $interv['intervention_date'] ? format_date_local($interv['intervention_date'], 'long', false) : t('not_planned'); ?></span>
                     </div>
                 </div>
             <?php endforeach; ?>

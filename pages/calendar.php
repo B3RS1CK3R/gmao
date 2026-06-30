@@ -2,10 +2,7 @@
 // pages/calendar.php - Planning visuel type calendrier
 // Alignement avec la charte graphique du projet
 
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+    // auth handled centrally in index.php
 
 // Récupérer toutes les interventions avec date
 $stmt = $pdo->query("
@@ -13,7 +10,7 @@ $stmt = $pdo->query("
         t.firstname, t.lastname, t.specialty
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
-    LEFT JOIN technicians t ON i.intervenant_id = t.id
+    LEFT JOIN technicians t ON i.technician_id = t.id
     WHERE i.intervention_date IS NOT NULL
     ORDER BY i.intervention_date ASC
 ");
@@ -170,7 +167,7 @@ foreach($interventions as $inv) {
             'equipment_code' => $inv['equipment_code'],
             'priority' => $inv['priority'],
             'status' => $inv['task_status'],
-            'technician_id' => $inv['intervenant_id'],
+            'technician_id' => $inv['technician_id'],
             'technician_name' => $inv['firstname'] ? $inv['firstname'] . ' ' . $inv['lastname'] : '<?php echo $unassigned_text; ?>',
             'technician_specialty' => $inv['specialty'],
             'description' => $inv['description'],

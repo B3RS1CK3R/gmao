@@ -55,7 +55,7 @@ define('ALERT_EMAILS', $alert_emails_php);
                 <div class='content'>
                     <h3>✅ " . t('test_email_success') . "</h3>
                     <p>" . t('test_email_message') . "</p>
-                    <p>" . t('test_email_date') . " : " . format_date_us(date('Y-m-d H:i:s'), true) . "</p>
+                    <p>" . t('test_email_date') . " : " . format_date_local(date('Y-m-d H:i:s'), 'long', true) . "</p>
                     <hr>
                     <small>GMAO Industrielle - " . t('login_subtitle') . "</small>
                 </div>

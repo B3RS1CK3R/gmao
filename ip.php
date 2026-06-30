@@ -36,7 +36,7 @@ $ip_address = $ips[0] ?? '192.168.1.x';
 echo "<div style='background:#e9ecef; padding:20px; border-radius:10px;'>";
 echo "<p><strong>URL pour smartphone :</strong></p>";
 echo "<code style='font-size:18px; background:white; padding:10px; display:block; word-break:break-all;'>";
-echo "http://$ip_address/gmao/index.php?page=mobile_dashboard";
+echo "https://$ip_address/gmao/index.php?page=mobile_dashboard";
 echo "</code>";
 echo "</div>";
 
@@ -45,7 +45,7 @@ echo "<h3>⚠️ Conditions requises :</h3>";
 echo "<ul>";
 echo "<li>Votre smartphone doit être connecté au MÊME réseau Wi-Fi que l'ordinateur</li>";
 echo "<li>Apache doit être démarré dans XAMPP</li>";
-echo "<li>Le pare-feu Windows peut bloquer l'accès - autorisez le port 80</li>";
+echo "<li>Le pare-feu Windows peut bloquer l'accès - autorisez le port 443</li>";
 echo "</ul>";
 
 echo "<h3>🔧 Si ça ne fonctionne pas :</h3>";

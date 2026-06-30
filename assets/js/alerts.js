@@ -111,63 +111,60 @@ class AlertSystem {
     showToast(alert) {
         let icon = '🔔';
         let priorityClass = 'info';
-        let title = 'Notification';
+        let title = alert.title || 'Notification';  // Utiliser le titre déjà défini
         let message = alert.message || 'You have a new alert';
         
+        // Déterminer l'icône et la classe CSS en fonction du type
         switch(alert.type) {
             case 'maintenance_overdue':
                 icon = '⚠️';
                 priorityClass = 'warning';
-                title = 'Maintenance Overdue';
-                message = alert.message || 'A preventive maintenance task is overdue';
                 break;
             case 'stock_critical':
                 icon = '📦';
                 priorityClass = 'warning';
-                title = 'Critical Stock Alert';
-                message = alert.message || 'A spare part has reached critical stock level';
                 break;
             case 'critical_intervention':
                 icon = '🚨';
                 priorityClass = 'critical';
-                title = 'Critical Intervention';
-                message = alert.message || 'A critical intervention requires immediate attention';
                 break;
             case 'warranty_expired':
                 icon = '⚠️';
                 priorityClass = 'critical';
-                title = 'Warranty Expired';
-                message = alert.message || 'Equipment warranty has expired';
                 break;
             case 'warranty_upcoming':
                 icon = '📅';
                 priorityClass = 'info';
-                title = 'Warranty Expiring Soon';
-                message = alert.message || 'Equipment warranty is about to expire';
                 break;
             case 'unassigned_intervention':
                 icon = '📋';
                 priorityClass = 'warning';
-                title = 'Unassigned Intervention';
-                message = alert.message || 'An intervention is waiting for assignment';
+                break;
+            case 'backup_reminder':
+                icon = '💾';
+                priorityClass = 'warning';
+                break;
+            case 'contractor_intervention':
+                icon = '🔧';
+                priorityClass = 'warning';
+                break;
+            case 'contractor_maintenance':
+                icon = '🔧';
+                priorityClass = 'warning';
                 break;
             default:
                 icon = '🔔';
                 priorityClass = alert.priority === 'critical' ? 'critical' : (alert.priority === 'warning' ? 'warning' : 'info');
-                title = alert.title || 'Notification';
-                message = alert.message || 'You have a new notification';
         }
         
+        // Surcharger par la priorité si elle est critique
         if (alert.priority === 'critical') {
             priorityClass = 'critical';
         } else if (alert.priority === 'warning') {
             priorityClass = 'warning';
         }
         
-        if (alert.title && alert.title !== title) {
-            title = alert.title;
-        }
-        
+        // Créer le toast
         const toast = document.createElement('div');
         toast.className = `toast-notification ${priorityClass}`;
         toast.innerHTML = `
@@ -200,12 +197,13 @@ class AlertSystem {
         
         this.toastContainer.appendChild(toast);
         
+        const displayDuration = parseInt(localStorage.getItem('gmao_popup_duration') || '8000');
         setTimeout(() => {
             if (toast.parentElement) {
                 toast.style.animation = 'slideOutRight 0.3s ease-out';
                 setTimeout(() => toast.remove(), 300);
             }
-        }, 8000);
+        }, displayDuration);
     }
     
     escapeHtml(text) {
@@ -227,26 +225,35 @@ class AlertSystem {
     }
     
     playAlertSound() {
-        if (!this.audioContext) {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // AudioContext requires user interaction - try to resume if suspended
+        try {
+            if (!this.audioContext) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            // Only try to play if audio context is available and allowed
+            if (this.audioContext && this.audioContext.state !== 'closed') {
+                if (this.audioContext.state === 'suspended') {
+                    // Don't force resume - it requires user interaction
+                    return;
+                }
+                
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                oscillator.frequency.value = 880;
+                gainNode.gain.value = 0.3;
+                
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, this.audioContext.currentTime + 1);
+                oscillator.stop(this.audioContext.currentTime + 1);
+            }
+        } catch (error) {
+            console.warn('Audio notification not available:', error.message);
         }
-        
-        if (this.audioContext.state === 'suspended') {
-            this.audioContext.resume();
-        }
-        
-        const oscillator = this.audioContext.createOscillator();
-        const gainNode = this.audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(this.audioContext.destination);
-        
-        oscillator.frequency.value = 880;
-        gainNode.gain.value = 0.3;
-        
-        oscillator.start();
-        gainNode.gain.exponentialRampToValueAtTime(0.00001, this.audioContext.currentTime + 1);
-        oscillator.stop(this.audioContext.currentTime + 1);
     }
     
     updateNotificationBadges(counts) {
@@ -285,10 +292,155 @@ class AlertSystem {
             clearInterval(this.checkInterval);
         }
     }
+    
+    // Static method to clear dismissed alerts (call on logout)
+    static clearDismissedAlerts() {
+        sessionStorage.removeItem('gmao_dismissed_alerts');
+    }
 }
 
 let alertSystem = null;
 
+// Convert Bootstrap alerts to toasts
+function convertAlertsToToasts() {
+    // Only convert alerts on dashboard page
+    const params = new URLSearchParams(window.location.search);
+    const currentPage = params.get('page') || 'dashboard';
+    
+    // Skip conversion if not on dashboard
+    if (currentPage !== 'dashboard') {
+        console.log('⏭️  Alerts only shown on dashboard. Current page:', currentPage);
+        document.querySelectorAll('.alert[data-convertible="true"]').forEach(alert => alert.remove());
+        return;
+    }
+    
+    // Only convert alerts marked with data-convertible="true" (real feedback alerts, not confirmation dialogs)
+    const alerts = document.querySelectorAll('.alert[data-convertible="true"]:not(.alert-fixed)');
+    const dismissedAlerts = JSON.parse(sessionStorage.getItem('gmao_dismissed_alerts') || '[]');
+    const displayDuration = parseInt(localStorage.getItem('gmao_popup_duration') || '8000'); // Default 8 seconds
+    
+    console.log('🔍 Converting alerts. Found:', alerts.length, 'Duration:', displayDuration + 'ms', 'Dismissed IDs:', dismissedAlerts);
+    
+    alerts.forEach((alert, index) => {
+        const type = alert.classList.contains('alert-success') ? 'success' :
+                    alert.classList.contains('alert-danger') ? 'critical' :
+                    alert.classList.contains('alert-warning') ? 'warning' : 'info';
+        
+        // Extract only the text content, excluding the close button and icons
+        let message = '';
+        const nodes = alert.childNodes;
+        for (let node of nodes) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                message += node.textContent;
+            } else if (node.nodeType === Node.ELEMENT_NODE && !node.classList.contains('btn-close') && !node.classList.contains('fa')) {
+                message += node.textContent;
+            }
+        }
+        message = message.trim().replace(/[\s]+/g, ' ');
+        
+        // Create stable ID from type + message hash (not affected by page position)
+        const alertId = `${type}_${hashString(message)}`;
+        
+        console.log(`Alert #${index}:`, {type, message: message.substring(0, 50), alertId, isDismissed: dismissedAlerts.includes(alertId)});
+        
+        // Check if this alert was already dismissed in this session
+        if (dismissedAlerts.includes(alertId)) {
+            console.log(`⏭️  Skipping dismissed alert:`, alertId);
+            alert.remove();
+            return; // Skip this alert
+        }
+        
+        if (alertSystem && message) {
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+            toast.setAttribute('data-alert-id', alertId);
+            
+            let icon = '';
+            switch(type) {
+                case 'success': icon = '✓'; break;
+                case 'critical': icon = '⚠'; break;
+                case 'warning': icon = '!'; break;
+                case 'info': icon = 'i'; break;
+            }
+            
+            toast.innerHTML = `
+                <div class="toast-icon">${icon}</div>
+                <div class="toast-content">
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button type="button" class="toast-close" aria-label="Close notification">×</button>
+            `;
+            
+            // Function to close toast and remember it was dismissed
+            const closeToast = () => {
+                // Add to dismissed list
+                const dismissed = JSON.parse(sessionStorage.getItem('gmao_dismissed_alerts') || '[]');
+                if (!dismissed.includes(alertId)) {
+                    dismissed.push(alertId);
+                    sessionStorage.setItem('gmao_dismissed_alerts', JSON.stringify(dismissed));
+                    console.log('💾 Saved dismissal:', alertId, 'All dismissed:', dismissed);
+                }
+                
+                // Animate out
+                toast.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.remove();
+                    }
+                }, 300);
+            };
+            
+            // Event listener pour le bouton de fermeture
+            const closeBtn = toast.querySelector('.toast-close');
+            closeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeToast();
+            });
+            
+            // Auto-close après la durée configurée
+            const autoCloseTimeout = setTimeout(() => {
+                if (toast.parentElement) {
+                    closeToast();
+                }
+            }, displayDuration);
+            
+            // Clear timeout if manually closed
+            closeBtn.addEventListener('click', () => {
+                clearTimeout(autoCloseTimeout);
+            });
+            
+            alertSystem.toastContainer.appendChild(toast);
+        }
+        
+        // Remove the original alert div
+        alert.remove();
+    });
+}
+
+// Simple hash function for generating stable IDs from strings
+function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(36);
+}
+
+function getCurrentPage() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('page') || 'dashboard';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    alertSystem = new AlertSystem();
+    const currentPage = getCurrentPage();
+    if (currentPage === 'dashboard') {
+        alertSystem = new AlertSystem();
+    } else {
+        console.log('⏭️ AlertSystem disabled on page:', currentPage);
+    }
+    // Convert existing Bootstrap alerts to toasts
+    setTimeout(convertAlertsToToasts, 100);
 });

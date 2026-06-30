@@ -1,9 +1,6 @@
 <?php
 // pages/profile.php - User Profile
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+// auth handled centrally in index.php
 
 $user_id = $_SESSION['user_id'];
 $user = getUser($user_id);
@@ -37,6 +34,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         } else {
             $error = "❌ " . t('current_password') . " incorrect";
+        }
+    }
+    
+    // Sauvegarde de l'intervalle d'alerte (admin)
+    if(isset($_POST['save_backup_interval']) && $_SESSION['role'] === 'admin') {
+        $new_interval = intval($_POST['backup_interval']);
+        if ($new_interval > 0) {
+            $pdo->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES ('backup_alert_interval', ?) ON DUPLICATE KEY UPDATE setting_value = ?")
+                ->execute([$new_interval, $new_interval]);
+            $message = "✅ Intervalle d'alerte sauvegardé.";
         }
     }
 }
@@ -164,11 +171,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             <hr class="bg-light">
             <div class="small">
                 <i class="fas fa-calendar"></i> <?php echo t('member_since'); ?><br>
-                <?php echo $user['created_at'] ? format_date_us($user['created_at'], true) : '-'; ?>
+                <?php echo $user['created_at'] ? format_date_local($user['created_at'], 'long', true) : '-'; ?>
             </div>
             <div class="small mt-2">
                 <i class="fas fa-clock"></i> <?php echo t('last_connection'); ?><br>
-                <?php echo $user['last_login'] ? format_date_us($user['last_login'], true) : t('never'); ?>
+                <?php echo $user['last_login'] ? format_date_local($user['last_login'], 'long', true) : t('never'); ?>
             </div>
         </div>
     </div>
@@ -254,13 +261,56 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </form>
             </div>
         </div>
+        
+        <!-- Section Admin (visible seulement pour les administrateurs) -->
+        <?php if ($_SESSION['role'] === 'admin'): ?>
+            <?php
+            // Récupérer les paramètres système
+            $stmt = $pdo->query("SELECT setting_key, setting_value FROM system_settings");
+            $settings = [];
+            while ($row = $stmt->fetch()) {
+                $settings[$row['setting_key']] = $row['setting_value'];
+            }
+            $backup_interval = $settings['backup_alert_interval'] ?? 7;
+            $last_backup = $settings['last_backup_date'] ?? null;
+            ?>
+            <div class="info-card mt-4">
+                <div class="info-card-header">
+                    <i class="fas fa-database"></i> <?php echo t('administrator'); ?> - Gestion des sauvegardes
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-calendar-alt"></i> Dernière sauvegarde</h6>
+                            <p><?php echo $last_backup ? format_date_local($last_backup, 'long', true) : 'Aucune sauvegarde effectuée'; ?></p>
+                            <!-- Bouton export avec rafraîchissement automatique -->
+                            <a href="javascript:void(0)" onclick="exportAndRefresh()" class="btn btn-primary">
+                                <i class="fas fa-download"></i> Exporter la base de données
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-bell"></i> Alerte de sauvegarde</h6>
+                            <form method="POST" class="row g-2 align-items-end">
+                                <div class="col-auto">
+                                    <label class="form-label">Rappeler tous les (jours)</label>
+                                    <input type="number" name="backup_interval" class="form-control" value="<?php echo $backup_interval; ?>" min="1" max="365" required>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" name="save_backup_interval" class="btn btn-warning">Enregistrer</button>
+                                </div>
+                            </form>
+                            <small class="text-muted">Une alerte apparaîtra dans le centre d'alertes si aucune sauvegarde n'a été faite depuis ce nombre de jours.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
 <script>
 function togglePassword(fieldId) {
     const field = document.getElementById(fieldId);
-    // Find the button (next sibling or previous sibling depending on structure)
     let button = field.nextElementSibling;
     if (button && button.tagName === 'BUTTON') {
         if (field.type === 'password') {
@@ -291,6 +341,20 @@ function checkPasswordMatch() {
         }
     }
     return true;
+}
+
+// Fonction pour l'export avec rafraîchissement automatique
+function exportAndRefresh() {
+    // Créer un iframe invisible pour déclencher le téléchargement
+    var iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = 'api/backup_database.php';
+    document.body.appendChild(iframe);
+    
+    // Après 2 secondes, rafraîchir la page pour afficher la nouvelle date de sauvegarde
+    setTimeout(function() {
+        location.reload();
+    }, 2000);
 }
 
 const newPwd = document.getElementById('new_password');

@@ -1,9 +1,6 @@
 <?php
 // pages/assign_intervention.php - Assigning an intervention to a technician
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+    // auth handled centrally in index.php
 
 $intervention_id = $_GET['id'] ?? 0;
 
@@ -35,16 +32,16 @@ $scheduled_date = $intervention['intervention_date'];
 $interventions_taken = [];
 if($scheduled_date) {
     $stmt = $pdo->prepare("
-        SELECT intervenant_id, COUNT(*) as count 
+        SELECT technician_id, COUNT(*) as count 
         FROM interventions 
         WHERE intervention_date = ? 
         AND task_status NOT IN ('termine', 'cloturee')
-        GROUP BY intervenant_id
+        GROUP BY technician_id
     ");
     $stmt->execute([$scheduled_date]);
     $taken = $stmt->fetchAll();
     foreach($taken as $t) {
-        $interventions_taken[$t['intervenant_id']] = $t['count'];
+        $interventions_taken[$t['technician_id']] = $t['count'];
     }
 }
 
@@ -55,7 +52,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     $stmt = $pdo->prepare("
         UPDATE interventions 
-        SET intervenant_id = ?, intervention_date = ?, scheduled_time = ?, task_status = 'a_faire'
+        SET technician_id = ?, intervention_date = ?, scheduled_time = ?, task_status = 'a_faire'
         WHERE id = ?
     ");
     $result = $stmt->execute([$technician_id, $scheduled_date, $scheduled_time, $intervention_id]);

@@ -1,12 +1,11 @@
 <?php
 // pages/mobile_interventions.php - Liste des interventions pour mobile
 session_start();
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+    // auth handled centrally in index.php
 
-require_once __DIR__ . '/../config/database.php';
+// Load core helpers (DB, translations)
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
 require_once __DIR__ . '/../includes/lang.php';
 
 $technician_id = null;
@@ -32,7 +31,7 @@ $sql = "
 $params = [];
 
 if($technician_id) {
-    $sql .= " AND i.intervenant_id = ?";
+    $sql .= " AND i.technician_id = ?";
     $params[] = $technician_id;
 }
 
@@ -205,7 +204,7 @@ $completed_count = count(array_filter($interventions, function($i) { return $i['
                 </div>
                 <?php if($inv['intervention_date']): ?>
                     <div class="intervention-date">
-                        <i class="fas fa-calendar-alt"></i> <?php echo format_date_us($inv['intervention_date'], false); ?>
+                        <i class="fas fa-calendar-alt"></i> <?php echo format_date_local($inv['intervention_date'], 'long', false); ?>
                         <?php if($inv['scheduled_time']): ?>
                             <i class="fas fa-clock ms-2"></i> <?php echo date('H:i', strtotime($inv['scheduled_time'])); ?>
                         <?php endif; ?>

@@ -1,65 +1,61 @@
 <?php
-// api/delete_attachment.php - Delete an attachment (file + db record)
+// api/delete_attachment.php - Supprimer une pièce jointe avec vérification du mot de passe
 session_start();
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once '../config/database.php';
+require_once '../includes/functions.php';
 
-if(!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id'])) {
     http_response_code(403);
-    echo json_encode(['error' => 'unauthenticated']);
-    exit();
+    die("Accès interdit");
 }
 
-$id = isset($_POST['id']) ? intval($_POST['id']) : 0;
-if($id <= 0) {
-    http_response_code(400);
-    echo json_encode(['error' => 'invalid_id']);
-    exit();
+$id = intval($_POST['id'] ?? 0);
+if ($id <= 0) {
+    die("ID invalide");
 }
 
-// CSRF check
-$csrf = $_POST['csrf_token'] ?? '';
-if(!validate_csrf_fallback($csrf)) {
-    http_response_code(403);
-    echo json_encode(['error' => 'invalid_csrf']);
-    exit();
-}
-
-// Fetch attachment
-$stmt = $pdo->prepare("SELECT * FROM attachments WHERE id = ?");
+// Vérifier que l'utilisateur a le droit de supprimer (admin, superviseur, ou créateur)
+$stmt = $pdo->prepare("SELECT created_by FROM attachments WHERE id = ?");
 $stmt->execute([$id]);
 $att = $stmt->fetch();
-if(!$att) {
-    http_response_code(404);
-    echo json_encode(['error' => 'not_found']);
-    exit();
+if (!$att) {
+    die("Document non trouvé");
+}
+if (!in_array($_SESSION['role'], ['admin', 'supervisor']) && $_SESSION['user_id'] != $att['created_by']) {
+    die("Permission refusée");
 }
 
-// Permission: only admins/supervisors or uploader can delete
-if(!in_array($_SESSION['role'], ['admin','supervisor']) && $_SESSION['user_id'] != $att['created_by']) {
-    http_response_code(403);
-    echo json_encode(['error' => 'forbidden']);
-    exit();
+// Vérifier le mot de passe
+if (empty($_POST['confirm_password'])) {
+    die("Mot de passe requis");
+}
+$stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$user = $stmt->fetch();
+if (!$user || !password_verify($_POST['confirm_password'], $user['password'])) {
+    // Rediriger avec erreur
+    $referer = $_SERVER['HTTP_REFERER'] ?? '?page=dashboard';
+    header("Location: $referer&error=wrong_password");
+    exit;
 }
 
-$filePath = __DIR__ . '/../uploads/attachments/' . $att['parent_type'] . '/' . $att['parent_id'] . '/' . $att['filename'];
-if(is_file($filePath)) {
-    @unlink($filePath);
+// Supprimer le fichier physique si c'est un fichier uploadé
+$stmt = $pdo->prepare("SELECT filename, parent_id FROM attachments WHERE id = ?");
+$stmt->execute([$id]);
+$att = $stmt->fetch();
+if ($att && !empty($att['filename'])) {
+    $file_path = __DIR__ . '/../uploads/attachments/equipment/' . $att['parent_id'] . '/' . $att['filename'];
+    if (file_exists($file_path)) {
+        unlink($file_path);
+    }
 }
 
-$del = $pdo->prepare("DELETE FROM attachments WHERE id = ?");
-$del->execute([$id]);
+// Supprimer l'entrée en base
+$stmt = $pdo->prepare("DELETE FROM attachments WHERE id = ?");
+$stmt->execute([$id]);
 
-// Redirect back or return JSON
-// Log deletion
-if(isset($_SESSION['user_id'])) {
-    log_user_action($_SESSION['user_id'], 'attachment_deleted', "attachment ID: {$id} - parent {$att['parent_type']}:{$att['parent_id']} - {$att['original_name']}");
-}
+logUserAction($_SESSION['user_id'], 'attachment_deleted', "Attachment ID: $id deleted");
 
-if(!empty($_SERVER['HTTP_REFERER'])) {
-    header('Location: ' . $_SERVER['HTTP_REFERER'] . '&deleted=1');
-    exit();
-}
-
-echo json_encode(['success' => true]);
-exit();
+$referer = $_SERVER['HTTP_REFERER'] ?? '?page=dashboard';
+header("Location: $referer&msg=document_deleted");
+exit;

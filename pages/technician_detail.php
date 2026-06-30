@@ -26,7 +26,7 @@ $stmt = $pdo->prepare("
     SELECT i.*, e.name as equipment_name, e.code as equipment_code, e.location as equipment_location
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
-    WHERE i.intervenant_id = ?
+    WHERE i.technician_id = ?
     ORDER BY i.intervention_date ASC, i.created_at DESC
 ");
 $stmt->execute([$id]);
@@ -58,7 +58,7 @@ $upcoming = array_filter($interventions, function($inv) {
 usort($upcoming, fn($a, $b) => strtotime($a['intervention_date']) - strtotime($b['intervention_date']));
 $upcoming = array_slice($upcoming, 0, 5);
 
-// Historique des modifications
+// Historique des modifications (détaillé)
 $stmt = $pdo->prepare("
     SELECT ul.*, u.username 
     FROM user_logs ul
@@ -75,6 +75,13 @@ $history = $stmt->fetchAll();
 $stmt = $pdo->prepare("SELECT * FROM technician_skills WHERE technician_id = ?");
 $stmt->execute([$id]);
 $skills = $stmt->fetchAll();
+
+// Status labels
+$status_labels = [
+    'active' => '🟢 ' . t('active'),
+    'inactive' => '⚫ ' . t('inactive'),
+    'on_leave' => '🟡 ' . t('on_leave')
+];
 ?>
 
 <style>
@@ -100,7 +107,33 @@ $skills = $stmt->fetchAll();
     }
     .stats-card:hover { transform: translateY(-4px); }
     .stats-number { font-size: 26px; font-weight: bold; }
-    .skill-tag { display: inline-block; padding: 6px 14px; border-radius: 20px; margin: 4px; font-size: 13px; }
+    .skill-tag { display: inline-block; padding: 6px 14px; border-radius: 20px; margin: 4px; font-size: 13px; background: #f0f0f0; }
+    .status-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .status-active { background: #28a745; color: white; }
+    .status-inactive { background: #6c757d; color: white; }
+    .status-on_leave { background: #ffc107; color: #333; }
+    .history-item {
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .history-item:last-child {
+        border-bottom: none;
+    }
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+        cursor: pointer;
+    }
+    .action-buttons .btn {
+        padding: 4px 8px;
+        margin: 0 2px;
+        border-radius: 6px;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -115,7 +148,7 @@ $skills = $stmt->fetchAll();
             <i class="fas fa-arrow-left"></i> <?php echo t('view_technicians'); ?>
         </a>
         <?php if($technician['status'] != 'inactive'): ?>
-        <a href="?page=technicians&action=edit&id=<?php echo $technician['id']; ?>" class="btn btn-warning">
+        <a href="?page=technicians_edit&id=<?php echo $technician['id']; ?>" class="btn btn-warning">
             <i class="fas fa-edit"></i> <?php echo t('edit'); ?>
         </a>
         <?php endif; ?>
@@ -140,15 +173,11 @@ $skills = $stmt->fetchAll();
                     <tr><td><strong><?php echo t('status'); ?></strong></td>
                         <td>
                             <span class="status-badge status-<?php echo $technician['status']; ?>">
-                                <?php 
-                                if($technician['status'] == 'active') echo '🟢 ' . t('active');
-                                elseif($technician['status'] == 'inactive') echo '⚫ ' . t('inactive');
-                                else echo '🟡 ' . t('on_leave');
-                                ?>
+                                <?php echo $status_labels[$technician['status']] ?? $technician['status']; ?>
                             </span>
                         </td>
                     </tr>
-                    <tr><td><strong><?php echo t('hire_date'); ?></strong></td><td><?php echo $technician['hire_date'] ? format_date_us($technician['hire_date'], false) : t('not_provided'); ?></td></tr>
+                    <tr><td><strong><?php echo t('hire_date'); ?></strong></td><td><?php echo $technician['hire_date'] ? format_date_local($technician['hire_date'], 'long', false) : t('not_provided'); ?></td></tr>
                 </table>
             </div>
         </div>
@@ -164,7 +193,7 @@ $skills = $stmt->fetchAll();
                 <?php else: ?>
                     <div class="d-flex flex-wrap">
                         <?php foreach($skills as $skill): ?>
-                            <span class="skill-tag bg-light">
+                            <span class="skill-tag">
                                 <?php echo htmlspecialchars($skill['equipment_type']); ?> 
                                 <small>(<?php echo t($skill['skill_level']); ?>)</small>
                             </span>
@@ -205,10 +234,11 @@ $skills = $stmt->fetchAll();
             </div>
         </div>
 
-        <!-- Weekly Schedule -->
+        <!-- Weekly Schedule avec numéro de semaine -->
         <div class="info-card">
             <div class="info-card-header" style="background: linear-gradient(135deg, #28a745, #1e7e34);">
                 <i class="fas fa-chart-bar"></i> <?php echo t('weekly_schedule'); ?>
+                <span class="badge bg-light text-dark ms-2"><?php echo t('week') . ' ' . date('W'); ?></span>
             </div>
             <div class="card-body p-4">
                 <?php
@@ -220,7 +250,12 @@ $skills = $stmt->fetchAll();
                         $day_counts[$day_num]++;
                     }
                 }
+                // Calcul du numéro de semaine actuel
+                $current_week = date('W');
                 ?>
+                <div class="text-center mb-3">
+                    <span class="badge bg-secondary"><?php echo t('current_week'); ?> : <?php echo $current_week; ?></span>
+                </div>
                 <div class="row text-center">
                     <?php foreach($week_days as $i => $day): ?>
                     <div class="col">
@@ -234,7 +269,7 @@ $skills = $stmt->fetchAll();
     </div>
 </div>
 
-<!-- Upcoming Interventions -->
+<!-- Upcoming Interventions (carte séparée) -->
 <?php if(!empty($upcoming)): ?>
 <div class="info-card">
     <div class="info-card-header" style="background: linear-gradient(135deg, #17a2b8, #138496);">
@@ -260,7 +295,7 @@ $skills = $stmt->fetchAll();
                         <td><?php echo htmlspecialchars($inv['equipment_name']); ?></td>
                         <td><?php echo htmlspecialchars($inv['title']); ?></td>
                         <td><span class="badge bg-warning"><?php echo t($inv['priority']); ?></span></td>
-                        <td><?php echo format_date_us($inv['intervention_date'], false); ?></td>
+                        <td><?php echo format_date_local($inv['intervention_date'], 'long', false); ?></td>
                         <td><a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" onclick="event.stopPropagation()"><i class="fas fa-eye"></i></a></td>
                     </tr>
                     <?php endforeach; ?>
@@ -271,14 +306,17 @@ $skills = $stmt->fetchAll();
 </div>
 <?php endif; ?>
 
-<!-- Interventions History -->
+<!-- ========== SECTION HISTORIQUE DES INTERVENTIONS ========== -->
 <div class="info-card">
-    <div class="info-card-header">
+    <div class="info-card-header" style="background: linear-gradient(135deg, #6c757d, #495057);">
         <i class="fas fa-history"></i> <?php echo t('interventions_history'); ?>
     </div>
     <div class="card-body p-0">
         <?php if(empty($interventions)): ?>
-            <p class="text-center text-muted py-5"><?php echo t('no_interventions'); ?></p>
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-inbox fa-2x mb-2"></i>
+                <p><?php echo t('no_interventions'); ?></p>
+            </div>
         <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -300,7 +338,11 @@ $skills = $stmt->fetchAll();
                             <td><strong><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></strong></td>
                             <td><?php echo htmlspecialchars($inv['equipment_name']); ?></td>
                             <td><?php echo htmlspecialchars($inv['title']); ?></td>
-                            <td><span class="badge bg-<?php echo $inv['priority']=='critical'?'danger':'warning'; ?>"><?php echo t($inv['priority']); ?></span></td>
+                            <td>
+                                <span class="badge bg-<?php echo $inv['priority']=='critical'?'danger':'warning'; ?>">
+                                    <?php echo t($inv['priority']); ?>
+                                </span>
+                            </td>
                             <td>
                                 <?php
                                 $status_icons = [
@@ -312,13 +354,15 @@ $skills = $stmt->fetchAll();
                                 echo $status_icons[$inv['task_status']] ?? $inv['task_status'];
                                 ?>
                             </td>
-                            <td><?php echo $inv['intervention_date'] ? format_date_us($inv['intervention_date'], false) : '-'; ?></td>
+                            <td><?php echo $inv['intervention_date'] ? format_date_local($inv['intervention_date'], 'long', false) : '-'; ?></td>
                             <td><?php echo $inv['duration_hours'] ? $inv['duration_hours'].'h' : '-'; ?></td>
                             <td class="text-center" onclick="event.stopPropagation()">
-                                <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
+                                <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
+                                    <i class="fas fa-eye"></i>
+                                </a>
                                 <?php if(!in_array($inv['task_status'], ['termine','cloturee'])): ?>
                                     <a href="?page=interventions&action=complete&id=<?php echo $inv['id']; ?>" 
-                                       class="btn btn-sm btn-success" onclick="return confirm('<?php echo t('complete_confirm'); ?>')">
+                                        class="btn btn-sm btn-success" onclick="return confirm('<?php echo t('complete_confirm'); ?>')">
                                         <i class="fas fa-check-circle"></i>
                                     </a>
                                 <?php endif; ?>
@@ -332,48 +376,43 @@ $skills = $stmt->fetchAll();
     </div>
 </div>
 
-<!-- Ligne finale : Historique + Skills -->
-<div class="row">
-    <div class="col-md-7">
-        <div class="info-card">
-            <div class="info-card-header">
-                <i class="fas fa-history"></i> <?php echo t('modifications_history'); ?>
-            </div>
-            <div class="card-body p-3">
-                <?php if(empty($history)): ?>
-                    <p class="text-muted text-center py-4"><?php echo t('no_history'); ?></p>
-                <?php else: ?>
-                    <?php foreach($history as $h): ?>
-                    <div class="history-item border-bottom py-2">
-                        <strong><?php echo t($h['action']); ?></strong> 
-                        <small class="text-muted float-end"><?php echo format_date_us($h['created_at'], true); ?></small>
-                        <div class="small text-muted">Par : <?php echo htmlspecialchars($h['username'] ?? 'System'); ?></div>
-                    </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-        </div>
+<!-- ========== SECTION HISTORIQUE DES MODIFICATIONS (comme dans equipment_detail.php) ========== -->
+<div class="info-card">
+    <div class="info-card-header" style="background: linear-gradient(135deg, #6c757d, #495057);">
+        <i class="fas fa-edit"></i> <?php echo t('modifications_history'); ?>
     </div>
-
-    <div class="col-md-5">
-        <div class="info-card h-100">
-            <div class="info-card-header" style="background: linear-gradient(135deg, #17a2b8, #138496);">
-                <i class="fas fa-tools"></i> <?php echo t('skills'); ?>
-            </div>
-            <div class="card-body p-4">
-                <?php if(empty($skills)): ?>
-                    <p class="text-muted text-center"><?php echo t('no_skills'); ?></p>
-                <?php else: ?>
-                    <div class="d-flex flex-wrap">
-                        <?php foreach($skills as $skill): ?>
-                            <span class="skill-tag bg-light">
-                                <?php echo htmlspecialchars($skill['equipment_type']); ?>
-                            </span>
-                        <?php endforeach; ?>
+    <div class="card-body p-3">
+        <?php if(empty($history)): ?>
+            <div class="text-muted text-center py-4"><?php echo t('no_history'); ?></div>
+        <?php else: ?>
+            <?php foreach($history as $h): ?>
+                <div class="history-item">
+                    <div class="d-flex justify-content-between mb-2">
+                        <div>
+                            <strong>
+                                <?php
+                                $action_icon = match($h['action']) {
+                                    'technician_created' => '🟢 ',
+                                    'technician_updated' => '✏️ ',
+                                    'technician_deleted' => '🗑️ ',
+                                    'technician_restored' => '🔄 ',
+                                    default => '📌 '
+                                };
+                                echo $action_icon . t($h['action']); ?>
+                            </strong>
+                        </div>
+                        <small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                     </div>
-                <?php endif; ?>
-            </div>
-        </div>
+                    <div class="small text-muted mb-2">
+                        <?php echo t('by'); ?> : <?php echo htmlspecialchars($h['username'] ?? t('unknown')); ?> 
+                        (IP: <?php echo htmlspecialchars($h['ip_address'] ?? '-'); ?>)
+                    </div>
+                    <div class="mt-1">
+                        <?php echo nl2br(htmlspecialchars($h['details'])); ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 </div>
 

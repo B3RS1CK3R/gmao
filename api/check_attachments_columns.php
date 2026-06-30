@@ -1,6 +1,8 @@
 <?php
 // api/check_attachments_columns.php - quick check for external_path column
-require_once __DIR__ . '/../config/database.php';
+// Use core includes for consistent DB access and helpers
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
 
 try {
     $stmt = $pdo->query("SHOW COLUMNS FROM attachments LIKE 'external_path'");

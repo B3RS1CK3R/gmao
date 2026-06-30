@@ -5,6 +5,9 @@ if(!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Forcer la mise à jour des alertes prestataires
+checkContractorAlerts($pdo);
+
 // Fetch active alerts
 $alerts = [];
 
@@ -27,7 +30,7 @@ foreach($criticalInterventions as $inv) {
         'priority' => 'critical',
         'title' => t('critical_intervention'),
         'message' => $inv['title'] . ' - ' . $inv['equipment_name'] . ' (' . $inv['equipment_code'] . ')',
-        'details' => t('created_on') . ' : ' . format_date_us($inv['created_at'], true) . '<br>' . nl2br(htmlspecialchars(substr($inv['description'], 0, 200))),
+        'details' => t('created_on') . ' : ' . format_date_local($inv['created_at'], 'long', true) . '<br>' . nl2br(htmlspecialchars(substr($inv['description'], 0, 200))),
         'url' => '?page=intervention_view&id=' . $inv['id'],
         'date' => $inv['created_at'],
         'status' => $inv['task_status']
@@ -62,7 +65,7 @@ foreach($overdueMaintenances as $pm) {
 // 3. Upcoming preventive maintenances (less than 7 days)
 $stmt = $pdo->query("
     SELECT pm.*, e.name as equipment_name, e.code as equipment_code,
-           DATEDIFF(pm.next_due, CURDATE()) as days_left
+        DATEDIFF(pm.next_due, CURDATE()) as days_left
     FROM preventive_maintenance pm
     JOIN equipment e ON pm.equipment_id = e.id
     WHERE pm.next_due >= CURDATE() 
@@ -78,7 +81,7 @@ foreach($upcomingMaintenances as $pm) {
         'priority' => 'info',
         'title' => t('maintenance_upcoming'),
         'message' => $pm['equipment_name'] . ' (' . $pm['equipment_code'] . ') - ' . t('in') . ' ' . $pm['days_left'] . ' ' . t('days'),
-        'details' => t('planned_date') . ' : ' . format_date_us($pm['next_due'], false) . '<br>' . t('instructions') . ' : ' . nl2br(htmlspecialchars($pm['instructions'])),
+        'details' => t('planned_date') . ' : ' . format_date_local($pm['next_due'], 'long', false) . '<br>' . t('instructions') . ' : ' . nl2br(htmlspecialchars($pm['instructions'])),
         'url' => '?page=preventive',
         'date' => $pm['next_due'],
         'days_left' => $pm['days_left']
@@ -128,7 +131,7 @@ foreach($warrantyExpiring as $eq) {
             'priority' => 'critical',
             'title' => t('warranty_expired'),
             'message' => $eq['name'] . ' (' . $eq['code'] . ') - ' . t('expired_since') . ' ' . abs($eq['days_left']) . ' ' . t('days'),
-            'details' => t('purchase_date') . ' : ' . format_date_us($eq['purchase_date'], false) . '<br>' . t('warranty_end') . ' : ' . format_date_us($eq['warranty_end'], false),
+            'details' => t('purchase_date') . ' : ' . format_date_local($eq['purchase_date'], 'long', false) . '<br>' . t('warranty_end') . ' : ' . format_date_local($eq['warranty_end'], 'long', false),
             'url' => '?page=equipment_detail&id=' . $eq['id'],
             'date' => $eq['warranty_end'],
             'days_overdue' => abs($eq['days_left'])
@@ -140,7 +143,7 @@ foreach($warrantyExpiring as $eq) {
             'priority' => 'warning',
             'title' => t('warranty_upcoming'),
             'message' => $eq['name'] . ' (' . $eq['code'] . ') - ' . t('expires_in') . ' ' . $eq['days_left'] . ' ' . t('days'),
-            'details' => t('purchase_date') . ' : ' . format_date_us($eq['purchase_date'], false) . '<br>' . t('warranty_end') . ' : ' . format_date_us($eq['warranty_end'], false),
+            'details' => t('purchase_date') . ' : ' . format_date_local($eq['purchase_date'], 'long', false) . '<br>' . t('warranty_end') . ' : ' . format_date_local($eq['warranty_end'], 'long', false),
             'url' => '?page=equipment_detail&id=' . $eq['id'],
             'date' => $eq['warranty_end'],
             'days_left' => $eq['days_left']
@@ -154,7 +157,7 @@ $stmt = $pdo->query("
         DATEDIFF(NOW(), i.created_at) as days_old
     FROM interventions i
     JOIN equipment e ON i.equipment_id = e.id
-    WHERE i.intervenant_id IS NULL 
+    WHERE i.technician_id IS NULL 
     AND i.task_status = 'a_faire'
     AND i.created_at <= DATE_SUB(NOW(), INTERVAL 3 DAY)
     ORDER BY i.created_at ASC
@@ -174,6 +177,75 @@ foreach($unassigned as $inv) {
     ];
 }
 
+// 7. Backup reminder for admin (ajouter après les autres alertes)
+if ($_SESSION['role'] === 'admin') {
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM system_settings");
+    $sys = [];
+    while ($row = $stmt->fetch()) { $sys[$row['setting_key']] = $row['setting_value']; }
+    $last_backup = $sys['last_backup_date'] ?? null;
+    $interval = intval($sys['backup_alert_interval'] ?? 7);
+    if ($last_backup && strtotime($last_backup) < strtotime("-$interval days")) {
+        $days_since = floor((time() - strtotime($last_backup)) / 86400);
+        $alerts[] = [
+            'id' => 'backup_reminder_' . time(),
+            'type' => 'backup_reminder',
+            'priority' => 'warning',
+            'title' => t('backup_reminder_title'),
+            'message' => t('backup_reminder_message') . ' ' . $days_since . ' ' . t('days'),
+            'details' => t('last_backup') . ' : ' . format_date_local($last_backup, 'long', false) . '<br>' . t('backup_advice'),
+            'url' => '?page=profile',
+            'date' => $last_backup,
+            'days_since' => $days_since
+        ];
+    }
+}
+
+// ==========================================
+// 8. CONTRACTOR ALERTS (NOUVEAU - intégré)
+// ==========================================
+if (!empty($_SESSION['contractor_alerts'])) {
+    $lang = getCurrentLanguage();
+    foreach ($_SESSION['contractor_alerts'] as $alert) {
+        // Déterminer la priorité en fonction des jours restants
+        $priority = ($alert['days_until'] <= 7) ? 'critical' : 'warning';
+        
+        // Déterminer le type
+        $type = ($alert['type'] == 'intervention') ? 'contractor_intervention' : 'contractor_maintenance';
+        
+        // Déterminer le titre
+        if ($alert['type'] == 'intervention') {
+            $title = ($lang === 'fr') ? '🔔 Alerte intervention prestataire' : '🔔 Contractor intervention alert';
+        } else {
+            $title = ($lang === 'fr') ? '🔔 Alerte maintenance prestataire' : '🔔 Contractor maintenance alert';
+        }
+        
+        // Choisir le message selon la langue
+        $message = ($lang === 'fr') ? $alert['message_fr'] : $alert['message_en'];
+        
+        $alerts[] = [
+            'id' => 'contractor_' . $alert['contractor_id'] . '_' . ($alert['intervention_id'] ?? $alert['maintenance_id'] ?? time()),
+            'type' => $type,
+            'priority' => $priority,
+            'title' => $title,
+            'message' => $message,
+            'details' => '<strong>' . t('contractor') . ' :</strong> ' . htmlspecialchars($alert['contractor_name']) . '<br>' .
+                        '<strong>' . t('task') . ' :</strong> ' . htmlspecialchars($alert['intervention_title'] ?? $alert['maintenance_title']) . '<br>' .
+                        '<strong>' . t('equipment') . ' :</strong> ' . htmlspecialchars($alert['equipment_name']) . '<br>' .
+                        '<strong>' . t('scheduled_date') . ' :</strong> ' . format_date_local($alert['intervention_date'] ?? $alert['next_due'] ?? date('Y-m-d'), 'short') . '<br>' .
+                        '<strong>' . t('days_remaining') . ' :</strong> ' . $alert['days_until'] . ' ' . t('days_s') . '<br>' .
+                        '<strong>' . t('alert_level') . ' :</strong> ' . ($alert['level'] == 2 ? t('level_2') : t('level_1')),
+            'url' => ($alert['type'] == 'intervention') 
+                ? '?page=intervention_view&id=' . ($alert['intervention_id'] ?? 0)
+                : '?page=preventive_view&id=' . ($alert['maintenance_id'] ?? 0),
+            'date' => $alert['intervention_date'] ?? $alert['next_due'] ?? date('Y-m-d'),
+            'days_remaining' => $alert['days_until'],
+            'contractor_name' => $alert['contractor_name'],
+            'alert_level' => $alert['level']
+        ];
+    }
+}
+// ==========================================
+
 // Sort alerts by date (newest first)
 usort($alerts, function($a, $b) {
     return strtotime($b['date']) - strtotime($a['date']);
@@ -183,6 +255,9 @@ usort($alerts, function($a, $b) {
 $critical_count = count(array_filter($alerts, function($a) { return $a['priority'] == 'critical'; }));
 $warning_count = count(array_filter($alerts, function($a) { return $a['priority'] == 'warning'; }));
 $info_count = count(array_filter($alerts, function($a) { return $a['priority'] == 'info'; }));
+$contractor_count = count(array_filter($alerts, function($a) { 
+    return in_array($a['type'], ['contractor_intervention', 'contractor_maintenance']); 
+}));
 ?>
 
 <style>
@@ -203,9 +278,18 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         align-items: center;
         cursor: pointer;
     }
-    .alert-card-header.critical { background: linear-gradient(135deg, #dc3545, #c82333); }
-    .alert-card-header.warning { background: linear-gradient(135deg, #fd7e14, #e06a0a); }
-    .alert-card-header.info { background: linear-gradient(135deg, #17a2b8, #138496); }
+    .alert-card-header.critical {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+    }
+    .alert-card-header.warning {
+        background: linear-gradient(135deg, #fd7e14, #e06a0a);
+    }
+    .alert-card-header.info {
+        background: linear-gradient(135deg, #17a2b8, #138496);
+    }
+    .alert-card-header.contractor {
+        background: linear-gradient(135deg, #6f42c1, #5a32a3);
+    }
     .alert-card-body {
         padding: 20px;
         display: none;
@@ -225,9 +309,18 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
     .alert-item:last-child {
         border-bottom: none;
     }
-    .alert-item.critical { border-left: 4px solid #dc3545; }
-    .alert-item.warning { border-left: 4px solid #fd7e14; }
-    .alert-item.info { border-left: 4px solid #17a2b8; }
+    .alert-item.critical {
+        border-left: 4px solid #dc3545;
+    }
+    .alert-item.warning {
+        border-left: 4px solid #fd7e14;
+    }
+    .alert-item.info {
+        border-left: 4px solid #17a2b8;
+    }
+    .alert-item.contractor {
+        border-left: 4px solid #6f42c1;
+    }
     .alert-priority-badge {
         display: inline-block;
         padding: 3px 8px;
@@ -235,9 +328,18 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         font-size: 10px;
         font-weight: 600;
     }
-    .alert-priority-critical { background: #dc3545; color: white; }
-    .alert-priority-warning { background: #fd7e14; color: white; }
-    .alert-priority-info { background: #17a2b8; color: white; }
+    .alert-priority-critical {
+        background: #dc3545; color: white;
+    }
+    .alert-priority-warning {
+        background: #fd7e14; color: white;
+    }
+    .alert-priority-info {
+        background: #17a2b8; color: white;
+    }
+    .alert-priority-contractor {
+        background: #6f42c1; color: white;
+    }
     .alert-dismiss-btn {
         background: none;
         border: none;
@@ -334,6 +436,55 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         align-items: center;
         justify-content: space-between;
     }
+    /* ===== POPUP DURATION SELECT ===== */
+    .popup-settings select.form-select {
+        min-width: 200px;
+        max-width: 280px;
+        font-size: 14px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        background-color: white;
+        cursor: pointer;
+    }
+
+    .popup-settings select.form-select:focus {
+        border-color: #6f42c1;
+        box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25);
+    }
+
+    .popup-settings .input-group {
+        max-width: 350px;
+    }
+
+    .popup-settings .input-group .btn {
+        border-radius: 0 8px 8px 0;
+        padding: 8px 15px;
+        white-space: nowrap;
+    }
+
+    .popup-settings .input-group .form-select {
+        border-radius: 8px 0 0 8px;
+    }
+
+    /* Ajustement responsive */
+    @media (max-width: 768px) {
+        .popup-settings {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .popup-settings .input-group {
+            max-width: 100%;
+            width: 100%;
+        }
+        
+        .popup-settings select.form-select {
+            min-width: 150px;
+            flex: 1;
+        }
+    }
 </style>
 
 <div class="container-fluid">
@@ -346,7 +497,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         </div>
     </div>
     
-    <!-- ===== POPUP SETTINGS SWITCH (AJOUTÉ) ===== -->
+    <!-- ===== POPUP SETTINGS SWITCH ===== -->
     <div class="popup-settings">
         <div>
             <i class="fas fa-bell-slash"></i> <strong><?php echo t('popup_notifications'); ?></strong>
@@ -357,6 +508,31 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
                 <input type="checkbox" id="popupsToggle" checked>
                 <span class="slider"></span>
             </label>
+        </div>
+    </div>
+
+    <!-- ===== POPUP DURATION SETTINGS ===== -->
+    <div class="popup-settings">
+        <div>
+            <i class="fas fa-hourglass-half"></i> <strong><?php echo t('popup_display_duration'); ?></strong>
+            <small class="text-muted d-block"><?php echo t('popup_duration_desc'); ?></small>
+        </div>
+        <div>
+            <div class="input-group" style="max-width: 320px;">
+                <select id="popupDuration" class="form-select" style="min-width: 180px;">
+                    <option value="3000">3 <?php echo t('seconds'); ?></option>
+                    <option value="5000">5 <?php echo t('seconds'); ?></option>
+                    <option value="8000" selected>8 <?php echo t('seconds'); ?> (<?php echo t('default'); ?>)</option>
+                    <option value="10000">10 <?php echo t('seconds'); ?></option>
+                    <option value="15000">15 <?php echo t('seconds'); ?></option>
+                    <option value="20000">20 <?php echo t('seconds'); ?></option>
+                    <option value="30000">30 <?php echo t('seconds'); ?></option>
+                    <option value="60000">60 <?php echo t('seconds'); ?> (1 <?php echo t('minute'); ?>)</option>
+                </select>
+                <button class="btn btn-outline-primary" type="button" id="saveDurationBtn">
+                    <i class="fas fa-save"></i> <?php echo t('save'); ?>
+                </button>
+            </div>
         </div>
     </div>
     
@@ -381,9 +557,9 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
             </div>
         </div>
         <div class="col-md-3">
-            <div class="stats-card" onclick="filterAlerts('all')">
-                <div class="stats-number"><?php echo count($alerts); ?></div>
-                <div class="text-muted"><?php echo t('total_alerts'); ?></div>
+            <div class="stats-card" onclick="filterAlerts('contractor')">
+                <div class="stats-number" style="color: #6f42c1;"><?php echo $contractor_count; ?></div>
+                <div class="text-muted"><?php echo t('contractor_alerts'); ?></div>
             </div>
         </div>
     </div>
@@ -397,7 +573,10 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
         'stock_critical' => ['title' => t('stock_critical_title'), 'icon' => 'fas fa-boxes', 'color' => 'warning'],
         'warranty_expired' => ['title' => t('warranty_expired_title'), 'icon' => 'fas fa-file-contract', 'color' => 'critical'],
         'warranty_upcoming' => ['title' => t('warranty_upcoming_title'), 'icon' => 'fas fa-file-contract', 'color' => 'info'],
-        'unassigned_intervention' => ['title' => t('unassigned_intervention_title'), 'icon' => 'fas fa-user-plus', 'color' => 'warning']
+        'unassigned_intervention' => ['title' => t('unassigned_intervention_title'), 'icon' => 'fas fa-user-plus', 'color' => 'warning'],
+        'backup_reminder' => ['title' => t('backup_reminder_title'), 'icon' => 'fas fa-database', 'color' => 'warning'],
+        'contractor_intervention' => ['title' => t('contractor_intervention_alerts'), 'icon' => 'fas fa-tools', 'color' => 'contractor'],
+        'contractor_maintenance' => ['title' => t('contractor_maintenance_alerts'), 'icon' => 'fas fa-calendar-check', 'color' => 'contractor']
     ];
     
     foreach($categories as $type => $cat):
@@ -412,14 +591,19 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
             <i class="fas fa-chevron-down"></i>
         </div>
         <div class="alert-card-body">
-            <?php foreach($type_alerts as $alert): ?>
-            <div class="alert-item <?php echo $alert['priority']; ?>" data-priority="<?php echo $alert['priority']; ?>" data-id="<?php echo $alert['id']; ?>" onclick="goToUrl('<?php echo $alert['url']; ?>')">
+            <?php foreach($type_alerts as $alert): 
+                $priority_class = $alert['priority'] == 'critical' ? 'critical' : ($alert['priority'] == 'warning' ? 'warning' : 'info');
+                if (in_array($alert['type'], ['contractor_intervention', 'contractor_maintenance'])) {
+                    $priority_class = 'contractor';
+                }
+            ?>
+            <div class="alert-item <?php echo $priority_class; ?>" data-priority="<?php echo $alert['priority']; ?>" data-id="<?php echo $alert['id']; ?>" onclick="goToUrl('<?php echo $alert['url']; ?>')">
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <div class="fw-bold"><?php echo $alert['title']; ?></div>
                         <div class="small text-muted mt-1"><?php echo $alert['message']; ?></div>
                         <div class="small text-muted mt-1">
-                            <i class="fas fa-calendar-alt"></i> <?php echo format_date_us($alert['date'], true); ?>
+                            <i class="fas fa-calendar-alt"></i> <?php echo format_date_local($alert['date'], 'long', true); ?>
                         </div>
                         <?php if(isset($alert['details'])): ?>
                         <div class="small text-muted mt-1">
@@ -441,13 +625,29 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
                             <i class="fas fa-chart-line"></i> <?php echo t('stock_at'); ?> <?php echo $alert['percentage']; ?>%
                         </div>
                         <?php endif; ?>
+                        <?php if(isset($alert['days_remaining'])): ?>
+                        <div class="small text-<?php echo $alert['days_remaining'] <= 7 ? 'danger' : 'warning'; ?> mt-1">
+                            <i class="fas fa-hourglass-half"></i> <?php echo t('days_remaining'); ?>: <?php echo $alert['days_remaining']; ?> <?php echo t('days_s'); ?>
+                        </div>
+                        <?php endif; ?>
+                        <?php if(isset($alert['contractor_name'])): ?>
+                        <div class="small text-primary mt-1">
+                            <i class="fas fa-building"></i> <?php echo t('contractor'); ?>: <?php echo htmlspecialchars($alert['contractor_name']); ?>
+                            <?php if(isset($alert['alert_level'])): ?>
+                                <span class="badge <?php echo $alert['alert_level'] == 2 ? 'bg-danger' : 'bg-warning'; ?> ms-1">
+                                    <?php echo $alert['alert_level'] == 2 ? t('level_2') : t('level_1'); ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                        <?php endif; ?>
                     </div>
                     <div class="text-end">
-                        <span class="alert-priority-badge alert-priority-<?php echo $alert['priority']; ?>">
+                        <span class="alert-priority-badge alert-priority-<?php echo $priority_class; ?>">
                             <?php 
                             if($alert['priority'] == 'critical') echo t('critical');
                             elseif($alert['priority'] == 'warning') echo t('warning');
-                            else echo t('info');
+                            elseif($alert['priority'] == 'info') echo t('info');
+                            else echo t('contractor');
                             ?>
                         </span>
                         <button class="alert-dismiss-btn ms-2" onclick="dismissAlert(event, '<?php echo $alert['id']; ?>')" title="<?php echo t('mark_as_read'); ?>">
@@ -476,7 +676,7 @@ $info_count = count(array_filter($alerts, function($a) { return $a['priority'] =
 // Store dismissed alerts for session only
 let dismissedAlerts = [];
 
-// ===== POPUP SETTINGS MANAGEMENT (AJOUTÉ) =====
+// ===== POPUP SETTINGS MANAGEMENT =====
 const popupsToggle = document.getElementById('popupsToggle');
 if (popupsToggle) {
     const savedPopupPreference = localStorage.getItem('gmao_popups_enabled');
@@ -497,6 +697,29 @@ if (popupsToggle) {
         msg.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; min-width: 250px;';
         msg.innerHTML = `
             <i class="fas fa-check-circle"></i> Popup notifications ${enabled ? 'enabled' : 'disabled'}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(msg);
+        setTimeout(() => msg.remove(), 2000);
+    });
+}
+
+// ===== POPUP DURATION SETTINGS =====
+const popupDuration = document.getElementById('popupDuration');
+const saveDurationBtn = document.getElementById('saveDurationBtn');
+if (popupDuration) {
+    const savedDuration = localStorage.getItem('gmao_popup_duration') || '8000';
+    popupDuration.value = savedDuration;
+    
+    saveDurationBtn.addEventListener('click', function() {
+        const duration = popupDuration.value;
+        localStorage.setItem('gmao_popup_duration', duration);
+        
+        const msg = document.createElement('div');
+        msg.className = 'alert alert-success alert-dismissible fade show';
+        msg.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+        msg.innerHTML = `
+            <i class="fas fa-check-circle"></i> Popup duration set to ${duration/1000} seconds
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         document.body.appendChild(msg);
@@ -577,6 +800,13 @@ function filterAlerts(priority) {
         if(priority === 'all') {
             if(!dismissedAlerts.includes(alert.getAttribute('data-id'))) {
                 alert.style.display = '';
+            }
+        } else if(priority === 'contractor') {
+            const type = alert.closest('.alert-card')?.getAttribute('data-category') || '';
+            if((type === 'contractor_intervention' || type === 'contractor_maintenance') && !dismissedAlerts.includes(alert.getAttribute('data-id'))) {
+                alert.style.display = '';
+            } else {
+                alert.style.display = 'none';
             }
         } else {
             if(alert.getAttribute('data-priority') === priority && !dismissedAlerts.includes(alert.getAttribute('data-id'))) {

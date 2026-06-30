@@ -1,9 +1,11 @@
 <?php
 // api/get_equipment.php - API pour récupérer les infos d'un équipement
+// Load core helpers (DB, translations, session, helpers)
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-
-require_once __DIR__ . '/../config/database.php';
 
 $id = $_GET['id'] ?? null;
 

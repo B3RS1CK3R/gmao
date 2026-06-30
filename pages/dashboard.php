@@ -1,12 +1,19 @@
 <?php
-// pages/dashboard.php - Version dynamique finale
+// pages/dashboard.php - Version unifiée avec getAllAlerts()
 
 // Chemin absolu fiable
 require_once __DIR__ . '/../includes/functions.php';
 
+// Récupérer toutes les alertes unifiées
+$all_alerts = getAllAlerts($pdo, true);
+$total_alerts_count = countAllAlerts($pdo);
+$_SESSION['total_alerts_count'] = $total_alerts_count;
+
 $stats = getDashboardStats();
-$alerts = getAlerts();
 $recentInterventions = getRecentInterventions(5);
+
+// Récupérer les messages simples pour l'affichage
+$alert_messages = getAlertMessages($pdo);
 ?>
 
 <div class="container-fluid">
@@ -16,14 +23,27 @@ $recentInterventions = getRecentInterventions(5);
     </h2>
     
     <!-- Alertes dynamiques -->
-    <?php if(!empty($alerts)): ?>
+    <?php if(!empty($alert_messages)): ?>
         <div class="alert alert-warning alert-dismissible fade show">
-            <strong><i class="fas fa-exclamation-triangle"></i> <?php echo t('alerts'); ?> :</strong>
+            <strong><i class="fas fa-exclamation-triangle"></i> <?php echo t('alerts'); ?> (<?php echo count($alert_messages); ?>) :</strong>
             <ul class="mb-0">
-                <?php foreach($alerts as $alert): ?>
-                    <li><?php echo htmlspecialchars($alert); ?></li>
+                <?php 
+                $display_alerts = array_slice($alert_messages, 0, 10);
+                foreach($display_alerts as $message): 
+                ?>
+                    <li><?php echo htmlspecialchars((string)$message); ?></li>
                 <?php endforeach; ?>
+                
+                <?php if(count($alert_messages) > 10): ?>
+                    <li><a href="?page=alerts"><?php echo t('view_all_alerts'); ?> (<?php echo count($alert_messages) - 10; ?> <?php echo t('more'); ?>)</a></li>
+                <?php endif; ?>
             </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php else: ?>
+        <div class="alert alert-success alert-dismissible fade show">
+            <strong><i class="fas fa-check-circle"></i> <?php echo t('no_alerts'); ?></strong>
+            <p class="mb-0"><?php echo t('everything_is_fine'); ?></p>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
@@ -105,7 +125,18 @@ $recentInterventions = getRecentInterventions(5);
                                                 <?php echo t($interv['priority'] ?? 'medium'); ?>
                                             </span>
                                         </td>
-                                        <td><?php echo t($interv['task_status'] ?? $interv['status'] ?? 'pending'); ?></td>
+                                        <td>
+                                            <?php 
+                                            $status_map = [
+                                                'a_faire' => 'to_do',
+                                                'en_cours' => 'in_progress',
+                                                'termine' => 'completed',
+                                                'cloturee' => 'closed'
+                                            ];
+                                            $status_key = $status_map[$interv['task_status']] ?? 'to_do';
+                                            echo t($status_key);
+                                            ?>
+                                        </td>
                                         <td><?php echo date('d/m/Y', strtotime($interv['created_at'] ?? 'now')); ?></td>
                                     </tr>
                                     <?php endforeach; ?>

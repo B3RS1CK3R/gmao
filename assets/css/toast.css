@@ -76,12 +76,32 @@
 .toast-close {
     cursor: pointer;
     color: #999;
-    padding: 5px;
-    font-size: 14px;
+    padding: 4px 6px;
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 1;
+    user-select: none;
+    pointer-events: auto;
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    display: block;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin: -15px -20px -15px 0;
+    margin-left: auto;
+    text-align: center;
+    line-height: 32px;
 }
 
 .toast-close:hover {
     color: #333;
+    background-color: rgba(0,0,0,0.05);
+}
+
+.toast-close:active {
+    color: #000;
 }
 
 @keyframes slideInRight {
@@ -109,13 +129,14 @@
 /* Badge de notification */
 .notification-badge {
     position: relative;
-    display: inline-block;
+    display: block;
 }
 
 .badge-count {
     position: absolute;
-    top: -8px;
-    right: -8px;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
     background: #dc3545;
     color: white;
     border-radius: 50%;

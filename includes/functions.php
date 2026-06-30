@@ -95,8 +95,8 @@ function getEquipment($id = null) {
         return $stmt->fetch();
     } else {
         $stmt = $pdo->query("SELECT e.*, 
-                             (SELECT COUNT(*) FROM interventions WHERE equipment_id = e.id AND task_status = 'pending') as pending_interventions
-                             FROM equipment e ORDER BY e.name");
+                            (SELECT COUNT(*) FROM interventions WHERE equipment_id = e.id AND task_status = 'pending') as pending_interventions
+                            FROM equipment e ORDER BY e.name");
         return $stmt->fetchAll();
     }
 }
@@ -122,6 +122,41 @@ function addEquipment($data) {
 }
 
 // ========== INTERVENTIONS ==========
+
+/**
+ * Nettoie et formate les messages des logs d'intervention pour un affichage clair
+ * @param string $action
+ * @param string $details
+ * @return string
+ */
+function formatInterventionLog($action, $details) {
+    // Traductions pour les actions
+    $action_map = [
+        'intervention_created' => t('intervention_created'),
+        'intervention_updated' => t('intervention_updated'),
+        'intervention_status_change' => t('intervention_status_changed'),
+        'intervention_assigned' => t('intervention_assigned'),
+        'intervention_completed' => t('intervention_completed'),
+        'intervention_deleted' => t('intervention_cancelled')
+    ];
+    
+    // Extraire le numéro de tâche ou l'ID
+    if (preg_match('/\b(TASK-\d+)\b/', $details, $matches)) {
+        $task = $matches[1];
+        $message = $action_map[$action] . ' : ' . $task;
+    } elseif (preg_match('/ID: (\d+)/', $details, $matches)) {
+        $id = $matches[1];
+        $message = $action_map[$action] . ' (ID ' . $id . ')';
+    } else {
+        // Fallback : afficher les détails bruts
+        $message = $action_map[$action] . ' : ' . htmlspecialchars($details);
+    }
+    
+    // Nettoyer les phrases inutiles
+    $message = str_replace(['Equipment ID: ', 'deactivated', 'reactivated', 'updated', 'created'], '', $message);
+    $message = preg_replace('/\s+/', ' ', $message);
+    return $message;
+}
 
 /**
  * Create a new intervention record.
@@ -161,14 +196,14 @@ function getDashboardStats() {
     
     // Number of interventions completed during the current month
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM interventions 
-                         WHERE task_status IN ('completed', 'closed') 
-                         AND MONTH(created_at) = MONTH(CURRENT_DATE()) 
-                         AND YEAR(created_at) = YEAR(CURRENT_DATE())");
+                        WHERE task_status IN ('completed', 'closed') 
+                        AND MONTH(created_at) = MONTH(CURRENT_DATE()) 
+                        AND YEAR(created_at) = YEAR(CURRENT_DATE())");
     $stats['completed_interventions'] = $stmt->fetch()['total'];
     
     // Average duration of completed interventions in hours
     $stmt = $pdo->query("SELECT AVG(duration_hours) as avg_duration 
-                         FROM interventions WHERE task_status IN ('completed', 'closed') AND duration_hours IS NOT NULL");
+                        FROM interventions WHERE task_status IN ('completed', 'closed') AND duration_hours IS NOT NULL");
     $stats['avg_intervention_duration'] = round($stmt->fetch()['avg_duration'] ?? 0, 1);
     
     // Count of spare parts with quantity at or below minimum threshold
@@ -186,9 +221,9 @@ function getDashboardStats() {
 function updatePreventiveSchedule() {
     global $pdo;
     $stmt = $pdo->query("SELECT pm.*, e.name as equipment_name 
-                         FROM preventive_maintenance pm 
-                         JOIN equipment e ON pm.equipment_id = e.id 
-                         WHERE pm.next_due <= CURDATE() AND e.status = 'active'");
+                        FROM preventive_maintenance pm 
+                        JOIN equipment e ON pm.equipment_id = e.id 
+                        WHERE pm.next_due <= CURDATE() AND e.status = 'active'");
     return $stmt->fetchAll();
 }
 
@@ -214,8 +249,8 @@ function getAlerts() {
     
     // 3. Expiring or expired warranties (within 30 days)
     $stmt = $pdo->query("SELECT name, warranty_end FROM equipment 
-                         WHERE warranty_end <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) 
-                         AND warranty_end IS NOT NULL");
+                        WHERE warranty_end <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) 
+                        AND warranty_end IS NOT NULL");
     $warranty = $stmt->fetchAll();
     foreach($warranty as $eq) {
         $days = ceil((strtotime($eq['warranty_end']) - time()) / 86400);
@@ -243,6 +278,17 @@ function getRecentInterventions($limit = 5) {
         LIMIT $limit
     ");
     return $stmt->fetchAll();
+}
+
+/**
+ * Format message.
+ */
+function format_message($key, $params = []) {
+    $msg = t($key);
+    foreach ($params as $placeholder => $value) {
+        $msg = str_replace('{' . $placeholder . '}', $value, $msg);
+    }
+    return $msg;
 }
 
 // ========== QR CODE FUNCTIONS ==========
@@ -283,14 +329,115 @@ function getEquipmentDetails($id) {
 }
 
 /**
- * Format a database datetime string into a US-style date (MM/DD/YYYY).
- * Optionally includes the time (HH:MM).
+ * Format a date according to the current language/locale.
+ * Assumes input date is in UTC and converts to local timezone (Europe/Paris).
+ * component: 'short', 'weekday_short', 'month_short', 'day_num', 'long', 'full'
+ * if component == 'full' or 'long', $withTime controls inclusion of time.
  */
-function format_date_us($datetime, $withTime = true) {
-    if(empty($datetime) || in_array($datetime, ['0000-00-00', '0000-00-00 00:00:00'])) return t('not_specified');
-    $ts = strtotime($datetime);
-    if($ts === false) return htmlspecialchars($datetime);
-    return $withTime ? date('m/d/Y H:i', $ts) : date('m/d/Y', $ts);
+function format_date_local($date, $component = 'full', $withTime = false) {
+    if (empty($date) || in_array($date, ['0000-00-00', '0000-00-00 00:00:00'])) {
+        return t('not_specified');
+    }
+
+    try {
+        // Créer un objet DateTime à partir de la date (supposée UTC)
+        $dt = new DateTime($date, new DateTimeZone('UTC'));
+        // Convertir dans le fuseau horaire de PHP (Europe/Paris)
+        $dt->setTimezone(new DateTimeZone(date_default_timezone_get()));
+
+        $lang = getCurrentLanguage();
+        $locale = ($lang === 'fr') ? 'fr_FR' : 'en_US';
+
+        if (class_exists('IntlDateFormatter')) {
+            // Utiliser IntlDateFormatter si disponible
+            $pattern = '';
+            $fmtType = IntlDateFormatter::NONE;
+            $timeType = $withTime ? IntlDateFormatter::SHORT : IntlDateFormatter::NONE;
+            
+            switch ($component) {
+                case 'short':
+                    $pattern = ($lang === 'fr') ? 'dd/MM/yyyy' : 'MM/dd/yyyy';
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, $dt->getTimezone(), IntlDateFormatter::GREGORIAN, $pattern);
+                    $result = $fmt->format($dt);
+                    if ($withTime) {
+                        $result .= ' ' . $dt->format('H:i');
+                    }
+                    return $result;
+                case 'weekday_short':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, $dt->getTimezone(), IntlDateFormatter::GREGORIAN, 'EEE');
+                    return $fmt->format($dt);
+                case 'month_short':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, $dt->getTimezone(), IntlDateFormatter::GREGORIAN, 'MMM');
+                    return $fmt->format($dt);
+                case 'day_num':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::NONE, IntlDateFormatter::NONE, $dt->getTimezone(), IntlDateFormatter::GREGORIAN, 'd');
+                    return $fmt->format($dt);
+                case 'long':
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::LONG, $timeType, $dt->getTimezone());
+                    $result = $fmt->format($dt);
+                    return $result;
+                case 'full':
+                default:
+                    $fmt = new IntlDateFormatter($locale, IntlDateFormatter::FULL, $timeType, $dt->getTimezone());
+                    $result = $fmt->format($dt);
+                    return $result;
+            }
+        }
+
+        // Fallback manuel (si Intl n'est pas disponible)
+        $ts = $dt->getTimestamp();
+        $weekday_short_en = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        $weekday_short_fr = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+        $weekday_long_en = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        $weekday_long_fr = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+        $month_short_en = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        $month_short_fr = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+        $month_long_en = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        $month_long_fr = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+        switch ($component) {
+            case 'short':
+                $format = ($lang === 'fr') ? 'd/m/Y' : 'm/d/Y';
+                $result = date($format, $ts);
+                if ($withTime) $result .= ' ' . date('H:i', $ts);
+                return $result;
+            case 'weekday_short':
+                $d = date('w', $ts);
+                return ($lang === 'fr') ? $weekday_short_fr[$d] : $weekday_short_en[$d];
+            case 'month_short':
+                $m = intval(date('n', $ts)) - 1;
+                return ($lang === 'fr') ? $month_short_fr[$m] : $month_short_en[$m];
+            case 'day_num':
+                return date('d', $ts);
+            case 'long':
+                $m = intval(date('n', $ts)) - 1;
+                $day = date('d', $ts);
+                $year = date('Y', $ts);
+                if ($lang === 'fr') {
+                    $result = $day . ' ' . $month_long_fr[$m] . ' ' . $year;
+                } else {
+                    $result = $month_long_en[$m] . ' ' . $day . ', ' . $year;
+                }
+                if ($withTime) $result .= ' ' . date('H:i', $ts);
+                return $result;
+            case 'full':
+            default:
+                $w = date('w', $ts);
+                $m = intval(date('n', $ts)) - 1;
+                $day = date('d', $ts);
+                $year = date('Y', $ts);
+                if ($lang === 'fr') {
+                    $result = $weekday_long_fr[$w] . ' ' . $day . ' ' . $month_long_fr[$m] . ' ' . $year;
+                } else {
+                    $result = $weekday_long_en[$w] . ', ' . $month_long_en[$m] . ' ' . $day . ', ' . $year;
+                }
+                if ($withTime) $result .= ' ' . date('H:i', $ts);
+                return $result;
+        }
+    } catch (Exception $e) {
+        // En cas d'erreur, fallback simple
+        return htmlspecialchars($date);
+    }
 }
 
 // ========== ACTIVITY LOGGING ==========
@@ -399,8 +546,8 @@ function sendPreventiveAlert($maintenance) {
         </div>
         <p>
             <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=preventive' 
-               style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-               " . t('view_in_gmao') . "
+                style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                " . t('view_in_gmao') . "
             </a>
         </p>
         <hr>
@@ -440,9 +587,9 @@ function sendStockAlert($part) {
             <tr><td style='background:#e9ecef'><strong>" . t('supplier') . ":</strong></td><td>{$part['supplier']}</td></tr>
         </table>
         <p style='margin-top:20px;'><a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=stock' 
-              style='background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-              " . t('view_stock') . "
-           </a></p>
+                style='background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                " . t('view_stock') . "
+            </a></p>
         <hr>
         <small>" . t('automatic_message') . "</small>
     </body>
@@ -478,8 +625,8 @@ function sendCriticalInterventionAlert($intervention, $equipment) {
         </div>
         <p>
             <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=interventions' 
-               style='background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-               " . t('view_intervention') . "
+                style='background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                " . t('view_intervention') . "
             </a>
         </p>
         <hr>
@@ -548,8 +695,8 @@ function sendWeeklyReport() {
         
         <p style='margin-top:20px;'>
             <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=dashboard' 
-               style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
-               " . t('access_dashboard') . "
+                style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                " . t('access_dashboard') . "
             </a>
         </p>
         <hr>
@@ -645,8 +792,17 @@ function assignInterventionToTechnician($intervention_id, $technician_id, $sched
     try {
         $pdo->beginTransaction();
         
-        // Update the intervention with technician and timing info
-        $stmt = $pdo->prepare("UPDATE interventions SET technician_id = ?, scheduled_date = ?, scheduled_time = ? WHERE id = ?");
+        // Determine which column exists in interventions table (migration may use technician_id)
+        $intervCol = 'technician_id';
+        $colStmt = $pdo->prepare("SHOW COLUMNS FROM interventions LIKE 'technician_id'");
+        $colStmt->execute();
+        if ($colStmt->rowCount() === 0) {
+            $intervCol = 'technician_id';
+        }
+
+        // Update the intervention with technician/intervenant and timing info
+        $sql = "UPDATE interventions SET {$intervCol} = ?, scheduled_date = ?, scheduled_time = ? WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
         $stmt->execute([$technician_id, $scheduled_date, $scheduled_time, $intervention_id]);
         
         // Create a record in the work schedule table
@@ -670,14 +826,18 @@ function assignInterventionToTechnician($intervention_id, $technician_id, $sched
  */
 function getTechnicianInterventions($technician_id, $limit = 10) {
     global $pdo;
-    $stmt = $pdo->prepare("
-        SELECT i.*, e.name as equipment_name 
+    // Support both technician_id and technician_id depending on DB schema
+    $colStmt = $pdo->prepare("SHOW COLUMNS FROM interventions LIKE 'technician_id'");
+    $colStmt->execute();
+    $intervCol = $colStmt->rowCount() > 0 ? 'technician_id' : 'technician_id';
+
+    $sql = "SELECT i.*, e.name as equipment_name 
         FROM interventions i
         JOIN equipment e ON i.equipment_id = e.id
-        WHERE i.technician_id = ?
+        WHERE i.{$intervCol} = ?
         ORDER BY i.scheduled_date DESC
-        LIMIT ?
-    ");
+        LIMIT ?";
+    $stmt = $pdo->prepare($sql);
     $stmt->execute([$technician_id, $limit]);
     return $stmt->fetchAll();
 }
@@ -1242,37 +1402,33 @@ function requireRole($role) {
 // ========== TASK SEQUENCE & STATUS ==========
 
 /**
- * Generate a unique task number (e.g., TASK-260031) using an atomic sequence.
+ * Génère un numéro de tâche (version corrigée et simplifiée)
  */
-function generateTaskNumber() {
-    global $pdo;
-    
-    try {
-        $pdo->beginTransaction();
-        
-        // Fetch the last used number with a lock for update to prevent duplicates
-        $stmt = $pdo->query("SELECT last_number FROM task_sequence FOR UPDATE");
-        $last_number = $stmt->fetchColumn();
-        
-        if(!$last_number) {
-            $last_number = 260031; // Default starting number
-        }
-        
-        $new_number = $last_number + 1;
-        
-        // Update the sequence table
-        $update = $pdo->prepare("UPDATE task_sequence SET last_number = ?");
-        $update->execute([$new_number]);
-        
-        $pdo->commit();
-        
-        return "TASK-" . $new_number;
-        
-    } catch(PDOException $e) {
-        $pdo->rollBack();
-        // Fallback to timestamp-based ID if database sequence fails
-        return "TASK-" . date('YmdHis');
+function generateTaskNumber($pdo, $type, $dryRun = false) {
+    $stmt = $pdo->prepare("SELECT * FROM task_format_settings WHERE type = ?");
+    $stmt->execute([$type]);
+    $config = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$config) {
+        // Création automatique si ligne inexistante
+        $pdo->prepare("INSERT INTO task_format_settings (type, prefix, use_year, digits, last_number, last_year) 
+                        VALUES (?, 'PREV', 1, 4, 0, 26)")->execute([$type]);
+        $last_number = 0;
+    } else {
+        $last_number = (int)$config['last_number'];
     }
+
+    if ($dryRun) {
+        $nextNum = $last_number + 1;
+    } else {
+        $nextNum = $last_number + 1;
+        // Mise à jour réelle
+        $pdo->prepare("UPDATE task_format_settings SET last_number = ? WHERE type = ?")
+            ->execute([$nextNum, $type]);
+    }
+
+    $numberPart = str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+    return "PREV-26-" . $numberPart;
 }
 
 /**
@@ -1317,5 +1473,760 @@ function completeIntervention($id, $completion_report, $duration_hours = null) {
         WHERE id = ?
     ");
     return $stmt->execute([$completion_report, $duration_hours, $id]);
+}
+
+// ========== SETTINGS FUNCTIONS ==========
+
+/**
+ * Display permanent deletion interface for deleted items
+ * This function handles the display of deleted interventions, preventives and equipments
+ * 
+ * @param PDO $pdo Database connection
+ * @param array $deleted_interventions List of deleted interventions
+ * @param array $deleted_preventives List of deleted preventives
+ * @param array $deleted_equipments List of deleted equipments
+ * @return string HTML output
+ */
+function renderDeletedItemsList($pdo, $deleted_interventions, $deleted_preventives, $deleted_equipments) {
+    $output = '';
+    
+    if (!empty($deleted_interventions)) {
+        $output .= '
+        <div class="section-title">
+            <i class="fas fa-tasks"></i> Interventions annulées (' . count($deleted_interventions) . ')
+            <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="toggleSelectAll(\'interventions\')">
+                <i class="fas fa-check-double"></i> Tout sélectionner
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30px;"><input type="checkbox" id="select_all_interventions" onchange="toggleAll(\'interventions\', this.checked)"></th>
+                        <th>' . t('task_number') . '</th>
+                        <th>' . t('equipment') . '</th>
+                        <th>' . t('title') . '</th>
+                    </tr>
+                </thead>
+                <tbody>';
+        
+        foreach ($deleted_interventions as $item) {
+            $output .= '
+                    <tr class="deleted-item-row">
+                        <td><input type="checkbox" name="delete_interventions[]" value="' . $item['id'] . '" class="interventions-check"></td>
+                        <td>' . htmlspecialchars($item['task_number']) . '</td>
+                        <td>' . htmlspecialchars($item['equipment_name']) . '</td>
+                        <td>' . htmlspecialchars($item['title']) . '</td>
+                    </tr>';
+        }
+        
+        $output .= '
+                </tbody>
+            </table>
+        </div>';
+    }
+    
+    if (!empty($deleted_preventives)) {
+        $output .= '
+        <div class="section-title mt-3">
+            <i class="fas fa-calendar-check"></i> Maintenances préventives annulées (' . count($deleted_preventives) . ')
+            <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="toggleSelectAll(\'preventives\')">
+                <i class="fas fa-check-double"></i> Tout sélectionner
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30px;"><input type="checkbox" id="select_all_preventives" onchange="toggleAll(\'preventives\', this.checked)"></th>
+                        <th>' . t('task_number') . '</th>
+                        <th>' . t('equipment') . '</th>
+                        <th>' . t('title') . '</th>
+                    </tr>
+                </thead>
+                <tbody>';
+        
+        foreach ($deleted_preventives as $item) {
+            $output .= '
+                    <tr class="deleted-item-row">
+                        <td><input type="checkbox" name="delete_preventives[]" value="' . $item['id'] . '" class="preventives-check"></td>
+                        <td>' . htmlspecialchars($item['task_number']) . '</td>
+                        <td>' . htmlspecialchars($item['equipment_name']) . '</td>
+                        <td>' . htmlspecialchars($item['title']) . '</td>
+                    </tr>';
+        }
+        
+        $output .= '
+                </tbody>
+            </table>
+        </div>';
+    }
+    
+    if (!empty($deleted_equipments)) {
+        $output .= '
+        <div class="section-title mt-3">
+            <i class="fas fa-microchip"></i> Équipements retirés (' . count($deleted_equipments) . ')
+            <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="toggleSelectAll(\'equipments\')">
+                <i class="fas fa-check-double"></i> Tout sélectionner
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30px;"><input type="checkbox" id="select_all_equipments" onchange="toggleAll(\'equipments\', this.checked)"></th>
+                        <th>' . t('code') . '</th>
+                        <th>' . t('name') . '</th>
+                        <th>' . t('type') . '</th>
+                    </tr>
+                </thead>
+                <tbody>';
+        
+        foreach ($deleted_equipments as $item) {
+            $output .= '
+                    <tr class="deleted-item-row">
+                        <td><input type="checkbox" name="delete_equipments[]" value="' . $item['id'] . '" class="equipments-check"></td>
+                        <td>' . htmlspecialchars($item['code']) . '</td>
+                        <td>' . htmlspecialchars($item['name']) . '</td>
+                        <td>' . htmlspecialchars($item['type']) . '</td>
+                    </tr>';
+        }
+        
+        $output .= '
+                </tbody>
+            </table>
+        </div>';
+    }
+    
+    return $output;
+}
+
+/**
+ * Render database reset table
+ * 
+ * @param PDO $pdo Database connection
+ * @param int $count_equipment Number of equipment
+ * @param int $count_interventions Number of interventions
+ * @param int $count_preventives Number of preventives
+ * @param int $count_technicians Number of technicians
+ * @param int $count_stock Number of stock items
+ * @return string HTML output
+ */
+function renderDatabaseResetTable($pdo, $count_equipment, $count_interventions, $count_preventives, $count_technicians, $count_stock) {
+    return '
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 30px;"><input type="checkbox" id="select_all_reset" onchange="toggleAllReset(this.checked)"></th>
+                    <th>Table</th>
+                    <th>Éléments</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="reset-item">
+                    <td><input type="checkbox" name="reset_equipment" value="1" class="reset-check"></td>
+                    <td><i class="fas fa-microchip text-primary"></i> <strong>Équipements</strong></td>
+                    <td><span class="badge bg-secondary badge-count">' . $count_equipment . '</span></td>
+                    <td><small class="text-muted">Supprime tous les équipements et leurs associations</small></td>
+                </tr>
+                <tr class="reset-item">
+                    <td><input type="checkbox" name="reset_interventions" value="1" class="reset-check"></td>
+                    <td><i class="fas fa-tools text-info"></i> <strong>Interventions</strong></td>
+                    <td><span class="badge bg-secondary badge-count">' . $count_interventions . '</span></td>
+                    <td><small class="text-muted">Supprime toutes les interventions</small></td>
+                </tr>
+                <tr class="reset-item">
+                    <td><input type="checkbox" name="reset_preventives" value="1" class="reset-check"></td>
+                    <td><i class="fas fa-calendar-check text-warning"></i> <strong>Maintenances préventives</strong></td>
+                    <td><span class="badge bg-secondary badge-count">' . $count_preventives . '</span></td>
+                    <td><small class="text-muted">Supprime toutes les maintenances préventives</small></td>
+                </tr>
+                <tr class="reset-item">
+                    <td><input type="checkbox" name="reset_technicians" value="1" class="reset-check"></td>
+                    <td><i class="fas fa-user-cog text-success"></i> <strong>Techniciens</strong></td>
+                    <td><span class="badge bg-secondary badge-count">' . $count_technicians . '</span></td>
+                    <td><small class="text-muted">Supprime les techniciens (ceux liés à des utilisateurs sont désactivés)</small></td>
+                </tr>
+                <tr class="reset-item">
+                    <td><input type="checkbox" name="reset_stock" value="1" class="reset-check"></td>
+                    <td><i class="fas fa-boxes text-danger"></i> <strong>Stock</strong></td>
+                    <td><span class="badge bg-secondary badge-count">' . $count_stock . '</span></td>
+                    <td><small class="text-muted">Supprime toutes les pièces détachées et leurs mouvements</small></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>';
+}
+
+/**
+ * Process permanent deletion of selected items
+ * 
+ * @param PDO $pdo Database connection
+ * @param array $post_data POST data
+ * @param int $user_id Current user ID
+ * @return array Result with 'success' and 'message' keys
+ */
+function processPermanentDeletion($pdo, $post_data, $user_id) {
+    $result = ['success' => false, 'message' => ''];
+    $deleted_count = 0;
+    $deleted_items = [];
+    
+    try {
+        $pdo->beginTransaction();
+        
+        if (isset($post_data['delete_interventions']) && is_array($post_data['delete_interventions'])) {
+            foreach ($post_data['delete_interventions'] as $id) {
+                $id = intval($id);
+                $stmt = $pdo->prepare("SELECT task_number FROM interventions WHERE id = ? AND task_status = 'cancelled'");
+                $stmt->execute([$id]);
+                $item = $stmt->fetch();
+                if ($item) {
+                    $pdo->prepare("DELETE FROM stock_movements WHERE related_type = 'intervention' AND related_id = ?")->execute([$id]);
+                    $pdo->prepare("DELETE FROM interventions WHERE id = ?")->execute([$id]);
+                    $deleted_count++;
+                    $deleted_items[] = "Intervention: " . $item['task_number'];
+                }
+            }
+        }
+        
+        if (isset($post_data['delete_preventives']) && is_array($post_data['delete_preventives'])) {
+            foreach ($post_data['delete_preventives'] as $id) {
+                $id = intval($id);
+                $stmt = $pdo->prepare("SELECT task_number FROM preventive_maintenance WHERE id = ? AND task_status = 'cancelled'");
+                $stmt->execute([$id]);
+                $item = $stmt->fetch();
+                if ($item) {
+                    $pdo->prepare("DELETE FROM stock_movements WHERE related_type = 'preventive' AND related_id = ?")->execute([$id]);
+                    $pdo->prepare("DELETE FROM preventive_maintenance WHERE id = ?")->execute([$id]);
+                    $deleted_count++;
+                    $deleted_items[] = "Maintenance: " . $item['task_number'];
+                }
+            }
+        }
+        
+        if (isset($post_data['delete_equipments']) && is_array($post_data['delete_equipments'])) {
+            foreach ($post_data['delete_equipments'] as $id) {
+                $id = intval($id);
+                $stmt = $pdo->prepare("SELECT code, name FROM equipment WHERE id = ? AND status = 'retired'");
+                $stmt->execute([$id]);
+                $item = $stmt->fetch();
+                if ($item) {
+                    $pdo->prepare("DELETE FROM equipment_parts WHERE equipment_id = ?")->execute([$id]);
+                    $pdo->prepare("DELETE FROM attachments WHERE parent_type = 'equipment' AND parent_id = ?")->execute([$id]);
+                    $pdo->prepare("DELETE FROM equipment WHERE id = ?")->execute([$id]);
+                    $deleted_count++;
+                    $deleted_items[] = "Équipement: " . $item['code'] . " - " . $item['name'];
+                }
+            }
+        }
+        
+        $pdo->commit();
+        
+        logUserAction($user_id, 'permanent_deletion', "Suppression définitive de $deleted_count éléments : " . implode(', ', $deleted_items));
+        $result['success'] = true;
+        $result['message'] = "✅ $deleted_count élément(s) supprimé(s) définitivement.";
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        $result['message'] = "Erreur lors de la suppression : " . $e->getMessage();
+    }
+    
+    return $result;
+}
+
+/**
+ * Process database reset of selected tables
+ * 
+ * @param PDO $pdo Database connection
+ * @param array $post_data POST data
+ * @param int $user_id Current user ID
+ * @return array Result with 'success' and 'message' keys
+ */
+function processDatabaseReset($pdo, $post_data, $user_id) {
+    $result = ['success' => false, 'message' => ''];
+    $tables_to_reset = [];
+    $reset_messages = [];
+    
+    try {
+        $pdo->beginTransaction();
+        
+        if (isset($post_data['reset_equipment']) && $post_data['reset_equipment'] == '1') {
+            $pdo->exec("DELETE FROM equipment_parts");
+            $pdo->exec("DELETE FROM attachments WHERE parent_type = 'equipment'");
+            $pdo->exec("DELETE FROM equipment");
+            $tables_to_reset[] = 'équipements';
+            $reset_messages[] = "✅ Équipements réinitialisés";
+        }
+        
+        if (isset($post_data['reset_interventions']) && $post_data['reset_interventions'] == '1') {
+            $pdo->exec("DELETE FROM stock_movements WHERE related_type = 'intervention'");
+            $pdo->exec("DELETE FROM interventions");
+            $tables_to_reset[] = 'interventions';
+            $reset_messages[] = "✅ Interventions réinitialisées";
+        }
+        
+        if (isset($post_data['reset_preventives']) && $post_data['reset_preventives'] == '1') {
+            $pdo->exec("DELETE FROM stock_movements WHERE related_type = 'preventive'");
+            $pdo->exec("DELETE FROM preventive_maintenance");
+            $tables_to_reset[] = 'maintenances préventives';
+            $reset_messages[] = "✅ Maintenances préventives réinitialisées";
+        }
+        
+        if (isset($post_data['reset_technicians']) && $post_data['reset_technicians'] == '1') {
+            $pdo->exec("DELETE FROM technicians WHERE user_id IS NULL");
+            $pdo->exec("UPDATE technicians SET status = 'inactive' WHERE user_id IS NOT NULL");
+            $tables_to_reset[] = 'techniciens';
+            $reset_messages[] = "✅ Techniciens réinitialisés";
+        }
+        
+        if (isset($post_data['reset_stock']) && $post_data['reset_stock'] == '1') {
+            $pdo->exec("DELETE FROM stock_movements");
+            $pdo->exec("DELETE FROM spare_parts");
+            $tables_to_reset[] = 'stock';
+            $reset_messages[] = "✅ Stock réinitialisé";
+        }
+        
+        $pdo->exec("UPDATE task_format_settings SET last_number = 0 WHERE type IN ('intervention', 'preventive')");
+        
+        $pdo->commit();
+        
+        logUserAction($user_id, 'database_reset', "Réinitialisation de la base de données : " . implode(', ', $tables_to_reset));
+        $result['success'] = true;
+        $result['message'] = "✅ Base de données réinitialisée avec succès !<br>" . implode('<br>', $reset_messages);
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        $result['message'] = "Erreur lors de la réinitialisation : " . $e->getMessage();
+    }
+    
+    return $result;
+}
+
+// ========== CONTRACTOR ALERTS ==========
+
+/**
+ * Vérifie les alertes pour les prestataires
+ * À appeler lors du chargement de chaque page ou via cron
+ */
+function checkContractorAlerts($pdo) {
+    $alerts = [];
+    $today = date('Y-m-d');
+    
+    // 1. Récupérer tous les prestataires avec leurs alertes activées
+    $stmt = $pdo->prepare("
+        SELECT * FROM contractors 
+        WHERE status = 'active' 
+        AND alert_enabled = 1
+    ");
+    $stmt->execute();
+    $contractors = $stmt->fetchAll();
+    
+    foreach ($contractors as $contractor) {
+        $alert_days_1 = (int)($contractor['alert_days_before_1'] ?? 90);
+        $alert_days_2 = (int)($contractor['alert_days_before_2'] ?? 21);
+        
+        // 2. Vérifier les interventions assignées à ce prestataire
+        if ($contractor['alert_sidebar_intervention'] || $contractor['alert_popup_intervention'] || $contractor['alert_email_intervention']) {
+            $stmt = $pdo->prepare("
+                SELECT i.*, e.name as equipment_name 
+                FROM interventions i
+                JOIN equipment e ON i.equipment_id = e.id
+                WHERE i.contractor_id = ? 
+                AND i.task_status NOT IN ('completed', 'closed', 'cancelled')
+                AND i.intervention_date IS NOT NULL
+                AND i.intervention_date >= ?
+                ORDER BY i.intervention_date ASC
+            ");
+            $stmt->execute([$contractor['id'], $today]);
+            $interventions = $stmt->fetchAll();
+            
+            foreach ($interventions as $intervention) {
+                $days_until = (strtotime($intervention['intervention_date']) - strtotime($today)) / (60 * 60 * 24);
+                $days_until = round($days_until);
+                
+                // Récupérer le numéro de tâche
+                $task_number = $intervention['task_number'] ?? 'N/A';
+                
+                // Alerte niveau 2 (plus proche)
+                if ($days_until <= $alert_days_2 && $days_until >= 0) {
+                    $alerts[] = [
+                        'type' => 'intervention',
+                        'level' => 2,
+                        'contractor_id' => $contractor['id'],
+                        'contractor_name' => $contractor['company_name'],
+                        'intervention_id' => $intervention['id'],
+                        'intervention_title' => $intervention['title'],
+                        'equipment_name' => $intervention['equipment_name'],
+                        'intervention_date' => $intervention['intervention_date'],
+                        'days_until' => $days_until,
+                        'task_number' => $task_number,
+                        // Message bilingue
+                        'message_fr' => "⚠️ Intervention ({$task_number}) - '{$intervention['title']}' pour {$intervention['equipment_name']} dans {$days_until} jours (Alerte 2)",
+                        'message_en' => "⚠️ Intervention ({$task_number}) - '{$intervention['title']}' for {$intervention['equipment_name']} in {$days_until} days (Alert 2)",
+                        'show_sidebar' => $contractor['alert_sidebar_intervention'],
+                        'show_popup' => $contractor['alert_popup_intervention'],
+                        'show_email' => $contractor['alert_email_intervention']
+                    ];
+                }
+                // Alerte niveau 1 (plus lointain)
+                elseif ($days_until <= $alert_days_1 && $days_until > $alert_days_2 && $days_until >= 0) {
+                    $alerts[] = [
+                        'type' => 'intervention',
+                        'level' => 1,
+                        'contractor_id' => $contractor['id'],
+                        'contractor_name' => $contractor['company_name'],
+                        'intervention_id' => $intervention['id'],
+                        'intervention_title' => $intervention['title'],
+                        'equipment_name' => $intervention['equipment_name'],
+                        'intervention_date' => $intervention['intervention_date'],
+                        'days_until' => $days_until,
+                        'task_number' => $task_number,
+                        // Message bilingue
+                        'message_fr' => "📅 Intervention ({$task_number}) - '{$intervention['title']}' pour {$intervention['equipment_name']} dans {$days_until} jours (Alerte 1)",
+                        'message_en' => "📅 Intervention ({$task_number}) - '{$intervention['title']}' for {$intervention['equipment_name']} in {$days_until} days (Alert 1)",
+                        'show_sidebar' => $contractor['alert_sidebar_intervention'],
+                        'show_popup' => $contractor['alert_popup_intervention'],
+                        'show_email' => $contractor['alert_email_intervention']
+                    ];
+                }
+            }
+        }
+        
+        // 3. Vérifier les maintenances préventives assignées à ce prestataire
+        if ($contractor['alert_sidebar_maintenance'] || $contractor['alert_popup_maintenance'] || $contractor['alert_email_maintenance']) {
+            $stmt = $pdo->prepare("
+                SELECT pm.*, e.name as equipment_name 
+                FROM preventive_maintenance pm
+                JOIN equipment e ON pm.equipment_id = e.id
+                WHERE pm.contractor_id = ? 
+                AND pm.next_due IS NOT NULL
+                AND pm.next_due >= ?
+                ORDER BY pm.next_due ASC
+            ");
+            $stmt->execute([$contractor['id'], $today]);
+            $maintenances = $stmt->fetchAll();
+            
+            foreach ($maintenances as $maintenance) {
+                $days_until = (strtotime($maintenance['next_due']) - strtotime($today)) / (60 * 60 * 24);
+                $days_until = round($days_until);
+                
+                // Récupérer le numéro de tâche
+                $task_number = $maintenance['task_number'] ?? 'N/A';
+                
+                // Alerte niveau 2 (plus proche)
+                if ($days_until <= $alert_days_2 && $days_until >= 0) {
+                    $alerts[] = [
+                        'type' => 'maintenance',
+                        'level' => 2,
+                        'contractor_id' => $contractor['id'],
+                        'contractor_name' => $contractor['company_name'],
+                        'maintenance_id' => $maintenance['id'],
+                        'maintenance_title' => $maintenance['title'],
+                        'equipment_name' => $maintenance['equipment_name'],
+                        'next_due' => $maintenance['next_due'],
+                        'days_until' => $days_until,
+                        'task_number' => $task_number,
+                        // Message bilingue
+                        'message_fr' => "⚠️ Maintenance préventive ({$task_number}) - '{$maintenance['title']}' pour {$maintenance['equipment_name']} dans {$days_until} jours (Alerte 2)",
+                        'message_en' => "⚠️ Preventive maintenance ({$task_number}) - '{$maintenance['title']}' for {$maintenance['equipment_name']} in {$days_until} days (Alert 2)",
+                        'show_sidebar' => $contractor['alert_sidebar_maintenance'],
+                        'show_popup' => $contractor['alert_popup_maintenance'],
+                        'show_email' => $contractor['alert_email_maintenance']
+                    ];
+                }
+                // Alerte niveau 1 (plus lointain)
+                elseif ($days_until <= $alert_days_1 && $days_until > $alert_days_2 && $days_until >= 0) {
+                    $alerts[] = [
+                        'type' => 'maintenance',
+                        'level' => 1,
+                        'contractor_id' => $contractor['id'],
+                        'contractor_name' => $contractor['company_name'],
+                        'maintenance_id' => $maintenance['id'],
+                        'maintenance_title' => $maintenance['title'],
+                        'equipment_name' => $maintenance['equipment_name'],
+                        'next_due' => $maintenance['next_due'],
+                        'days_until' => $days_until,
+                        'task_number' => $task_number,
+                        // Message bilingue
+                        'message_fr' => "📅 Maintenance préventive ({$task_number}) - '{$maintenance['title']}' pour {$maintenance['equipment_name']} dans {$days_until} jours (Alerte 1)",
+                        'message_en' => "📅 Preventive maintenance ({$task_number}) - '{$maintenance['title']}' for {$maintenance['equipment_name']} in {$days_until} days (Alert 1)",
+                        'show_sidebar' => $contractor['alert_sidebar_maintenance'],
+                        'show_popup' => $contractor['alert_popup_maintenance'],
+                        'show_email' => $contractor['alert_email_maintenance']
+                    ];
+                }
+            }
+        }
+    }
+    
+    // Stocker les alertes en session avec les messages bilingues
+    $_SESSION['contractor_alerts'] = $alerts;
+    $_SESSION['contractor_alerts_count'] = count($alerts);
+    
+    // Envoyer les emails si nécessaire (seulement si cron)
+    if (php_sapi_name() === 'cli') {
+        foreach ($alerts as $alert) {
+            if ($alert['show_email']) {
+                sendContractorAlertEmail($alert);
+            }
+        }
+    }
+    
+    return $alerts;
+}
+
+/**
+ * Envoie un email d'alerte au prestataire
+ */
+function sendContractorAlertEmail($alert) {
+    global $pdo;
+    
+    // Récupérer l'email du prestataire
+    $stmt = $pdo->prepare("SELECT email, company_name FROM contractors WHERE id = ?");
+    $stmt->execute([$alert['contractor_id']]);
+    $contractor = $stmt->fetch();
+    
+    if (!$contractor || empty($contractor['email'])) {
+        return false;
+    }
+    
+    $subject = "Alerte GMAO - " . $alert['message'];
+    
+    $message = "
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; }
+            .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 10px 0; }
+            .alert-box.level-2 { background: #f8d7da; border-left-color: #dc3545; }
+            .info { margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h2>" . t('contractor_alert_subject') . "</h2>
+        <div class='alert-box " . ($alert['level'] == 2 ? 'level-2' : '') . "'>
+            <p><strong>🏢 " . t('contractor') . ":</strong> {$contractor['company_name']}</p>
+            <p><strong>📋 " . t('alert_message') . ":</strong> {$alert['message']}</p>
+            <p><strong>📅 " . t('date') . ":</strong> " . date('d/m/Y H:i') . "</p>
+        </div>
+        <p>
+            <a href='https://{$_SERVER['HTTP_HOST']}/gmao_GEMINI/index.php?page=dashboard' 
+                style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                " . t('view_dashboard') . "
+            </a>
+        </p>
+        <hr>
+        <small>" . t('automatic_message') . "</small>
+    </body>
+    </html>
+    ";
+    
+    return sendEmail($contractor['email'], $subject, $message, true);
+}
+
+/**
+ * Récupère le nombre d'alertes pour les prestataires
+ */
+function getContractorAlertsCount() {
+    return $_SESSION['contractor_alerts_count'] ?? 0;
+}
+
+/**
+ * Affiche les alertes dans la sidebar
+ */
+function displayContractorAlerts() {
+    if (empty($_SESSION['contractor_alerts'])) {
+        return '';
+    }
+    
+    $html = '<div class="contractor-alerts mt-2">';
+    $html .= '<div class="alert alert-warning alert-sm py-1 px-2 mb-2" style="font-size: 12px;">';
+    $html .= '<i class="fas fa-bell"></i> <strong>' . t('contractor_alerts') . '</strong>';
+    $html .= ' <span class="badge bg-danger rounded-pill">' . count($_SESSION['contractor_alerts']) . '</span>';
+    $html .= '</div>';
+    
+    // Limiter l'affichage à 5 alertes max dans la sidebar
+    $display_alerts = array_slice($_SESSION['contractor_alerts'], 0, 5);
+    
+    foreach ($display_alerts as $alert) {
+        if (!$alert['show_sidebar']) continue;
+        
+        $bg_color = $alert['level'] == 2 ? '#dc3545' : '#ffc107';
+        $text_color = $alert['level'] == 2 ? 'white' : '#333';
+        
+        $html .= '<div class="alert alert-sm py-1 px-2 mb-1" style="background-color: ' . $bg_color . '; color: ' . $text_color . '; border-radius: 4px; font-size: 11px; border: none; padding: 4px 8px;">';
+        $html .= '<i class="fas fa-exclamation-circle"></i> ' . htmlspecialchars($alert['message']);
+        $html .= '</div>';
+    }
+    
+    if (count($_SESSION['contractor_alerts']) > 5) {
+        $html .= '<div class="text-center mt-1">';
+        $html .= '<a href="?page=alerts" class="text-muted" style="font-size: 11px;">' . t('view_all_alerts') . ' (' . count($_SESSION['contractor_alerts']) . ')</a>';
+        $html .= '</div>';
+    }
+    
+    $html .= '</div>';
+    return $html;
+}
+
+// ========== ALERTES UNIFIÉES ==========
+
+/**
+ * Récupère TOUTES les alertes (système + prestataires + backup)
+ * @param PDO $pdo Connexion à la base de données
+ * @param bool $forceRefresh Force la mise à jour des alertes prestataires
+ * @return array Tableau d'alertes avec messages bilingues
+ */
+function getAllAlerts($pdo, $forceRefresh = false) {
+    $alerts = [];
+    
+    // 1. Alertes système (via getAlerts)
+    $system_alerts = getAlerts();
+    foreach ($system_alerts as $alert) {
+        // Extraire le type d'alerte depuis le message
+        $type = 'system';
+        $priority = 'warning';
+        if (strpos($alert, 'GARANTIE EXPIRÉE') !== false || 
+            strpos($alert, 'warranty expired') !== false ||
+            strpos($alert, '⚠️ Garantie expirée') !== false) {
+            $priority = 'critical';
+            $type = 'warranty_expired';
+        } elseif (strpos($alert, 'STOCK CRITIQUE') !== false || 
+                  strpos($alert, 'critical stock') !== false ||
+                  strpos($alert, '📦 Stock critique') !== false) {
+            $priority = 'critical';
+            $type = 'stock_critical';
+        } elseif (strpos($alert, 'MAINTENANCE EN RETARD') !== false || 
+                  strpos($alert, 'maintenance overdue') !== false ||
+                  strpos($alert, '⚠️ Maintenance en retard') !== false) {
+            $priority = 'warning';
+            $type = 'maintenance_overdue';
+        } elseif (strpos($alert, 'GARANTIE PROCHAINEMENT EXPIRÉE') !== false || 
+                  strpos($alert, 'warranty expiring') !== false ||
+                  strpos($alert, '📅 Garantie prochainement expirée') !== false) {
+            $priority = 'warning';
+            $type = 'warranty_upcoming';
+        } elseif (strpos($alert, 'INTERVENTION NON ASSIGNÉE') !== false || 
+                  strpos($alert, 'unassigned intervention') !== false) {
+            $priority = 'warning';
+            $type = 'unassigned_intervention';
+        }
+        
+        $alerts[] = [
+            'id' => 'system_' . md5($alert),
+            'type' => $type,
+            'priority' => $priority,
+            'message_fr' => $alert,
+            'message_en' => $alert, // Pas de traduction pour les alertes système (version simplifiée)
+            'show_sidebar' => true,
+            'source' => 'system'
+        ];
+    }
+    
+    // 2. Alertes prestataires
+    if ($forceRefresh || empty($_SESSION['contractor_alerts'])) {
+        checkContractorAlerts($pdo);
+    }
+    
+    if (!empty($_SESSION['contractor_alerts'])) {
+        foreach ($_SESSION['contractor_alerts'] as $alert) {
+            // S'assurer que les clés message_fr et message_en existent
+            if (!isset($alert['message_fr'])) {
+                $alert['message_fr'] = $alert['message'] ?? 'Alerte prestataire';
+            }
+            if (!isset($alert['message_en'])) {
+                $alert['message_en'] = $alert['message'] ?? 'Contractor alert';
+            }
+            $alerts[] = $alert;
+        }
+    }
+    
+    // 3. Alerte de sauvegarde (admin uniquement)
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+        $backup_alert = getBackupAlert($pdo);
+        if ($backup_alert) {
+            $alerts[] = $backup_alert;
+        }
+    }
+    
+    return $alerts;
+}
+
+/**
+ * Récupère l'alerte de sauvegarde si applicable
+ */
+function getBackupAlert($pdo) {
+    try {
+        // Vérifier si la table system_settings existe
+        $stmt = $pdo->query("SHOW TABLES LIKE 'system_settings'");
+        if ($stmt->rowCount() == 0) {
+            return null;
+        }
+        
+        $stmt = $pdo->query("SELECT setting_key, setting_value FROM system_settings");
+        $sys = [];
+        while ($row = $stmt->fetch()) { 
+            $sys[$row['setting_key']] = $row['setting_value']; 
+        }
+        $last_backup = $sys['last_backup_date'] ?? null;
+        $interval = intval($sys['backup_alert_interval'] ?? 7);
+        if ($last_backup && strtotime($last_backup) < strtotime("-$interval days")) {
+            $days_since = floor((time() - strtotime($last_backup)) / 86400);
+            return [
+                'id' => 'backup_reminder_' . time(),
+                'type' => 'backup_reminder',
+                'priority' => 'warning',
+                'message_fr' => "⚠️ Rappel de sauvegarde - La dernière sauvegarde date de " . $days_since . " jours",
+                'message_en' => "⚠️ Backup reminder - Last backup was " . $days_since . " days ago",
+                'show_sidebar' => true,
+                'source' => 'system'
+            ];
+        }
+    } catch (Exception $e) {
+        // Ignorer les erreurs
+    }
+    return null;
+}
+
+/**
+ * Compte le nombre total d'alertes (sidebar uniquement)
+ */
+function countAllAlerts($pdo) {
+    $alerts = getAllAlerts($pdo);
+    $count = 0;
+    foreach ($alerts as $alert) {
+        if ($alert['show_sidebar'] ?? true) {
+            $count++;
+        }
+    }
+    return $count;
+}
+
+/**
+ * Récupère uniquement les messages des alertes pour l'affichage
+ * @param PDO $pdo Connexion à la base de données
+ * @param bool $forceRefresh Force la mise à jour
+ * @return array Tableau de messages simples
+ */
+function getAlertMessages($pdo, $forceRefresh = false) {
+    $alerts = getAllAlerts($pdo, $forceRefresh);
+    $messages = [];
+    $lang = getCurrentLanguage();
+    
+    foreach ($alerts as $alert) {
+        if ($alert['show_sidebar'] ?? true) {
+            if ($lang === 'fr' && isset($alert['message_fr'])) {
+                $messages[] = $alert['message_fr'];
+            } elseif (isset($alert['message_en'])) {
+                $messages[] = $alert['message_en'];
+            } else {
+                $messages[] = $alert['message'] ?? 'Alerte';
+            }
+        }
+    }
+    
+    return $messages;
 }
 ?>

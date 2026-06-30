@@ -6,7 +6,9 @@ if(!isset($_SESSION['user_id'])) {
     exit();
 }
 
-require_once __DIR__ . '/../config/database.php';
+// Use core helpers to ensure consistent DB access and helpers
+require_once __DIR__ . '/../includes/functions.php';
+ob_start();
 require_once __DIR__ . '/../includes/lang.php';
 require_once __DIR__ . '/../vendor/SimpleXLSXGen.php';
 
@@ -36,7 +38,7 @@ $sql = "
         i.localisation as 'Location'
     FROM interventions i
     JOIN equipment e ON i.equipment_id = e.id
-    LEFT JOIN technicians t ON i.intervenant_id = t.id
+    LEFT JOIN technicians t ON i.technician_id = t.id
     WHERE 1=1
 ";
 

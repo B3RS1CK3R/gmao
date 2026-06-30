@@ -1,0 +1,180 @@
+2026-06-24 23:04:21 - preventive_edit_action.php CALLED
+POST: Array
+(
+    [csrf_token] => bc358011d1dfaf9af971c837e541a835105a374e2e512520
+    [id] => 3
+    [equipment_id] => 3
+    [title] => Test6
+    [frequency_days] => 30
+    [last_done] => 2026-06-17
+    [priority] => medium
+    [planned_duration] => 4h
+    [zone] => 
+    [localisation] => 
+    [instructions] => Penser à prendre les courroies.
+    [team_id] => 1
+    [contractor_id] => 1
+)
+
+2026-06-24 23:05:38 - preventive_edit_action.php CALLED
+POST: Array
+(
+    [csrf_token] => bc358011d1dfaf9af971c837e541a835105a374e2e512520
+    [id] => 3
+    [equipment_id] => 3
+    [title] => Test6
+    [frequency_days] => 30
+    [last_done] => 2026-06-17
+    [priority] => medium
+    [planned_duration] => 4h
+    [zone] => 
+    [localisation] => 
+    [instructions] => Penser à prendre les courroies.
+    [team_id] => 1
+    [contractor_id] => 
+)
+
+2026-06-24 23:07:26 - preventive_edit_action.php CALLED
+POST: Array
+(
+    [csrf_token] => bc358011d1dfaf9af971c837e541a835105a374e2e512520
+    [id] => 3
+    [equipment_id] => 3
+    [title] => Test6
+    [frequency_days] => 30
+    [last_done] => 2026-06-17
+    [priority] => medium
+    [planned_duration] => 4h
+    [zone] => 
+    [localisation] => 
+    [instructions] => Penser à prendre les courroies.
+    [team_id] => 1
+    [contractor_id] => 1
+)
+
+2026-06-26 00:09:16 - preventive_edit_action.php CALLED
+POST: Array
+(
+    [csrf_token] => bc358011d1dfaf9af971c837e541a835105a374e2e512520
+    [id] => 3
+    [equipment_id] => 3
+    [title] => Test6
+    [frequency_days] => 30
+    [last_done] => 2026-06-17
+    [priority] => medium
+    [planned_duration] => 4h
+    [zone] => 
+    [localisation] => 
+    [instructions] => Penser à prendre les courroies.
+    [team_id] => 1
+    [contractor_id] => 
+)
+
+2026-06-26 00:09:33 - preventive_edit_action.php CALLED
+POST: Array
+(
+    [csrf_token] => bc358011d1dfaf9af971c837e541a835105a374e2e512520
+    [id] => 3
+    [equipment_id] => 3
+    [title] => Test6
+    [frequency_days] => 30
+    [last_done] => 2026-06-17
+    [priority] => medium
+    [planned_duration] => 4h
+    [zone] => 
+    [localisation] => 
+    [instructions] => Penser à prendre les courroies.
+    [team_id] => 1
+    [contractor_id] => 1
+)
+
+2026-06-26 00:10:58 - preventive_edit_action.php CALLED
+POST: Array
+(
+    [csrf_token] => bc358011d1dfaf9af971c837e541a835105a374e2e512520
+    [id] => 3
+    [equipment_id] => 3
+    [title] => Test6
+    [frequency_days] => 30
+    [last_done] => 2026-06-17
+    [priority] => medium
+    [planned_duration] => 4h
+    [zone] => 
+    [localisation] => 
+    [instructions] => Penser à prendre les courroies.
+    [team_id] => 1
+    [contractor_id] => 1
+)
+
+2026-06-26 00:12:08 - preventive_edit_action.php CALLED
+POST: Array
+(
+    [csrf_token] => bc358011d1dfaf9af971c837e541a835105a374e2e512520
+    [id] => 3
+    [equipment_id] => 3
+    [title] => Test6
+    [frequency_days] => 30
+    [last_done] => 2026-06-17
+    [priority] => medium
+    [planned_duration] => 4h
+    [zone] => 
+    [localisation] => 
+    [instructions] => Penser à prendre les courroies.
+    [team_id] => 1
+    [contractor_id] => 1
+)
+
+2026-06-26 00:13:27 - preventive_edit_action.php CALLED
+POST: Array
+(
+    [csrf_token] => bc358011d1dfaf9af971c837e541a835105a374e2e512520
+    [id] => 3
+    [equipment_id] => 3
+    [title] => Test6
+    [frequency_days] => 30
+    [last_done] => 2026-06-17
+    [priority] => medium
+    [planned_duration] => 4h
+    [zone] => 
+    [localisation] => 
+    [instructions] => Penser à prendre les courroies.
+    [team_id] => 1
+    [contractor_id] => 1
+)
+
+2026-06-26 00:15:58 - preventive_edit_action.php CALLED
+POST: Array
+(
+    [csrf_token] => bc358011d1dfaf9af971c837e541a835105a374e2e512520
+    [id] => 3
+    [equipment_id] => 3
+    [title] => Test6
+    [frequency_days] => 30
+    [last_done] => 2026-06-17
+    [priority] => medium
+    [planned_duration] => 4h
+    [zone] => 
+    [localisation] => 
+    [instructions] => Penser à prendre les courroies.
+    [team_id] => 1
+    [contractor_id] => 1
+)
+
+2026-06-26 00:17:08 - preventive_edit_action.php CALLED
+POST: Array
+(
+    [csrf_token] => bc358011d1dfaf9af971c837e541a835105a374e2e512520
+    [id] => 3
+    [equipment_id] => 3
+    [title] => Test6
+    [frequency_days] => 30
+    [last_done] => 2026-06-17
+    [priority] => medium
+    [planned_duration] => 4h
+    [zone] => 
+    [localisation] => 
+    [instructions] => Penser à prendre les courroies.
+    [team_id] => 1
+    [contractor_id] => 1
+)
+

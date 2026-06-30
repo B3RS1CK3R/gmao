@@ -1,0 +1,25 @@
+# Ignore backup and temporary files
+*.bak
+*.swp
+*.tmp
+
+# Project-specific artifacts removed earlier
+backups/
+mkcert/
+lint_results.txt
+cookies.txt
+headers.txt
+response.json
+
+# Logs (keep if you want persistent logs in repo)
+# logs/
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# PHPStorm / JetBrains
+.idea/
+
+# Composer vendor (uncomment if you manage dependencies outside repo)
+# vendor/

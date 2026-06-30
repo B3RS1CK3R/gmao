@@ -1,7 +1,7 @@
 <?php
 // network_info.php - Diagnostic réseau complet
 $ip = $_SERVER['SERVER_ADDR'] ?? '192.168.1.x';
-$port = $_SERVER['SERVER_PORT'] ?? 80;
+$port = $_SERVER['SERVER_PORT'] == 80 ? 443 : $_SERVER['SERVER_PORT'];
 ?>
 
 <!DOCTYPE html>
@@ -40,7 +40,7 @@ $port = $_SERVER['SERVER_PORT'] ?? 80;
                 
                 <h6>📱 URL à scanner ou à taper sur votre smartphone :</h6>
                 <div class="url-box mb-3">
-                    http://<?= $ip ?>:<?= $port ?>/gmao/index.php?page=mobile_dashboard
+                    https://<?= $ip ?>:<?= $port ?>/gmao/index.php?page=mobile_dashboard
                 </div>
                 
                 <div class="qr-container text-center">
@@ -55,7 +55,7 @@ $port = $_SERVER['SERVER_PORT'] ?? 80;
                     <tr><th>IP Serveur :</th><td><?= $ip ?></td></tr>
                     <tr><th>Port :</th><td><?= $port ?></td></tr>
                     <tr><th>Nom hôte :</th><td><?= gethostname() ?></td></tr>
-                    <tr><th>URL complète :</th><td><code>http://<?= $ip ?>:<?= $port ?>/gmao/</code></td></tr>
+                    <tr><th>URL complète :</th><td><code>https://<?= $ip ?>:<?= $port ?>/gmao/</code></td></tr>
                 </table>
                 
                 <div class="alert alert-warning">
@@ -74,7 +74,7 @@ $port = $_SERVER['SERVER_PORT'] ?? 80;
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script>
         new QRCode(document.getElementById("qrcode"), {
-            text: "http://<?= $ip ?>:<?= $port ?>/gmao/index.php?page=mobile_dashboard",
+            text: "https://<?= $ip ?>:<?= $port ?>/gmao/index.php?page=mobile_dashboard",
             width: 200,
             height: 200
         });

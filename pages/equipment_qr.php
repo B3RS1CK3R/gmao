@@ -1,9 +1,6 @@
 <?php
 // pages/equipment_qr.php - Page QR Code pour équipement
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+// auth handled centrally in index.php
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if($id == 0) {
@@ -333,7 +330,7 @@ $intervention_status_map = [
                                         }
                                     ?>
                                     <tr>
-                                        <td><?php echo format_date_us($m['created_at'], false); ?></td>
+                                        <td><?php echo format_date_local($m['created_at'], 'long', false); ?></td>
                                         <td><?php echo htmlspecialchars($m['title']); ?></td>
                                         <td>
                                             <span class="priority-badge <?php echo $priority_class; ?>">

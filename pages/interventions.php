@@ -1,15 +1,36 @@
 <?php
-// pages/interventions.php - Full interventions management (CRUD)
-if(!isset($_SESSION['user_id'])) {
-    header('Location: index.php?page=login');
-    exit();
-}
+// pages/interventions.php - Liste principale des interventions
+// auth handled centrally in index.php
 
 $action = $_GET['action'] ?? 'list';
-$message = '';
-$error = '';
+$active_filter = isset($_GET['filter']) ? $_GET['filter'] : 'a_faire';
 
-// ========== ACTION PROCESSING ==========
+// ========== CORRECTION AUTOMATIQUE DES STATUTS ==========
+try {
+    $check = $pdo->query("SHOW COLUMNS FROM interventions LIKE 'task_status'");
+    if ($check->rowCount() > 0) {
+        $pdo->exec("ALTER TABLE interventions MODIFY task_status ENUM('a_faire', 'en_cours', 'termine', 'cloturee', 'cancelled') DEFAULT 'a_faire'");
+        $pdo->exec("UPDATE interventions SET task_status = 'cancelled' WHERE task_status NOT IN ('a_faire', 'en_cours', 'termine', 'cloturee') OR task_status IS NULL OR task_status = ''");
+    }
+} catch (PDOException $e) {}
+
+// ========== REDIRECTIONS ==========
+if($action == 'assign' && isset($_GET['id'])) {
+    header('Location: ?page=interventions_assign&id=' . intval($_GET['id']));
+    exit();
+}
+if($action == 'complete' && isset($_GET['id'])) {
+    header('Location: ?page=interventions_complete&id=' . intval($_GET['id']));
+    exit();
+}
+if($action == 'edit' && isset($_GET['id'])) {
+    header('Location: ?page=intervention_edit&id=' . intval($_GET['id']));
+    exit();
+}
+if($action == 'delete' && isset($_GET['id'])) {
+    header('Location: ?page=interventions_delete&id=' . intval($_GET['id']));
+    exit();
+}
 
 // Quick status change
 if($action == 'change_status' && isset($_GET['id']) && isset($_GET['status'])) {
@@ -17,126 +38,97 @@ if($action == 'change_status' && isset($_GET['id']) && isset($_GET['status'])) {
     $stmt->execute([$_GET['status'], $_GET['id']]);
     logUserAction($_SESSION['user_id'], 'intervention_status_change', "Status changed for ID: {$_GET['id']} to {$_GET['status']}");
     $message = "✅ " . t('status_updated');
-    echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
+    echo "<meta http-equiv='refresh' content='1;url=?page=interventions&filter=" . $_GET['status'] . "'>";
 }
 
-// Assign a technician
-if($action == 'assign' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $stmt = $pdo->prepare("UPDATE interventions SET intervenant_id = ? WHERE id = ?");
-    $stmt->execute([$_POST['technician_id'], $_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'intervention_assigned', "Technician assigned to ID: {$_GET['id']}");
-    $message = "✅ " . t('technician_assigned');
-    echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
-}
-
-// Complete an intervention with report
-if($action == 'complete' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $stmt = $pdo->prepare("
-        UPDATE interventions 
-        SET task_status = 'termine', 
-            completed_date = NOW(), 
-            completion_report = ?,
-            duration_hours = COALESCE(?, duration_hours)
-        WHERE id = ?
-    ");
-    $stmt->execute([$_POST['completion_report'], $_POST['duration_hours'], $_GET['id']]);
-    logUserAction($_SESSION['user_id'], 'intervention_completed', "Intervention completed ID: {$_GET['id']}");
-    $message = "✅ " . t('intervention_completed');
-    echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
-}
-
-// Delete (soft delete - cancellation) with password validation
-if($action == 'delete' && isset($_GET['id'])) {
-    if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor') {
-        if(isset($_POST['confirm_password'])) {
-            $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
-            $stmt->execute([$_SESSION['user_id']]);
-            $user = $stmt->fetch();
-            if(password_verify($_POST['confirm_password'], $user['password'])) {
-                $stmt2 = $pdo->prepare("UPDATE interventions SET status = 'cancelled', task_status = 'cloturee' WHERE id = ?");
-                $stmt2->execute([$_GET['id']]);
-                logUserAction($_SESSION['user_id'], 'intervention_deleted', "Intervention ID: {$_GET['id']} cancelled");
-                $message = "✅ " . t('save_success');
-                echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
-            } else {
-                $error = "❌ " . t('password_error');
-            }
-        }
-    }
-}
-
-// Edit an intervention
-if($action == 'edit' && isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $sql = "UPDATE interventions SET 
-            title = ?,
-            description = ?,
-            priority = ?,
-            task_status = ?,
-            intervention_date = ?,
-            task_type = ?,
-            zone = ?,
-            localisation = ?,
-            planned_duration = ?
-            WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
-    $result = $stmt->execute([
-        $_POST['title'],
-        $_POST['description'],
-        $_POST['priority'],
-        $_POST['task_status'],
-        !empty($_POST['intervention_date']) ? $_POST['intervention_date'] : null,
-        $_POST['task_type'],
-        $_POST['zone'],
-        $_POST['localisation'],
-        $_POST['planned_duration'],
-        $_GET['id']
-    ]);
-    
-    if($result) {
-        logUserAction($_SESSION['user_id'], 'intervention_updated', "Intervention ID: {$_GET['id']} updated");
-        $message = "✅ " . t('save_success');
-        echo "<meta http-equiv='refresh' content='1;url=?page=interventions'>";
-    } else {
-        $error = "❌ " . t('save_error');
-    }
-}
-
-// Fetch technicians list
-$technicians = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
-
-// Fetch interventions with all details - CORRECTED ORDER BY with COALESCE
-$interventions = $pdo->query("
-    SELECT i.*, e.name as equipment_name, e.code as equipment_code, e.location as equipment_location,
-           t.id as technician_id, t.firstname, t.lastname, t.specialty
+// Fetch all interventions with contractors
+$all_interventions = $pdo->query("
+    SELECT i.*,
+            e.name as equipment_name,
+            e.code as equipment_code,
+            e.location as equipment_location,
+            t.id as technician_id,
+            t.firstname, t.lastname, t.specialty,
+            team.name as team_name,
+            c.id as contractor_id,
+            c.company_name as contractor_name
     FROM interventions i 
     JOIN equipment e ON i.equipment_id = e.id 
-    LEFT JOIN technicians t ON i.intervenant_id = t.id
+    LEFT JOIN technicians t ON i.technician_id = t.id
+    LEFT JOIN teams team ON i.team_id = team.id
+    LEFT JOIN contractors c ON i.contractor_id = c.id
     ORDER BY 
         CASE i.task_status 
-            WHEN 'a_faire' THEN 1      -- to do
-            WHEN 'en_cours' THEN 2     -- in progress
-            WHEN 'termine' THEN 3      -- completed
-            WHEN 'cloturee' THEN 4     -- closed
-            ELSE 5
+            WHEN 'cancelled' THEN 5
+            WHEN 'a_faire' THEN 1
+            WHEN 'en_cours' THEN 2
+            WHEN 'termine' THEN 3
+            WHEN 'cloturee' THEN 4
+            ELSE 6
         END,
         COALESCE(i.intervention_date, i.created_at) ASC,
         i.created_at DESC
 ")->fetchAll();
 
-// Intervention statistics
-$total = count($interventions);
-$a_faire = count(array_filter($interventions, function($i) { return $i['task_status'] == 'a_faire'; }));
-$en_cours = count(array_filter($interventions, function($i) { return $i['task_status'] == 'en_cours'; }));
-$termine = count(array_filter($interventions, function($i) { return $i['task_status'] == 'termine'; }));
-$cloturee = count(array_filter($interventions, function($i) { return $i['task_status'] == 'cloturee'; }));
+// Statistiques
+$stats = [
+    'all' => count($all_interventions),
+    'a_faire' => 0,
+    'en_cours' => 0,
+    'termine' => 0,
+    'cloturee' => 0,
+    'cancelled' => 0
+];
+foreach($all_interventions as $inv) {
+    if (isset($stats[$inv['task_status']])) {
+        $stats[$inv['task_status']]++;
+    } else {
+        $stats['a_faire']++;
+        $pdo->prepare("UPDATE interventions SET task_status = 'a_faire' WHERE id = ?")->execute([$inv['id']]);
+    }
+}
 
-// Fetch modifications history for each intervention
+// Filtrer les interventions
+$interventions = array_filter($all_interventions, function($inv) use ($active_filter) {
+    if ($active_filter == 'all') return true;
+    return $inv['task_status'] == $active_filter;
+});
+
+// Définir les libellés des filtres
+$filter_labels = [
+    'all' => t('all'),
+    'a_faire' => t('to_do'),
+    'en_cours' => t('in_progress'),
+    'termine' => t('completed'),
+    'cloturee' => t('closed'),
+    'cancelled' => t('cancelled')
+];
+
+$filter_icons = [
+    'all' => '',
+    'a_faire' => '⚪',
+    'en_cours' => '🔵',
+    'termine' => '🟢',
+    'cloturee' => '⚫',
+    'cancelled' => '🔴'
+];
+
+$filter_colors = [
+    'all' => '#667eea',
+    'a_faire' => '#6c757d',
+    'en_cours' => '#17a2b8',
+    'termine' => '#28a745',
+    'cloturee' => '#343a40',
+    'cancelled' => '#dc3545'
+];
+
+// Historique
 $history = [];
-foreach($interventions as $inv) {
+foreach($all_interventions as $inv) {
     $stmt = $pdo->prepare("
         SELECT * FROM user_logs 
         WHERE action IN ('intervention_created', 'intervention_updated', 'intervention_status_change', 
-                         'intervention_assigned', 'intervention_completed', 'intervention_deleted')
+                        'intervention_assigned', 'intervention_completed', 'intervention_deleted')
         AND details LIKE ?
         ORDER BY created_at DESC
         LIMIT 3
@@ -144,374 +136,6 @@ foreach($interventions as $inv) {
     $stmt->execute(["%ID: {$inv['id']}%"]);
     $history[$inv['id']] = $stmt->fetchAll();
 }
-
-// ========== ASSIGNMENT MODAL ==========
-if($action == 'assign' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT * FROM interventions WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    $interv = $stmt->fetch();
-    if(!$interv) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #17a2b8, #138496);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-    .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        padding: 10px 12px;
-    }
-    .btn-info {
-        background: #17a2b8;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-user-plus"></i> <?php echo t('assign_technician'); ?>
-    </div>
-    <div class="card-body p-4">
-        <p><strong><?php echo t('title'); ?> :</strong> <?php echo htmlspecialchars($interv['title']); ?></p>
-        <p><strong><?php echo t('task_number'); ?> :</strong> <?php echo htmlspecialchars($interv['task_number'] ?? 'N/A'); ?></p>
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('technician'); ?></label>
-                <select name="technician_id" class="form-select" required>
-                    <option value="">-- <?php echo t('select_technician'); ?> --</option>
-                    <?php foreach($technicians as $tech): ?>
-                    <option value="<?php echo $tech['id']; ?>" <?php if($interv['intervenant_id'] == $tech['id']) echo 'selected'; ?>>
-                        <?php echo htmlspecialchars($tech['firstname'] . ' ' . $tech['lastname'] . ' (' . $tech['specialty'] . ')'); ?>
-                    </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-info"><i class="fas fa-save"></i> <?php echo t('assign'); ?></button>
-                <a href="?page=interventions" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
-
-// ========== COMPLETION MODAL ==========
-if($action == 'complete' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT i.*, e.name as equipment_name FROM interventions i JOIN equipment e ON i.equipment_id = e.id WHERE i.id = ?");
-    $stmt->execute([$_GET['id']]);
-    $interv = $stmt->fetch();
-    if(!$interv) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #28a745, #1e7e34);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-    .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        padding: 10px 12px;
-    }
-    .btn-success {
-        background: #28a745;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-check-circle"></i> <?php echo t('complete_intervention'); ?>
-    </div>
-    <div class="card-body p-4">
-        <p><strong><?php echo t('title'); ?> :</strong> <?php echo htmlspecialchars($interv['title']); ?></p>
-        <p><strong><?php echo t('task_number'); ?> :</strong> <?php echo htmlspecialchars($interv['task_number'] ?? 'N/A'); ?></p>
-        <p><strong><?php echo t('equipment'); ?> :</strong> <?php echo htmlspecialchars($interv['equipment_name']); ?></p>
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('duration_hours'); ?></label>
-                <input type="number" step="0.5" name="duration_hours" class="form-control" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('completion_report'); ?></label>
-                <textarea name="completion_report" class="form-control" rows="4" placeholder="<?php echo t('report_placeholder'); ?>" required></textarea>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> <?php echo t('confirm'); ?></button>
-                <a href="?page=interventions" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
-
-// ========== DELETE CONFIRMATION MODAL ==========
-if($action == 'delete' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT * FROM interventions WHERE id = ?");
-    $stmt->execute([$_GET['id']]);
-    $interv = $stmt->fetch();
-    if(!$interv) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #dc3545, #c82333);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-    .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        padding: 10px 12px;
-    }
-    .btn-danger {
-        background: #dc3545;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-trash-alt"></i> <?php echo t('cancel_intervention'); ?>
-    </div>
-    <div class="card-body p-4">
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <?php echo t('delete_confirm'); ?> : <strong><?php echo htmlspecialchars($interv['title']); ?></strong>
-        </div>
-        <p><?php echo t('delete_warning'); ?></p>
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label"><?php echo t('confirm_password'); ?></label>
-                <input type="password" name="confirm_password" class="form-control" required>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> <?php echo t('confirm'); ?></button>
-                <a href="?page=interventions" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
-
-// ========== EDIT FORM ==========
-if($action == 'edit' && isset($_GET['id'])):
-    $stmt = $pdo->prepare("SELECT i.*, e.name as equipment_name FROM interventions i JOIN equipment e ON i.equipment_id = e.id WHERE i.id = ?");
-    $stmt->execute([$_GET['id']]);
-    $interv = $stmt->fetch();
-    if(!$interv) {
-        echo "<div class='alert alert-danger'>" . t('save_error') . "</div>";
-        return;
-    }
-    
-    $equipments = $pdo->query("SELECT id, code, name FROM equipment WHERE status = 'active' ORDER BY name")->fetchAll();
-    $intervenants = $pdo->query("SELECT id, firstname, lastname, specialty FROM technicians WHERE status = 'active' ORDER BY lastname")->fetchAll();
-?>
-<style>
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    .form-card-header {
-        background: linear-gradient(135deg, #fd7e14, #e06a0a);
-        color: white;
-        padding: 15px 20px;
-        font-weight: bold;
-    }
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-    .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        padding: 10px 12px;
-    }
-    .form-control:focus, .form-select:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-    .btn-warning {
-        background: #fd7e14;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-        color: white;
-    }
-    .btn-secondary {
-        background: #6c757d;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-    }
-</style>
-<div class="form-card">
-    <div class="form-card-header">
-        <i class="fas fa-edit"></i> <?php echo t('edit_intervention'); ?> : <?php echo htmlspecialchars($interv['task_number'] ?? 'N/A'); ?>
-    </div>
-    <div class="card-body p-4">
-        <form method="POST">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('equipment'); ?> <span class="text-danger">*</span></label>
-                    <select name="equipment_id" class="form-select" required>
-                        <option value="">-- <?php echo t('select_equipment'); ?> --</option>
-                        <?php foreach($equipments as $eq): ?>
-                        <option value="<?php echo $eq['id']; ?>" <?php if($interv['equipment_id'] == $eq['id']) echo 'selected'; ?>>
-                            <?php echo htmlspecialchars($eq['code'] . ' - ' . $eq['name']); ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('title'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" name="title" class="form-control" value="<?php echo htmlspecialchars($interv['title']); ?>" required>
-                </div>
-                <div class="col-md-12 mb-3">
-                    <label class="form-label"><?php echo t('description'); ?></label>
-                    <textarea name="description" class="form-control" rows="3"><?php echo htmlspecialchars($interv['description']); ?></textarea>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label"><?php echo t('priority'); ?></label>
-                    <select name="priority" class="form-select">
-                        <option value="low" <?php if($interv['priority'] == 'low') echo 'selected'; ?>><?php echo t('low'); ?></option>
-                        <option value="medium" <?php if($interv['priority'] == 'medium') echo 'selected'; ?>><?php echo t('medium'); ?></option>
-                        <option value="high" <?php if($interv['priority'] == 'high') echo 'selected'; ?>><?php echo t('high'); ?></option>
-                        <option value="critical" <?php if($interv['priority'] == 'critical') echo 'selected'; ?>><?php echo t('critical'); ?></option>
-                    </select>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label"><?php echo t('status'); ?></label>
-                    <select name="task_status" class="form-select">
-                        <option value="a_faire" <?php if($interv['task_status'] == 'a_faire') echo 'selected'; ?>><?php echo t('to_do'); ?></option>
-                        <option value="en_cours" <?php if($interv['task_status'] == 'en_cours') echo 'selected'; ?>><?php echo t('in_progress'); ?></option>
-                        <option value="termine" <?php if($interv['task_status'] == 'termine') echo 'selected'; ?>><?php echo t('completed'); ?></option>
-                        <option value="cloturee" <?php if($interv['task_status'] == 'cloturee') echo 'selected'; ?>><?php echo t('closed'); ?></option>
-                    </select>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label"><?php echo t('planned_date'); ?></label>
-                    <input type="date" name="intervention_date" class="form-control" value="<?php echo $interv['intervention_date']; ?>">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label"><?php echo t('task_type'); ?></label>
-                    <select name="task_type" class="form-select">
-                        <option value="revision" <?php if($interv['task_type'] == 'revision') echo 'selected'; ?>><?php echo t('revision'); ?></option>
-                        <option value="depannage" <?php if($interv['task_type'] == 'depannage') echo 'selected'; ?>><?php echo t('repair'); ?></option>
-                        <option value="installation" <?php if($interv['task_type'] == 'installation') echo 'selected'; ?>><?php echo t('installation'); ?></option>
-                        <option value="maintenance_preventive" <?php if($interv['task_type'] == 'maintenance_preventive') echo 'selected'; ?>><?php echo t('preventive_maintenance'); ?></option>
-                        <option value="controle" <?php if($interv['task_type'] == 'controle') echo 'selected'; ?>><?php echo t('inspection'); ?></option>
-                        <option value="autre" <?php if($interv['task_type'] == 'autre') echo 'selected'; ?>><?php echo t('other'); ?></option>
-                    </select>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label"><?php echo t('planned_duration'); ?></label>
-                    <select name="planned_duration" class="form-select">
-                        <option value="1h" <?php if($interv['planned_duration'] == '1h') echo 'selected'; ?>>1h</option>
-                        <option value="2h" <?php if($interv['planned_duration'] == '2h') echo 'selected'; ?>>2h</option>
-                        <option value="2h30" <?php if($interv['planned_duration'] == '2h30') echo 'selected'; ?>>2h30</option>
-                        <option value="3h" <?php if($interv['planned_duration'] == '3h') echo 'selected'; ?>>3h</option>
-                        <option value="4h" <?php if($interv['planned_duration'] == '4h') echo 'selected'; ?>>4h</option>
-                        <option value="6h" <?php if($interv['planned_duration'] == '6h') echo 'selected'; ?>>6h</option>
-                        <option value="8h" <?php if($interv['planned_duration'] == '8h') echo 'selected'; ?>>8h</option>
-                        <option value="1j" <?php if($interv['planned_duration'] == '1j') echo 'selected'; ?>>1j</option>
-                    </select>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('zone'); ?></label>
-                    <input type="text" name="zone" class="form-control" value="<?php echo htmlspecialchars($interv['zone']); ?>">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label"><?php echo t('localisation'); ?></label>
-                    <input type="text" name="localisation" class="form-control" value="<?php echo htmlspecialchars($interv['localisation']); ?>">
-                </div>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> <?php echo t('update'); ?></button>
-                <a href="?page=interventions" class="btn btn-secondary"><i class="fas fa-times"></i> <?php echo t('cancel'); ?></a>
-            </div>
-        </form>
-    </div>
-</div>
-<?php
-return;
-endif;
 ?>
 
 <style>
@@ -528,30 +152,45 @@ endif;
         padding: 15px 20px;
         font-weight: bold;
     }
+    .card-header-custom i {
+        margin-right: 8px;
+    }
+    
+    /* Cartes de statistiques */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+    }
     .stats-card {
         text-align: center;
         padding: 15px;
         background: white;
         border-radius: 15px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
+        transition: all 0.2s;
         cursor: pointer;
-        margin-bottom: 15px;
+        border: 3px solid transparent;
     }
     .stats-card:hover {
         transform: translateY(-3px);
+    }
+    .stats-card.active {
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     .stats-number {
         font-size: 28px;
         font-weight: bold;
     }
-    .filter-bar {
-        background: white;
-        border-radius: 15px;
-        padding: 15px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    .stats-label {
+        font-size: 13px;
+        color: #6c757d;
+        margin-top: 4px;
     }
+    
+    /* Badges */
     .priority-badge {
         display: inline-block;
         padding: 5px 12px;
@@ -563,6 +202,7 @@ endif;
     .priority-high { background: #fd7e14; color: white; }
     .priority-medium { background: #ffc107; color: #333; }
     .priority-low { background: #28a745; color: white; }
+    
     .status-badge {
         display: inline-block;
         padding: 5px 12px;
@@ -574,8 +214,34 @@ endif;
     .status-en_cours { background: #17a2b8; color: white; }
     .status-termine { background: #28a745; color: white; }
     .status-cloturee { background: #343a40; color: white; }
+    .status-cancelled { background: #dc3545; color: white; }
     
-    /* Action buttons - uniform size and alignment */
+    /* Contractor badge */
+    .contractor-badge {
+        background: #6f42c1;
+        color: white;
+        padding: 2px 10px;
+        font-size: 11px;
+    }
+    .badge {
+        font-size: 11px !important;
+        padding: 4px 8px;
+        margin: 2px 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .bg-primary {
+        background: #0d6efd !important;
+        color: white !important;
+    }
+    
+    .bg-info {
+        background: #0dcaf0 !important;
+        color: #000 !important;
+    }
+    /* Actions */
     .action-buttons {
         display: flex;
         gap: 5px;
@@ -585,7 +251,7 @@ endif;
         max-width: 105px;
         margin: 0 auto;
     }
-    .action-buttons .btn, .action-buttons .disabled-icon {
+    .action-buttons .btn {
         padding: 5px;
         margin: 0;
         border-radius: 6px;
@@ -599,6 +265,7 @@ endif;
         flex: 0 0 30px;
     }
     
+    /* Tableau */
     .table-responsive {
         overflow-x: auto;
     }
@@ -620,6 +287,8 @@ endif;
     .table tr:hover {
         background: #f8f9fa;
     }
+    
+    /* Historique */
     .history-item {
         padding: 5px 0;
         font-size: 10px;
@@ -628,6 +297,8 @@ endif;
     .history-item:last-child {
         border-bottom: none;
     }
+    
+    /* Boutons */
     .btn-primary {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border: none;
@@ -661,15 +332,24 @@ endif;
         border: none;
         border-radius: 6px;
     }
+    .btn-danger:hover {
+        background: #c82333;
+    }
     .btn-info {
         background: #17a2b8;
         border: none;
         border-radius: 6px;
     }
+    .btn-info:hover {
+        background: #138496;
+    }
     .btn-success {
         background: #28a745;
         border: none;
         border-radius: 6px;
+    }
+    .btn-success:hover {
+        background: #218838;
     }
     .form-select-sm {
         font-size: 12px;
@@ -677,6 +357,45 @@ endif;
     }
     .text-muted {
         color: #6c757d !important;
+    }
+    
+    /* Légende */
+    .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 15px;
+        text-align: center;
+    }
+    .legend-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+    .legend-item:hover {
+        transform: translateY(-2px);
+        background: #e9ecef;
+    }
+    
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .legend-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    @media (max-width: 480px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .legend-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 </style>
 
@@ -690,76 +409,32 @@ endif;
         <?php endif; ?>
     </div>
     
-    <?php if($message): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle"></i> <?php echo $message; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+    <?php if(isset($_GET['msg']) || !empty($message)): ?>
+        <div class="alert alert-success alert-dismissible fade show"><?php echo htmlspecialchars($_GET['msg'] ?? $message); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    <?php endif; ?>
+    <?php if(isset($_GET['err']) || !empty($error)): ?>
+        <div class="alert alert-danger alert-dismissible fade show"><?php echo htmlspecialchars($_GET['err'] ?? $error); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
     <?php endif; ?>
     
-    <?php if($error): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <!-- Statistiques (filtres) -->
+    <div class="stats-grid">
+        <?php foreach($stats as $key => $value): ?>
+        <div class="stats-card <?php echo ($active_filter == $key) ? 'active' : ''; ?>" 
+            onclick="window.location.href='?page=interventions&filter=<?php echo $key; ?>'">
+            <div class="stats-number" style="color: <?php echo $filter_colors[$key] ?? '#667eea'; ?>;"><?php echo $value; ?></div>
+            <div class="stats-label"><?php echo $filter_icons[$key] ?? ''; ?> <?php echo $filter_labels[$key] ?? $key; ?></div>
         </div>
-    <?php endif; ?>
-    
-    <!-- Statistics cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="stats-card" onclick="filterByStatus('all')">
-                <div class="stats-number" style="color: #667eea;"><?php echo $total; ?></div>
-                <div class="text-muted"><?php echo t('total'); ?></div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card" onclick="filterByStatus('a_faire')">
-                <div class="stats-number" style="color: #6c757d;"><?php echo $a_faire; ?></div>
-                <div class="text-muted"><?php echo t('to_do'); ?></div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card" onclick="filterByStatus('en_cours')">
-                <div class="stats-number" style="color: #17a2b8;"><?php echo $en_cours; ?></div>
-                <div class="text-muted"><?php echo t('in_progress'); ?></div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card" onclick="filterByStatus('termine')">
-                <div class="stats-number" style="color: #28a745;"><?php echo $termine; ?></div>
-                <div class="text-muted"><?php echo t('completed'); ?></div>
-            </div>
-        </div>
+        <?php endforeach; ?>
     </div>
     
-    <!-- Quick filters -->
-    <div class="filter-bar">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="btn-group" role="group">
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('all')"><?php echo t('all'); ?></button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('a_faire')"><?php echo t('to_do'); ?></button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('en_cours')"><?php echo t('in_progress'); ?></button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('termine')"><?php echo t('completed'); ?></button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('cloturee')"><?php echo t('closed'); ?></button>
-                </div>
-            </div>
-            <div class="col-md-4 text-end">
-                <small class="text-muted">
-                    <i class="fas fa-chart-simple"></i> <?php echo t('total'); ?>: <?php echo $total; ?> <?php echo t('interventions'); ?>
-                </small>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Interventions list with unified chart -->
+    <!-- Liste -->
     <div class="info-card">
         <div class="card-header-custom">
             <i class="fas fa-list"></i> <?php echo t('intervention_list'); ?>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0" id="interventionsTable">
+                <table class="table table-hover mb-0">
                     <thead class="table-dark">
                         <tr>
                             <th><?php echo t('task_number'); ?></th>
@@ -767,15 +442,19 @@ endif;
                             <th><?php echo t('title'); ?></th>
                             <th><?php echo t('priority'); ?></th>
                             <th><?php echo t('status'); ?></th>
-                            <th><?php echo t('technician'); ?></th>
+                            <th><?php echo t('assigned_to'); ?></th>
                             <th><?php echo t('planned_date'); ?></th>
                             <th><?php echo t('last_modifications'); ?></th>
                             <th class="text-center" style="width: 120px;"><?php echo t('actions'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach($interventions as $inv): ?>
-                        <tr data-status="<?php echo $inv['task_status']; ?>">
+                        <?php foreach($interventions as $inv): 
+                            $hasTeam = !empty($inv['team_name']);
+                            $hasTech = !empty($inv['firstname']) && !empty($inv['lastname']);
+                            $hasContractor = !empty($inv['contractor_id']) && !empty($inv['contractor_name']);
+                        ?>
+                        <tr>
                             <td>
                                 <strong><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></strong>
                                 <?php if($inv['completion_report']): ?>
@@ -793,6 +472,9 @@ endif;
                                 </span>
                             </td>
                             <td>
+                                <?php if($inv['task_status'] == 'cancelled'): ?>
+                                    <span class="status-badge status-cancelled">🔴 <?php echo t('cancelled'); ?></span>
+                                <?php else: ?>
                                 <select class="form-select form-select-sm" style="width: 120px;" 
                                         onchange="if(confirm('<?php echo t('status_confirm'); ?>')) window.location.href='?page=interventions&action=change_status&id=<?php echo $inv['id']; ?>&status='+this.value"
                                         onclick="event.stopPropagation()">
@@ -801,17 +483,31 @@ endif;
                                     <option value="termine" <?php if($inv['task_status'] == 'termine') echo 'selected'; ?>><?php echo t('completed'); ?></option>
                                     <option value="cloturee" <?php if($inv['task_status'] == 'cloturee') echo 'selected'; ?>><?php echo t('closed'); ?></option>
                                 </select>
-                            </td>
-                            <td>
-                                <?php if($inv['firstname']): ?>
-                                    <?php echo htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']); ?>
-                                    <br><small class="text-muted"><?php echo htmlspecialchars($inv['specialty']); ?></small>
-                                <?php else: ?>
-                                    <span class="text-muted"><?php echo t('unassigned'); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <?php echo $inv['intervention_date'] ? date('m/d/Y', strtotime($inv['intervention_date'])) : '-'; ?>
+                                <?php 
+                                if ($hasTeam && $hasContractor) {
+                                    echo '<span class="badge bg-info"><i class="fas fa-users"></i> ' . htmlspecialchars($inv['team_name']) . '</span>';
+                                    echo '<br><span class="badge contractor-badge"><i class="fas fa-building"></i> ' . htmlspecialchars($inv['contractor_name']) . '</span>';
+                                } elseif ($hasTech && $hasContractor) {
+                                    echo '<span class="badge bg-primary"><i class="fas fa-user"></i> ' . htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']) . '</span>';
+                                    if ($inv['specialty']) echo '<br><small class="text-muted">' . htmlspecialchars($inv['specialty']) . '</small>';
+                                    echo '<br><span class="badge contractor-badge"><i class="fas fa-building"></i> ' . htmlspecialchars($inv['contractor_name']) . '</span>';
+                                } elseif ($hasTeam) {
+                                    echo '<span class="badge bg-info"><i class="fas fa-users"></i> ' . htmlspecialchars($inv['team_name']) . '</span>';
+                                } elseif ($hasContractor) {
+                                    echo '<span class="badge contractor-badge"><i class="fas fa-building"></i> ' . htmlspecialchars($inv['contractor_name']) . '</span>';
+                                } elseif ($hasTech) {
+                                    echo '<span class="badge bg-primary"><i class="fas fa-user"></i> ' . htmlspecialchars($inv['firstname'] . ' ' . $inv['lastname']) . '</span>';
+                                    if ($inv['specialty']) echo '<br><small class="text-muted">' . htmlspecialchars($inv['specialty']) . '</small>';
+                                } else {
+                                    echo '<span class="text-muted">' . t('unassigned') . '</span>';
+                                }
+                                ?>
+                            </td>
+                            <td>
+                                <?php echo $inv['intervention_date'] ? format_date_local($inv['intervention_date'], 'short', false) : '-'; ?>
                             </td>
                             <td style="max-width: 150px;">
                                 <?php if(!empty($history[$inv['id']])): ?>
@@ -828,7 +524,7 @@ endif;
                                         ];
                                         echo isset($action_icons[$h['action']]) ? $action_icons[$h['action']] : $h['action'];
                                         ?>
-                                        <br><small class="text-muted"><?php echo date('m/d/Y H:i', strtotime($h['created_at'])); ?></small>
+                                        <br><small class="text-muted"><?php echo format_date_local($h['created_at'], 'long', true); ?></small>
                                     </div>
                                     <?php endforeach; ?>
                                 <?php else: ?>
@@ -836,53 +532,103 @@ endif;
                                 <?php endif; ?>
                             </td>
                             <td class="text-center action-buttons" onclick="event.stopPropagation()">
-                                <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <?php if($inv['task_status'] != 'termine' && $inv['task_status'] != 'cloturee'): ?>
-                                    <a href="?page=interventions&action=complete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('complete'); ?>">
-                                        <i class="fas fa-check-circle"></i>
+                                <?php if($inv['task_status'] != 'cancelled'): ?>
+                                    <a href="?page=intervention_view&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-info" title="<?php echo t('view'); ?>">
+                                        <i class="fas fa-eye"></i>
                                     </a>
-                                    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                        <a href="?page=interventions&action=assign&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
-                                            <i class="fas fa-user-plus"></i>
+                                    <?php if($inv['task_status'] != 'termine' && $inv['task_status'] != 'cloturee'): ?>
+                                        <a href="?page=interventions_complete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-success" title="<?php echo t('complete'); ?>">
+                                            <i class="fas fa-check-circle"></i>
                                         </a>
-                                        <a href="?page=interventions&action=edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
-                                            <i class="fas fa-pen"></i>
-                                        </a>
-                                        <a href="?page=interventions&action=delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>" onclick="return confirm('<?php echo t('delete_confirm'); ?>')">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </a>
+                                        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+                                            <a href="?page=interventions_assign&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-warning" title="<?php echo t('assign'); ?>">
+                                                <i class="fas fa-user-plus"></i>
+                                            </a>
+                                            <a href="?page=intervention_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                                <i class="fas fa-pen"></i>
+                                            </a>
+                                            <a href="?page=interventions_delete&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-danger" title="<?php echo t('cancel'); ?>">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="disabled-icon"><i class="fas fa-lock"></i></span>
+                                        <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
+                                            <a href="?page=intervention_edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
+                                                <i class="fas fa-pen"></i>
+                                            </a>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 <?php else: ?>
-                                    <span class="disabled-icon"><i class="fas fa-lock"></i></span>
-                                    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'supervisor'): ?>
-                                        <a href="?page=interventions&action=edit&id=<?php echo $inv['id']; ?>" class="btn btn-sm btn-primary" title="<?php echo t('edit'); ?>">
-                                            <i class="fas fa-pen"></i>
-                                        </a>
-                                    <?php endif; ?>
+                                    <span class="text-muted"><i class="fas fa-ban"></i> <?php echo t('cancelled'); ?></span>
                                 <?php endif; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
+                        <?php if(count($interventions) == 0): ?>
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x d-block mb-2"></i>
+                                <?php echo t('no_interventions'); ?>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-function filterByStatus(status) {
-    const rows = document.querySelectorAll('#interventionsTable tbody tr');
-    rows.forEach(row => {
-        if(status === 'all') {
-            row.style.display = '';
-        } else if(row.getAttribute('data-status') === status) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-}
-</script>
+        <!-- Légende -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="info-card">
+                <div class="card-header-custom" style="background: linear-gradient(135deg, #6c757d, #495057);">
+                    <i class="fas fa-info-circle"></i> <?php echo t('legend'); ?>
+                </div>
+                <div class="card-body p-3">
+                    <div class="legend-grid">
+                        <div class="legend-item">
+                            <span class="status-badge status-a_faire">⚪ <?php echo t('to_do'); ?></span>
+                            <small><?php echo t('to_do_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-en_cours">🔵 <?php echo t('in_progress'); ?></span>
+                            <small><?php echo t('in_progress_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-termine">🟢 <?php echo t('completed'); ?></span>
+                            <small><?php echo t('completed_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-cloturee">⚫ <?php echo t('closed'); ?></span>
+                            <small><?php echo t('closed_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="status-badge status-cancelled">🔴 <?php echo t('cancelled'); ?></span>
+                            <small><?php echo t('cancelled_desc'); ?></small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge bg-secondary">📊</span>
+                            <small><?php echo t('click_stats_to_filter'); ?></small>
+                        </div>
+                        
+                        <!-- Assignations -->
+                        <div class="legend-item">
+                            <span class="badge bg-primary"><i class="fas fa-user"></i> Technicien</span>
+                            <small>Assigné à un technicien</small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge bg-info"><i class="fas fa-users"></i> Équipe</span>
+                            <small>Assigné à une équipe</small>
+                        </div>
+                        <div class="legend-item">
+                            <span class="badge contractor-badge"><i class="fas fa-building"></i> Prestataire</span>
+                            <small>Prestataire extérieur</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

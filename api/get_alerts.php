@@ -1,174 +1,121 @@
 <?php
 // api/get_alerts.php - API endpoint for real-time alerts
+require_once __DIR__ . '/../includes/functions.php';
+
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
 if(!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'error' => t('unauthenticated')]);
     exit();
 }
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/lang.php';
+// Forcer la mise à jour des alertes
+$alerts_data = getAllAlerts($pdo, true);
 
-$alerts = [];
+// Compter par priorité
 $counts = [
     'critical' => 0,
     'warning' => 0,
-    'info' => 0
+    'info' => 0,
+    'total' => 0
 ];
 
-// 1. Overdue preventive maintenance
-$stmt = $pdo->query("
-    SELECT pm.*, e.name as equipment_name 
-    FROM preventive_maintenance pm 
-    JOIN equipment e ON pm.equipment_id = e.id 
-    WHERE pm.next_due < CURDATE() 
-    AND e.status = 'active'
-");
-$overdue = $stmt->fetchAll();
+// Construire la liste pour le JS (format attendu par alerts.js)
+$alerts = [];
+$lang = getCurrentLanguage();
 
-foreach($overdue as $task) {
-    $days = (strtotime(date('Y-m-d')) - strtotime($task['next_due'])) / 86400;
-    $days_rounded = abs(round($days));
+foreach ($alerts_data as $alert) {
+    // Ne pas inclure les alertes qui ne sont pas affichées dans la sidebar
+    if (!($alert['show_sidebar'] ?? true)) continue;
     
-    $alerts[] = [
-        'id' => 'pm_' . $task['id'],
-        'type' => 'maintenance_overdue',
-        'priority' => $days > 30 ? 'critical' : 'warning',
-        'title' => t('maintenance_overdue'),
-        'message' => $task['equipment_name'] . ': ' . t('overdue_by') . ' ' . $days_rounded . ' ' . t('count_days'),
-        'url' => '/gmao_GEMINI/index.php?page=preventive',
-        'timestamp' => time()
-    ];
-    
-    $counts[$days > 30 ? 'critical' : 'warning']++;
-}
-
-// 2. Critical stock
-$stmt = $pdo->query("
-    SELECT * FROM spare_parts 
-    WHERE quantity <= min_quantity
-");
-$lowStock = $stmt->fetchAll();
-
-foreach($lowStock as $part) {
-    $ratio = $part['quantity'] / ($part['min_quantity'] ?: 1);
-    
-    $alerts[] = [
-        'id' => 'stock_' . $part['id'],
-        'type' => 'stock_critical',
-        'priority' => $ratio < 0.3 ? 'critical' : 'warning',
-        'title' => t('stock_critical_title'),
-        'message' => $part['name'] . ': ' . t('only') . ' ' . $part['quantity'] . ' ' . t('units') . ' (min: ' . $part['min_quantity'] . ')',
-        'url' => '/gmao_GEMINI/index.php?page=stock',
-        'timestamp' => time()
-    ];
-    
-    $counts[$ratio < 0.3 ? 'critical' : 'warning']++;
-}
-
-// 3. Unassigned critical interventions
-$stmt = $pdo->query("
-    SELECT i.*, e.name as equipment_name 
-    FROM interventions i 
-    JOIN equipment e ON i.equipment_id = e.id 
-    WHERE i.priority = 'critical' 
-    AND i.task_status != 'termine'
-    AND i.task_status != 'cloturee'
-    AND i.intervenant_id IS NULL
-");
-$critical = $stmt->fetchAll();
-
-foreach($critical as $intervention) {
-    $hours = (time() - strtotime($intervention['created_at'])) / 3600;
-    $hours_rounded = round($hours);
-    
-    $alerts[] = [
-        'id' => 'interv_' . $intervention['id'],
-        'type' => 'critical_intervention',
-        'priority' => 'critical',
-        'title' => t('critical_intervention'),
-        'message' => $intervention['title'] . ' ' . t('on') . ' ' . $intervention['equipment_name'] . ' - ' . $hours_rounded . ' ' . t('hours'),
-        'url' => '/gmao_GEMINI/index.php?page=interventions',
-        'timestamp' => time()
-    ];
-    
-    $counts['critical']++;
-}
-
-// 4. Warranties expiring soon
-$stmt = $pdo->query("
-    SELECT name, warranty_end, code 
-    FROM equipment 
-    WHERE warranty_end IS NOT NULL 
-    AND warranty_end <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
-    AND status != 'retired'
-");
-$warranty = $stmt->fetchAll();
-
-foreach($warranty as $eq) {
-    $days = (strtotime($eq['warranty_end']) - time()) / 86400;
-    $days_rounded = round($days);
-    
-    if($days < 0) {
-        $alerts[] = [
-            'id' => 'warranty_' . $eq['code'],
-            'type' => 'warranty_expired',
-            'priority' => 'critical',
-            'title' => t('warranty_expired_title'),
-            'message' => $eq['name'] . ': ' . t('warranty_expired') . ' ' . abs($days_rounded) . ' ' . t('days_ago'),
-            'url' => '/gmao_GEMINI/index.php?page=equipment',
-            'timestamp' => time()
-        ];
-        $counts['critical']++;
-    } elseif($days <= 30) {
-        $alerts[] = [
-            'id' => 'warranty_' . $eq['code'],
-            'type' => 'warranty_upcoming',
-            'priority' => 'warning',
-            'title' => t('warranty_upcoming_title'),
-            'message' => $eq['name'] . ': ' . $days_rounded . ' ' . t('days_left'),
-            'url' => '/gmao_GEMINI/index.php?page=equipment',
-            'timestamp' => time()
-        ];
-        $counts['warning']++;
+    // Déterminer le message selon la langue
+    if ($lang === 'fr' && isset($alert['message_fr'])) {
+        $message = $alert['message_fr'];
+    } elseif (isset($alert['message_en'])) {
+        $message = $alert['message_en'];
+    } else {
+        $message = $alert['message'] ?? 'Alerte';
     }
-}
-
-// 5. Unassigned interventions for more than 3 days
-$stmt = $pdo->query("
-    SELECT i.*, e.name as equipment_name 
-    FROM interventions i 
-    JOIN equipment e ON i.equipment_id = e.id 
-    WHERE i.intervenant_id IS NULL 
-    AND i.task_status = 'a_faire'
-    AND i.created_at <= DATE_SUB(NOW(), INTERVAL 3 DAY)
-");
-$unassigned = $stmt->fetchAll();
-
-foreach($unassigned as $inv) {
-    $days = (time() - strtotime($inv['created_at'])) / 86400;
-    $days_rounded = round($days);
     
-    $alerts[] = [
-        'id' => 'unassigned_' . $inv['id'],
-        'type' => 'unassigned_intervention',
-        'priority' => 'warning',
-        'title' => t('unassigned_intervention_title'),
-        'message' => $inv['title'] . ' - ' . t('waiting_assignment') . ' ' . $days_rounded . ' ' . t('count_days'),
-        'url' => '/gmao_GEMINI/index.php?page=interventions&action=assign&id=' . $inv['id'],
+    // Déterminer le type pour le JS
+    $type = $alert['type'] ?? 'system';
+    $priority = $alert['priority'] ?? 'warning';
+    
+    // ===== DÉTERMINER LE TITRE EN FONCTION DU TYPE =====
+    $title = $type; // Par défaut
+    switch($type) {
+        case 'backup_reminder':
+            $title = $lang === 'fr' ? 'Rappel de sauvegarde' : 'Backup reminder';
+            break;
+        case 'contractor_intervention':
+            $title = $lang === 'fr' ? 'Intervention prestataire' : 'Contractor intervention';
+            break;
+        case 'contractor_maintenance':
+            $title = $lang === 'fr' ? 'Maintenance prestataire' : 'Contractor maintenance';
+            break;
+        case 'maintenance_overdue':
+            $title = $lang === 'fr' ? 'Maintenance en retard' : 'Maintenance overdue';
+            break;
+        case 'stock_critical':
+            $title = $lang === 'fr' ? 'Stock critique' : 'Critical stock';
+            break;
+        case 'warranty_expired':
+            $title = $lang === 'fr' ? 'Garantie expirée' : 'Warranty expired';
+            break;
+        case 'warranty_upcoming':
+            $title = $lang === 'fr' ? 'Garantie prochainement expirée' : 'Warranty expiring soon';
+            break;
+        case 'unassigned_intervention':
+            $title = $lang === 'fr' ? 'Intervention non assignée' : 'Unassigned intervention';
+            break;
+        case 'critical_intervention':
+            $title = $lang === 'fr' ? 'Intervention critique' : 'Critical intervention';
+            break;
+        default:
+            $title = $alert['title'] ?? $type;
+    }
+    // =====================================================
+    
+    // Construire l'alerte au format attendu par alerts.js
+    $alert_item = [
+        'id' => $alert['id'] ?? 'alert_' . time() . '_' . uniqid(),
+        'type' => $type,
+        'priority' => $priority,
+        'title' => $title,  // Titre traduit
+        'message' => $message,
+        'url' => $alert['url'] ?? '?page=alerts',
         'timestamp' => time()
     ];
     
-    $counts['warning']++;
+    // Ajouter des informations supplémentaires si disponibles
+    if (isset($alert['contractor_name'])) {
+        $alert_item['contractor'] = $alert['contractor_name'];
+    }
+    if (isset($alert['days_until'])) {
+        $alert_item['days_until'] = $alert['days_until'];
+    }
+    if (isset($alert['equipment_name'])) {
+        $alert_item['equipment'] = $alert['equipment_name'];
+    }
+    
+    $alerts[] = $alert_item;
+    
+    // Compter par priorité
+    if (isset($counts[$priority])) {
+        $counts[$priority]++;
+    }
+    $counts['total']++;
 }
 
-// Limit number of alerts
-$alerts = array_slice($alerts, 0, 20);
+// Mettre à jour le compteur en session
+$_SESSION['total_alerts_count'] = $counts['total'];
 
+// Retourner les données au format attendu par alerts.js
 echo json_encode([
     'success' => true,
     'alerts' => $alerts,
