@@ -1,32 +1,19 @@
 <?php
-// pages/dashboard.php - Version dynamique finale avec alertes prestataires
+// pages/dashboard.php - Version unifiée avec getAllAlerts()
 
 // Chemin absolu fiable
 require_once __DIR__ . '/../includes/functions.php';
 
-// Forcer la mise à jour des alertes prestataires
-checkContractorAlerts($pdo);
+// Récupérer toutes les alertes unifiées
+$all_alerts = getAllAlerts($pdo, true);
+$total_alerts_count = countAllAlerts($pdo);
+$_SESSION['total_alerts_count'] = $total_alerts_count;
 
 $stats = getDashboardStats();
-
-// Récupérer les alertes système + prestataires
-$system_alerts = getAlerts();
-$contractor_alerts = $_SESSION['contractor_alerts'] ?? [];
-
-// Fusionner les alertes pour l'affichage
-$all_alerts = $system_alerts;
-
-// Ajouter les messages des alertes prestataires
-foreach ($contractor_alerts as $alert) {
-    if ($alert['show_sidebar'] ?? true) {
-        $all_alerts[] = $alert['message'];
-    }
-}
-
 $recentInterventions = getRecentInterventions(5);
 
-// Calculer le nombre total d'alertes pour l'affichage
-$total_alerts_count = count($system_alerts) + count($contractor_alerts);
+// Récupérer les messages simples pour l'affichage
+$alert_messages = getAlertMessages($pdo);
 ?>
 
 <div class="container-fluid">
@@ -36,18 +23,19 @@ $total_alerts_count = count($system_alerts) + count($contractor_alerts);
     </h2>
     
     <!-- Alertes dynamiques -->
-    <?php if(!empty($all_alerts)): ?>
+    <?php if(!empty($alert_messages)): ?>
         <div class="alert alert-warning alert-dismissible fade show">
-            <strong><i class="fas fa-exclamation-triangle"></i> <?php echo t('alerts'); ?> (<?php echo count($all_alerts); ?>) :</strong>
+            <strong><i class="fas fa-exclamation-triangle"></i> <?php echo t('alerts'); ?> (<?php echo count($alert_messages); ?>) :</strong>
             <ul class="mb-0">
                 <?php 
-                $display_alerts = array_slice($all_alerts, 0, 10);
-                foreach($display_alerts as $alert): 
+                $display_alerts = array_slice($alert_messages, 0, 10);
+                foreach($display_alerts as $message): 
                 ?>
-                    <li><?php echo htmlspecialchars($alert); ?></li>
+                    <li><?php echo htmlspecialchars((string)$message); ?></li>
                 <?php endforeach; ?>
-                <?php if(count($all_alerts) > 10): ?>
-                    <li><a href="?page=alerts"><?php echo t('view_all_alerts'); ?> (<?php echo count($all_alerts) - 10; ?> <?php echo t('more'); ?>)</a></li>
+                
+                <?php if(count($alert_messages) > 10): ?>
+                    <li><a href="?page=alerts"><?php echo t('view_all_alerts'); ?> (<?php echo count($alert_messages) - 10; ?> <?php echo t('more'); ?>)</a></li>
                 <?php endif; ?>
             </ul>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>

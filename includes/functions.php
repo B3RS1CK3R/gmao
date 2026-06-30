@@ -1846,6 +1846,9 @@ function checkContractorAlerts($pdo) {
                 $days_until = (strtotime($intervention['intervention_date']) - strtotime($today)) / (60 * 60 * 24);
                 $days_until = round($days_until);
                 
+                // Récupérer le numéro de tâche
+                $task_number = $intervention['task_number'] ?? 'N/A';
+                
                 // Alerte niveau 2 (plus proche)
                 if ($days_until <= $alert_days_2 && $days_until >= 0) {
                     $alerts[] = [
@@ -1858,7 +1861,10 @@ function checkContractorAlerts($pdo) {
                         'equipment_name' => $intervention['equipment_name'],
                         'intervention_date' => $intervention['intervention_date'],
                         'days_until' => $days_until,
-                        'message' => "⚠️ Intervention '{$intervention['title']}' pour {$intervention['equipment_name']} dans {$days_until} jours (Alerte 2)",
+                        'task_number' => $task_number,
+                        // Message bilingue
+                        'message_fr' => "⚠️ Intervention ({$task_number}) - '{$intervention['title']}' pour {$intervention['equipment_name']} dans {$days_until} jours (Alerte 2)",
+                        'message_en' => "⚠️ Intervention ({$task_number}) - '{$intervention['title']}' for {$intervention['equipment_name']} in {$days_until} days (Alert 2)",
                         'show_sidebar' => $contractor['alert_sidebar_intervention'],
                         'show_popup' => $contractor['alert_popup_intervention'],
                         'show_email' => $contractor['alert_email_intervention']
@@ -1876,7 +1882,10 @@ function checkContractorAlerts($pdo) {
                         'equipment_name' => $intervention['equipment_name'],
                         'intervention_date' => $intervention['intervention_date'],
                         'days_until' => $days_until,
-                        'message' => "📅 Intervention '{$intervention['title']}' pour {$intervention['equipment_name']} dans {$days_until} jours (Alerte 1)",
+                        'task_number' => $task_number,
+                        // Message bilingue
+                        'message_fr' => "📅 Intervention ({$task_number}) - '{$intervention['title']}' pour {$intervention['equipment_name']} dans {$days_until} jours (Alerte 1)",
+                        'message_en' => "📅 Intervention ({$task_number}) - '{$intervention['title']}' for {$intervention['equipment_name']} in {$days_until} days (Alert 1)",
                         'show_sidebar' => $contractor['alert_sidebar_intervention'],
                         'show_popup' => $contractor['alert_popup_intervention'],
                         'show_email' => $contractor['alert_email_intervention']
@@ -1903,6 +1912,9 @@ function checkContractorAlerts($pdo) {
                 $days_until = (strtotime($maintenance['next_due']) - strtotime($today)) / (60 * 60 * 24);
                 $days_until = round($days_until);
                 
+                // Récupérer le numéro de tâche
+                $task_number = $maintenance['task_number'] ?? 'N/A';
+                
                 // Alerte niveau 2 (plus proche)
                 if ($days_until <= $alert_days_2 && $days_until >= 0) {
                     $alerts[] = [
@@ -1915,7 +1927,10 @@ function checkContractorAlerts($pdo) {
                         'equipment_name' => $maintenance['equipment_name'],
                         'next_due' => $maintenance['next_due'],
                         'days_until' => $days_until,
-                        'message' => "⚠️ Maintenance '{$maintenance['title']}' pour {$maintenance['equipment_name']} dans {$days_until} jours (Alerte 2)",
+                        'task_number' => $task_number,
+                        // Message bilingue
+                        'message_fr' => "⚠️ Maintenance préventive ({$task_number}) - '{$maintenance['title']}' pour {$maintenance['equipment_name']} dans {$days_until} jours (Alerte 2)",
+                        'message_en' => "⚠️ Preventive maintenance ({$task_number}) - '{$maintenance['title']}' for {$maintenance['equipment_name']} in {$days_until} days (Alert 2)",
                         'show_sidebar' => $contractor['alert_sidebar_maintenance'],
                         'show_popup' => $contractor['alert_popup_maintenance'],
                         'show_email' => $contractor['alert_email_maintenance']
@@ -1933,7 +1948,10 @@ function checkContractorAlerts($pdo) {
                         'equipment_name' => $maintenance['equipment_name'],
                         'next_due' => $maintenance['next_due'],
                         'days_until' => $days_until,
-                        'message' => "📅 Maintenance '{$maintenance['title']}' pour {$maintenance['equipment_name']} dans {$days_until} jours (Alerte 1)",
+                        'task_number' => $task_number,
+                        // Message bilingue
+                        'message_fr' => "📅 Maintenance préventive ({$task_number}) - '{$maintenance['title']}' pour {$maintenance['equipment_name']} dans {$days_until} jours (Alerte 1)",
+                        'message_en' => "📅 Preventive maintenance ({$task_number}) - '{$maintenance['title']}' for {$maintenance['equipment_name']} in {$days_until} days (Alert 1)",
                         'show_sidebar' => $contractor['alert_sidebar_maintenance'],
                         'show_popup' => $contractor['alert_popup_maintenance'],
                         'show_email' => $contractor['alert_email_maintenance']
@@ -1943,13 +1961,11 @@ function checkContractorAlerts($pdo) {
         }
     }
     
-    // Stocker les alertes en session
+    // Stocker les alertes en session avec les messages bilingues
     $_SESSION['contractor_alerts'] = $alerts;
     $_SESSION['contractor_alerts_count'] = count($alerts);
     
-    // Envoyer les emails si nécessaire (seulement si cron ou en arrière-plan)
-    // Note: Pour éviter d'envoyer des emails à chaque chargement de page,
-    // cette partie devrait être exécutée uniquement par le cron
+    // Envoyer les emails si nécessaire (seulement si cron)
     if (php_sapi_name() === 'cli') {
         foreach ($alerts as $alert) {
             if ($alert['show_email']) {
@@ -2053,5 +2069,164 @@ function displayContractorAlerts() {
     
     $html .= '</div>';
     return $html;
+}
+
+// ========== ALERTES UNIFIÉES ==========
+
+/**
+ * Récupère TOUTES les alertes (système + prestataires + backup)
+ * @param PDO $pdo Connexion à la base de données
+ * @param bool $forceRefresh Force la mise à jour des alertes prestataires
+ * @return array Tableau d'alertes avec messages bilingues
+ */
+function getAllAlerts($pdo, $forceRefresh = false) {
+    $alerts = [];
+    
+    // 1. Alertes système (via getAlerts)
+    $system_alerts = getAlerts();
+    foreach ($system_alerts as $alert) {
+        // Extraire le type d'alerte depuis le message
+        $type = 'system';
+        $priority = 'warning';
+        if (strpos($alert, 'GARANTIE EXPIRÉE') !== false || 
+            strpos($alert, 'warranty expired') !== false ||
+            strpos($alert, '⚠️ Garantie expirée') !== false) {
+            $priority = 'critical';
+            $type = 'warranty_expired';
+        } elseif (strpos($alert, 'STOCK CRITIQUE') !== false || 
+                  strpos($alert, 'critical stock') !== false ||
+                  strpos($alert, '📦 Stock critique') !== false) {
+            $priority = 'critical';
+            $type = 'stock_critical';
+        } elseif (strpos($alert, 'MAINTENANCE EN RETARD') !== false || 
+                  strpos($alert, 'maintenance overdue') !== false ||
+                  strpos($alert, '⚠️ Maintenance en retard') !== false) {
+            $priority = 'warning';
+            $type = 'maintenance_overdue';
+        } elseif (strpos($alert, 'GARANTIE PROCHAINEMENT EXPIRÉE') !== false || 
+                  strpos($alert, 'warranty expiring') !== false ||
+                  strpos($alert, '📅 Garantie prochainement expirée') !== false) {
+            $priority = 'warning';
+            $type = 'warranty_upcoming';
+        } elseif (strpos($alert, 'INTERVENTION NON ASSIGNÉE') !== false || 
+                  strpos($alert, 'unassigned intervention') !== false) {
+            $priority = 'warning';
+            $type = 'unassigned_intervention';
+        }
+        
+        $alerts[] = [
+            'id' => 'system_' . md5($alert),
+            'type' => $type,
+            'priority' => $priority,
+            'message_fr' => $alert,
+            'message_en' => $alert, // Pas de traduction pour les alertes système (version simplifiée)
+            'show_sidebar' => true,
+            'source' => 'system'
+        ];
+    }
+    
+    // 2. Alertes prestataires
+    if ($forceRefresh || empty($_SESSION['contractor_alerts'])) {
+        checkContractorAlerts($pdo);
+    }
+    
+    if (!empty($_SESSION['contractor_alerts'])) {
+        foreach ($_SESSION['contractor_alerts'] as $alert) {
+            // S'assurer que les clés message_fr et message_en existent
+            if (!isset($alert['message_fr'])) {
+                $alert['message_fr'] = $alert['message'] ?? 'Alerte prestataire';
+            }
+            if (!isset($alert['message_en'])) {
+                $alert['message_en'] = $alert['message'] ?? 'Contractor alert';
+            }
+            $alerts[] = $alert;
+        }
+    }
+    
+    // 3. Alerte de sauvegarde (admin uniquement)
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+        $backup_alert = getBackupAlert($pdo);
+        if ($backup_alert) {
+            $alerts[] = $backup_alert;
+        }
+    }
+    
+    return $alerts;
+}
+
+/**
+ * Récupère l'alerte de sauvegarde si applicable
+ */
+function getBackupAlert($pdo) {
+    try {
+        // Vérifier si la table system_settings existe
+        $stmt = $pdo->query("SHOW TABLES LIKE 'system_settings'");
+        if ($stmt->rowCount() == 0) {
+            return null;
+        }
+        
+        $stmt = $pdo->query("SELECT setting_key, setting_value FROM system_settings");
+        $sys = [];
+        while ($row = $stmt->fetch()) { 
+            $sys[$row['setting_key']] = $row['setting_value']; 
+        }
+        $last_backup = $sys['last_backup_date'] ?? null;
+        $interval = intval($sys['backup_alert_interval'] ?? 7);
+        if ($last_backup && strtotime($last_backup) < strtotime("-$interval days")) {
+            $days_since = floor((time() - strtotime($last_backup)) / 86400);
+            return [
+                'id' => 'backup_reminder_' . time(),
+                'type' => 'backup_reminder',
+                'priority' => 'warning',
+                'message_fr' => "⚠️ Rappel de sauvegarde - La dernière sauvegarde date de " . $days_since . " jours",
+                'message_en' => "⚠️ Backup reminder - Last backup was " . $days_since . " days ago",
+                'show_sidebar' => true,
+                'source' => 'system'
+            ];
+        }
+    } catch (Exception $e) {
+        // Ignorer les erreurs
+    }
+    return null;
+}
+
+/**
+ * Compte le nombre total d'alertes (sidebar uniquement)
+ */
+function countAllAlerts($pdo) {
+    $alerts = getAllAlerts($pdo);
+    $count = 0;
+    foreach ($alerts as $alert) {
+        if ($alert['show_sidebar'] ?? true) {
+            $count++;
+        }
+    }
+    return $count;
+}
+
+/**
+ * Récupère uniquement les messages des alertes pour l'affichage
+ * @param PDO $pdo Connexion à la base de données
+ * @param bool $forceRefresh Force la mise à jour
+ * @return array Tableau de messages simples
+ */
+function getAlertMessages($pdo, $forceRefresh = false) {
+    $alerts = getAllAlerts($pdo, $forceRefresh);
+    $messages = [];
+    $lang = getCurrentLanguage();
+    
+    foreach ($alerts as $alert) {
+        if ($alert['show_sidebar'] ?? true) {
+            if ($lang === 'fr' && isset($alert['message_fr'])) {
+                $messages[] = $alert['message_fr'];
+            } elseif (isset($alert['message_en'])) {
+                $messages[] = $alert['message_en'];
+            } else {
+                $messages[] = $alert['message'] ?? 'Alerte';
+            }
+        }
+    }
+    
+    return $messages;
 }
 ?>

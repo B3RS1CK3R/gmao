@@ -111,63 +111,60 @@ class AlertSystem {
     showToast(alert) {
         let icon = '🔔';
         let priorityClass = 'info';
-        let title = 'Notification';
+        let title = alert.title || 'Notification';  // Utiliser le titre déjà défini
         let message = alert.message || 'You have a new alert';
         
+        // Déterminer l'icône et la classe CSS en fonction du type
         switch(alert.type) {
             case 'maintenance_overdue':
                 icon = '⚠️';
                 priorityClass = 'warning';
-                title = 'Maintenance Overdue';
-                message = alert.message || 'A preventive maintenance task is overdue';
                 break;
             case 'stock_critical':
                 icon = '📦';
                 priorityClass = 'warning';
-                title = 'Critical Stock Alert';
-                message = alert.message || 'A spare part has reached critical stock level';
                 break;
             case 'critical_intervention':
                 icon = '🚨';
                 priorityClass = 'critical';
-                title = 'Critical Intervention';
-                message = alert.message || 'A critical intervention requires immediate attention';
                 break;
             case 'warranty_expired':
                 icon = '⚠️';
                 priorityClass = 'critical';
-                title = 'Warranty Expired';
-                message = alert.message || 'Equipment warranty has expired';
                 break;
             case 'warranty_upcoming':
                 icon = '📅';
                 priorityClass = 'info';
-                title = 'Warranty Expiring Soon';
-                message = alert.message || 'Equipment warranty is about to expire';
                 break;
             case 'unassigned_intervention':
                 icon = '📋';
                 priorityClass = 'warning';
-                title = 'Unassigned Intervention';
-                message = alert.message || 'An intervention is waiting for assignment';
+                break;
+            case 'backup_reminder':
+                icon = '💾';
+                priorityClass = 'warning';
+                break;
+            case 'contractor_intervention':
+                icon = '🔧';
+                priorityClass = 'warning';
+                break;
+            case 'contractor_maintenance':
+                icon = '🔧';
+                priorityClass = 'warning';
                 break;
             default:
                 icon = '🔔';
                 priorityClass = alert.priority === 'critical' ? 'critical' : (alert.priority === 'warning' ? 'warning' : 'info');
-                title = alert.title || 'Notification';
-                message = alert.message || 'You have a new notification';
         }
         
+        // Surcharger par la priorité si elle est critique
         if (alert.priority === 'critical') {
             priorityClass = 'critical';
         } else if (alert.priority === 'warning') {
             priorityClass = 'warning';
         }
         
-        if (alert.title && alert.title !== title) {
-            title = alert.title;
-        }
-        
+        // Créer le toast
         const toast = document.createElement('div');
         toast.className = `toast-notification ${priorityClass}`;
         toast.innerHTML = `

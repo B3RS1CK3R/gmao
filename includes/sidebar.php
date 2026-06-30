@@ -55,6 +55,9 @@ foreach ($page_groups as $master => $pages) {
         break;
     }
 }
+
+// Récupérer le nombre total d'alertes depuis la session
+$total_alerts = $_SESSION['total_alerts_count'] ?? 0;
 ?>
 
 <!-- Sidebar -->
@@ -140,7 +143,9 @@ foreach ($page_groups as $master => $pages) {
                 <li class="nav-item">
                     <a href="index.php?page=alerts" class="nav-link notification-badge <?php echo ($page ?? '') === 'alerts' ? 'active' : ''; ?>">
                         <i class="fas fa-bell me-2"></i> <?php echo t('alerts'); ?>
-                        <span class="badge-count" id="alertBadgeCount" style="display: none;">0</span>
+                        <span class="badge-count" id="alertBadgeCount" <?php echo $total_alerts > 0 ? '' : 'style="display: none;"'; ?>>
+                            <?php echo $total_alerts > 99 ? '99+' : $total_alerts; ?>
+                        </span>
                     </a>
                 </li>
 
@@ -431,7 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.count > 0) {
-                    badge.textContent = data.count;
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
                     badge.style.display = 'inline-block';
                 } else {
                     badge.style.display = 'none';

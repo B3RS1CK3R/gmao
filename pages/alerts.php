@@ -204,6 +204,7 @@ if ($_SESSION['role'] === 'admin') {
 // 8. CONTRACTOR ALERTS (NOUVEAU - intégré)
 // ==========================================
 if (!empty($_SESSION['contractor_alerts'])) {
+    $lang = getCurrentLanguage();
     foreach ($_SESSION['contractor_alerts'] as $alert) {
         // Déterminer la priorité en fonction des jours restants
         $priority = ($alert['days_until'] <= 7) ? 'critical' : 'warning';
@@ -213,23 +214,26 @@ if (!empty($_SESSION['contractor_alerts'])) {
         
         // Déterminer le titre
         if ($alert['type'] == 'intervention') {
-            $title = '🔔 ' . t('contractor_intervention_alert');
+            $title = ($lang === 'fr') ? '🔔 Alerte intervention prestataire' : '🔔 Contractor intervention alert';
         } else {
-            $title = '🔔 ' . t('contractor_maintenance_alert');
+            $title = ($lang === 'fr') ? '🔔 Alerte maintenance prestataire' : '🔔 Contractor maintenance alert';
         }
+        
+        // Choisir le message selon la langue
+        $message = ($lang === 'fr') ? $alert['message_fr'] : $alert['message_en'];
         
         $alerts[] = [
             'id' => 'contractor_' . $alert['contractor_id'] . '_' . ($alert['intervention_id'] ?? $alert['maintenance_id'] ?? time()),
             'type' => $type,
             'priority' => $priority,
             'title' => $title,
-            'message' => $alert['contractor_name'] . ' - ' . ($alert['intervention_title'] ?? $alert['maintenance_title']) . ' (' . t('days_remaining') . ': ' . $alert['days_until'] . ' ' . t('days_s') . ')',
+            'message' => $message,
             'details' => '<strong>' . t('contractor') . ' :</strong> ' . htmlspecialchars($alert['contractor_name']) . '<br>' .
                         '<strong>' . t('task') . ' :</strong> ' . htmlspecialchars($alert['intervention_title'] ?? $alert['maintenance_title']) . '<br>' .
                         '<strong>' . t('equipment') . ' :</strong> ' . htmlspecialchars($alert['equipment_name']) . '<br>' .
                         '<strong>' . t('scheduled_date') . ' :</strong> ' . format_date_local($alert['intervention_date'] ?? $alert['next_due'] ?? date('Y-m-d'), 'short') . '<br>' .
                         '<strong>' . t('days_remaining') . ' :</strong> ' . $alert['days_until'] . ' ' . t('days_s') . '<br>' .
-                        '<strong>' . t('alert_level') . ' :</strong> ' . ($alert['level'] == 2 ? t('critical') : t('warning')),
+                        '<strong>' . t('alert_level') . ' :</strong> ' . ($alert['level'] == 2 ? t('level_2') : t('level_1')),
             'url' => ($alert['type'] == 'intervention') 
                 ? '?page=intervention_view&id=' . ($alert['intervention_id'] ?? 0)
                 : '?page=preventive_view&id=' . ($alert['maintenance_id'] ?? 0),
@@ -432,6 +436,55 @@ $contractor_count = count(array_filter($alerts, function($a) {
         align-items: center;
         justify-content: space-between;
     }
+    /* ===== POPUP DURATION SELECT ===== */
+    .popup-settings select.form-select {
+        min-width: 200px;
+        max-width: 280px;
+        font-size: 14px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        background-color: white;
+        cursor: pointer;
+    }
+
+    .popup-settings select.form-select:focus {
+        border-color: #6f42c1;
+        box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25);
+    }
+
+    .popup-settings .input-group {
+        max-width: 350px;
+    }
+
+    .popup-settings .input-group .btn {
+        border-radius: 0 8px 8px 0;
+        padding: 8px 15px;
+        white-space: nowrap;
+    }
+
+    .popup-settings .input-group .form-select {
+        border-radius: 8px 0 0 8px;
+    }
+
+    /* Ajustement responsive */
+    @media (max-width: 768px) {
+        .popup-settings {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .popup-settings .input-group {
+            max-width: 100%;
+            width: 100%;
+        }
+        
+        .popup-settings select.form-select {
+            min-width: 150px;
+            flex: 1;
+        }
+    }
 </style>
 
 <div class="container-fluid">
@@ -465,14 +518,16 @@ $contractor_count = count(array_filter($alerts, function($a) {
             <small class="text-muted d-block"><?php echo t('popup_duration_desc'); ?></small>
         </div>
         <div>
-            <div class="input-group" style="max-width: 250px;">
-                <select id="popupDuration" class="form-select">
+            <div class="input-group" style="max-width: 320px;">
+                <select id="popupDuration" class="form-select" style="min-width: 180px;">
                     <option value="3000">3 <?php echo t('seconds'); ?></option>
                     <option value="5000">5 <?php echo t('seconds'); ?></option>
                     <option value="8000" selected>8 <?php echo t('seconds'); ?> (<?php echo t('default'); ?>)</option>
                     <option value="10000">10 <?php echo t('seconds'); ?></option>
                     <option value="15000">15 <?php echo t('seconds'); ?></option>
                     <option value="20000">20 <?php echo t('seconds'); ?></option>
+                    <option value="30000">30 <?php echo t('seconds'); ?></option>
+                    <option value="60000">60 <?php echo t('seconds'); ?> (1 <?php echo t('minute'); ?>)</option>
                 </select>
                 <button class="btn btn-outline-primary" type="button" id="saveDurationBtn">
                     <i class="fas fa-save"></i> <?php echo t('save'); ?>

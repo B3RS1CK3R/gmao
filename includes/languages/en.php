@@ -702,6 +702,7 @@ return [
     'days_left'                 => 'days left',
     'popup_display_duration'    => 'Popup display duration',
     'popup_duration_desc'       => 'Set how long popup notifications remain visible on screen before closing automatically.',
+    'backup_reminder'           => 'Backup reminder',
 
     // ==================== CRITICALITY ====================
     'criticality_matrix'        => 'Criticality Matrix',
@@ -750,6 +751,9 @@ return [
     'day_view'                  => 'Day View',
     'week'                      => 'Week',
     'current_week'              => 'Current Week',
+    'minute'                    => 'minute',
+    'seconds'                   => 'seconds',
+    'default'                   => 'default',
 
     // ==================== SETTINGS ====================
     'timezone_offset_label'     => 'Timezone Offset (MySQL)',

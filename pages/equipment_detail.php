@@ -52,8 +52,24 @@ $stmt = $pdo->prepare("
 $stmt->execute(["%ID: {$id}%", "%[{$equipment['code']}]%"]);
 $history = $stmt->fetchAll();
 
-// --- Load Preventive Maintenance Schedule ---
-$stmt = $pdo->prepare("SELECT * FROM preventive_maintenance WHERE equipment_id = ? ORDER BY next_due DESC");
+// --- Load Preventive Maintenance Schedule avec jointures pour les noms ---
+$stmt = $pdo->prepare("
+    SELECT pm.*, 
+            t.id as technician_id,
+            t.firstname, 
+            t.lastname,
+            t.specialty,
+            team.id as team_id,
+            team.name as team_name,
+            c.id as contractor_id,
+            c.company_name as contractor_name
+    FROM preventive_maintenance pm
+    LEFT JOIN technicians t ON pm.technician_id = t.id
+    LEFT JOIN teams team ON pm.team_id = team.id
+    LEFT JOIN contractors c ON pm.contractor_id = c.id
+    WHERE pm.equipment_id = ?
+    ORDER BY pm.next_due ASC
+");
 $stmt->execute([$id]);
 $preventives = $stmt->fetchAll();
 
@@ -64,6 +80,34 @@ $status_labels = [
     'retired' => '⚫ ' . t('retired')
 ];
 ?>
+
+<style>
+    .contractor-badge {
+        font-size: 11px;
+        background: #6f42c1;
+        color: white;
+        padding: 2px 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .badge {
+        font-size: 11px !important;
+        padding: 4px 8px;
+        margin: 2px 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .bg-primary {
+        background: #0d6efd !important;
+        color: white !important;
+    }
+    .bg-info {
+        background: #0dcaf0 !important;
+        color: #000 !important;
+    }
+</style>
 
 <div class="row g-3">
     
@@ -286,10 +330,20 @@ $status_labels = [
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
-                            <tr><th><?php echo t('frequency'); ?></th><th><?php echo t('last_done'); ?></th><th><?php echo t('next_due'); ?></th><th><?php echo t('instructions'); ?></th><th><?php echo t('team'); ?></th></tr>
+                            <tr>
+                                <th><?php echo t('frequency'); ?></th>
+                                <th><?php echo t('last_done'); ?></th>
+                                <th><?php echo t('next_due'); ?></th>
+                                <th><?php echo t('instructions'); ?></th>
+                                <th><?php echo t('assigned_to'); ?></th>
+                            </tr>
                         </thead>
                         <tbody>
-                            <?php foreach($preventives as $pm): ?>
+                            <?php foreach($preventives as $pm): 
+                                $hasTeam = !empty($pm['team_name']);
+                                $hasTech = !empty($pm['firstname']) && !empty($pm['lastname']);
+                                $hasContractor = !empty($pm['contractor_id']) && !empty($pm['contractor_name']);
+                            ?>
                             <tr>
                                 <td><?php echo t('every') . ' ' . $pm['frequency_days'] . ' ' . t('days_s'); ?></td>
                                 <td><?php echo $pm['last_done'] ? format_date_local($pm['last_done'], 'long', false) : t('never'); ?></td>
@@ -299,8 +353,29 @@ $status_labels = [
                                         <span class="badge bg-danger ms-2"><?php echo t('overdue'); ?></span>
                                     <?php endif; ?>
                                 </td>
-                                <td><?php echo nl2br(htmlspecialchars($pm['instructions'])); ?></td>
-                                <td><?php echo htmlspecialchars($pm['assigned_team'] ?: '-'); ?></td>
+                                <td><?php echo nl2br(htmlspecialchars($pm['instructions'] ?: '-')); ?></td>
+                                <td>
+                                    <?php 
+                                    // MÊME AFFICHAGE QUE DANS interventions.php ET preventive.php
+                                    if ($hasTeam && $hasContractor) {
+                                        echo '<span class="badge bg-info"><i class="fas fa-users"></i> ' . htmlspecialchars($pm['team_name']) . '</span>';
+                                        echo '<br><span class="badge contractor-badge"><i class="fas fa-building"></i> ' . htmlspecialchars($pm['contractor_name']) . '</span>';
+                                    } elseif ($hasTech && $hasContractor) {
+                                        echo '<span class="badge bg-primary"><i class="fas fa-user"></i> ' . htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']) . '</span>';
+                                        if ($pm['specialty']) echo '<br><small class="text-muted">' . htmlspecialchars($pm['specialty']) . '</small>';
+                                        echo '<br><span class="badge contractor-badge"><i class="fas fa-building"></i> ' . htmlspecialchars($pm['contractor_name']) . '</span>';
+                                    } elseif ($hasTeam) {
+                                        echo '<span class="badge bg-info"><i class="fas fa-users"></i> ' . htmlspecialchars($pm['team_name']) . '</span>';
+                                    } elseif ($hasContractor) {
+                                        echo '<span class="badge contractor-badge"><i class="fas fa-building"></i> ' . htmlspecialchars($pm['contractor_name']) . '</span>';
+                                    } elseif ($hasTech) {
+                                        echo '<span class="badge bg-primary"><i class="fas fa-user"></i> ' . htmlspecialchars($pm['firstname'] . ' ' . $pm['lastname']) . '</span>';
+                                        if ($pm['specialty']) echo '<br><small class="text-muted">' . htmlspecialchars($pm['specialty']) . '</small>';
+                                    } else {
+                                        echo '<span class="text-muted">' . t('unassigned') . '</span>';
+                                    }
+                                    ?>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -335,14 +410,26 @@ $status_labels = [
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
-                                <tr><th><?php echo t('task_number'); ?></th><th><?php echo t('title'); ?></th><th><?php echo t('priority'); ?></th><th><?php echo t('status'); ?></th><th><?php echo t('date'); ?></th><th><?php echo t('duration'); ?></th><th></th></tr>
+                                <tr>
+                                    <th><?php echo t('task_number'); ?></th>
+                                    <th><?php echo t('title'); ?></th>
+                                    <th><?php echo t('priority'); ?></th>
+                                    <th><?php echo t('status'); ?></th>
+                                    <th><?php echo t('date'); ?></th>
+                                    <th><?php echo t('duration'); ?></th>
+                                    <th></th>
+                                </tr>
                             </thead>
                             <tbody>
                                 <?php foreach($interventions as $inv): ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($inv['task_number'] ?? 'N/A'); ?></td>
                                     <td><?php echo htmlspecialchars($inv['title']); ?></td>
-                                    <td><span class="badge bg-<?php echo $inv['priority'] == 'critical' ? 'danger' : ($inv['priority'] == 'high' ? 'warning' : 'secondary'); ?>"><?php echo t($inv['priority']); ?></span></td>
+                                    <td>
+                                        <span class="badge bg-<?php echo $inv['priority'] == 'critical' ? 'danger' : ($inv['priority'] == 'high' ? 'warning' : 'secondary'); ?>">
+                                            <?php echo t($inv['priority']); ?>
+                                        </span>
+                                    </td>
                                     <td>
                                         <?php 
                                         if($inv['task_status'] == 'a_faire') echo t('to_do');

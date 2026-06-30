@@ -702,6 +702,7 @@ return [
     'days_left'                 => 'jours restants',
     'popup_display_duration'    => 'Durée d\'affichage des popups',
     'popup_duration_desc'       => 'Définissez la durée pendant laquelle les notifications popup restent visibles à l\'écran avant de se fermer automatiquement.',
+    'backup_reminder'           => 'Rappel de sauvegarde',
 
     // ==================== CRITICALITY ====================
     'criticality_matrix'        => 'Matrice de criticité',
@@ -751,6 +752,9 @@ return [
     'day_view'                  => 'Vue quotidienne',
     'week'                      => 'Semaine',
     'current_week'              => 'Semaine actuelle',
+    'minute'                    => 'minute',
+    'seconds'                   => 'secondes',
+    'default'                   => 'défaut',
 
     // ==================== SETTINGS ====================
     'timezone_offset_label'     => 'Décalage horaire (MySQL)',
